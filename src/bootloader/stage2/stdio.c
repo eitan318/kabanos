@@ -1,158 +1,341 @@
-#include <stdarg.h>
+#include "stdio.h"
+#include "utils/math.h"
+#include "vfs.h"
 #include <stdbool.h>
 #include <stdint.h>
 
-#define VGA_WIDTH 80
-#define VGA_HEIGHT 25
-#define VGA_ADDRESS 0xB8000
-static uint16_t* vga_buffer = (uint16_t*)VGA_ADDRESS;
-static int cursor_row = 0;
-static int cursor_col = 0;
+// ============================================================================
+// Output abstraction layer
+// ============================================================================
 
-void clear_screen() {
-    volatile uint16_t* vga = (volatile uint16_t*)VGA_ADDRESS;
-    for (int i = 0; i < VGA_WIDTH * 25; i++) {
-        vga[i] = 0x0F20; // Space with white on black
-    }
-}
-static void put_char(char c, uint8_t color) {
-    if (c == '\n') {
-        cursor_col = 0;
-        cursor_row++;
-        return;
-    }
+typedef struct {
+  void (*putc_fn)(void *ctx, char c);
+  void *context;
+} printf_output_t;
 
-    vga_buffer[cursor_row * VGA_WIDTH + cursor_col] =
-        ((uint16_t)color << 8) | c;
-    cursor_col++;
-    if (cursor_col >= VGA_WIDTH) {
-        cursor_col = 0;
-        cursor_row++;
-    }
+// File descriptor output context
+typedef struct {
+  fd_t file;
+} fd_output_ctx_t;
+
+static void fd_putc(void *ctx, char c) {
+  fd_output_ctx_t *fd_ctx = (fd_output_ctx_t *)ctx;
+  uint8_t byte = (uint8_t)c; // Convert to unsigned first
+  pvfs_write(fd_ctx->file, &byte, sizeof(byte));
 }
 
-// Simple integer printing
-static void print_int(int n, uint8_t color) {
-    char buf[12];
-    int i = 0;
-    int is_negative = 0;
+// Buffer output context
+typedef struct {
+  char *buffer;
+  size_t size;
+  size_t pos;
+} buffer_output_ctx_t;
 
-    if (n == 0) {
-        put_char('0', color);
-        return;
-    }
-
-    if (n < 0) {
-        is_negative = 1;
-        n = -n;
-    }
-
-    while (n > 0) {
-        buf[i++] = '0' + (n % 10);
-        n /= 10;
-    }
-
-    if (is_negative)
-        buf[i++] = '-';
-
-    while (i--)
-        put_char(buf[i], color);
+static void buffer_putc(void *ctx, char c) {
+  buffer_output_ctx_t *buf_ctx = (buffer_output_ctx_t *)ctx;
+  // Only write if there's space (reserve 1 byte for null terminator)
+  if (buf_ctx->pos < buf_ctx->size - 1) {
+    buf_ctx->buffer[buf_ctx->pos] = c;
+  }
+  buf_ctx->pos++; // Always increment to track total chars that would be written
 }
 
-// Simple integer printing
-static void print_uint(int u, uint8_t color) {
-    char buf[12];
-    int i = 0;
+// ============================================================================
+// Core formatting logic (shared by all printf variants)
+// ============================================================================
 
-    if (u == 0) {
-        put_char('0', color);
-        return;
-    }
-
-    while (u > 0) {
-        buf[i++] = '0' + (u % 10);
-        u /= 10;
-    }
-
-    while (i--)
-        put_char(buf[i], color);
+static void output_char(printf_output_t *out, char c) {
+  out->putc_fn(out->context, c);
 }
 
-static void print_hex(uint32_t n, uint8_t color, bool upper) {
-    char buf[10];
-    int i = 0;
+static void output_string(printf_output_t *out, const char *s) {
+  while (*s) {
+    output_char(out, *s);
+    s++;
+  }
+}
 
-    if (n == 0) {
-        put_char('0', color);
-        return;
-    }
+static const char g_hex_chars[] = "0123456789abcdef";
 
-    while (n > 0) {
-        int dig_val = (n % 0x10);
-        if (dig_val < 0xA) {
-            buf[i++] = '0' + dig_val;
+static void output_unsigned(printf_output_t *out, unsigned long long number,
+                            int radix) {
+  char buffer[32];
+  int pos = 0;
+
+  do {
+    uint32_t reminder_out;
+    uint64_t quotient_out;
+    div64_32(number, radix, &quotient_out, &reminder_out);
+    number = quotient_out;
+    buffer[pos] = g_hex_chars[reminder_out];
+    pos++;
+  } while (number > 0);
+
+  // print number in reverse order
+  while (--pos >= 0)
+    output_char(out, buffer[pos]);
+}
+
+static void output_signed(printf_output_t *out, long long number, int radix) {
+  if (number < 0) {
+    output_char(out, '-');
+    output_unsigned(out, -number, radix);
+  } else {
+    output_unsigned(out, number, radix);
+  }
+}
+
+typedef enum {
+  PRINTF_LENGTH_DEFAULT,
+  PRINTF_LENGTH_SHORT,
+  PRINTF_LENGTH_SHORT_SHORT,
+  PRINTF_LENGTH_LONG,
+  PRINTF_LENGTH_LONG_LONG,
+} PrintfLength;
+
+typedef enum {
+  PRINTF_STATE_NORMAL,
+  PRINTF_STATE_LENGTH,
+  PRINTF_STATE_LENGTH_LONG,
+  PRINTF_STATE_LENGTH_SHORT,
+  PRINTF_STATE_SPECIFIER,
+} PrintfState;
+
+// Core printf implementation - works with any output
+static int vprintf_core(printf_output_t *out, const char *format,
+                        va_list args) {
+  PrintfLength length = PRINTF_LENGTH_DEFAULT;
+  PrintfState state = PRINTF_STATE_NORMAL;
+  int chars_written = 0;
+
+  for (; *format != '\0'; format++) {
+    switch (state) {
+    case PRINTF_STATE_NORMAL:
+      if (*format == '%') {
+        state = PRINTF_STATE_LENGTH;
+        length = PRINTF_LENGTH_DEFAULT;
+      } else {
+        output_char(out, *format);
+        chars_written++;
+      }
+      break;
+
+    case PRINTF_STATE_LENGTH:
+      switch (*format) {
+      case 'l':
+        length = PRINTF_LENGTH_LONG;
+        state = PRINTF_STATE_LENGTH_LONG;
+        break;
+      case 'h':
+        length = PRINTF_LENGTH_SHORT;
+        state = PRINTF_STATE_LENGTH_SHORT;
+        break;
+      default:
+        state = PRINTF_STATE_SPECIFIER;
+        format--;
+        break;
+      }
+      break;
+
+    case PRINTF_STATE_LENGTH_LONG:
+      if (*format == 'l') {
+        length = PRINTF_LENGTH_LONG_LONG;
+      } else {
+        format--;
+      }
+      state = PRINTF_STATE_SPECIFIER;
+      break;
+
+    case PRINTF_STATE_LENGTH_SHORT:
+      if (*format == 'h') {
+        length = PRINTF_LENGTH_SHORT_SHORT;
+      } else {
+        format--;
+      }
+      state = PRINTF_STATE_SPECIFIER;
+      break;
+
+    case PRINTF_STATE_SPECIFIER:
+      state = PRINTF_STATE_NORMAL;
+      int radix = 0;
+      bool sign = false;
+      bool number = false;
+
+      switch (*format) {
+      case 'x':
+      case 'X':
+      case 'p':
+        sign = false;
+        radix = 16;
+        number = true;
+        break;
+      case 'd':
+      case 'i':
+        sign = true;
+        radix = 10;
+        number = true;
+        break;
+      case 'u':
+        sign = false;
+        radix = 10;
+        number = true;
+        break;
+      case 'o':
+        sign = false;
+        radix = 8;
+        number = true;
+        break;
+      case 's': {
+        const char *str = va_arg(args, const char *);
+        output_string(out, str);
+        // chars_written += strlen(str); // Could track this if needed
+        break;
+      }
+      case 'c':
+        output_char(out, (char)va_arg(args, int));
+        chars_written++;
+        break;
+      case '%':
+        output_char(out, '%');
+        chars_written++;
+        break;
+      default:
+        output_char(out, '%');
+        output_char(out, *format);
+        chars_written += 2;
+        break;
+      }
+
+      if (number) {
+        if (sign) {
+          switch (length) {
+          case PRINTF_LENGTH_SHORT_SHORT:
+          case PRINTF_LENGTH_SHORT:
+          case PRINTF_LENGTH_DEFAULT:
+            output_signed(out, va_arg(args, int), radix);
+            break;
+          case PRINTF_LENGTH_LONG:
+            output_signed(out, va_arg(args, long), radix);
+            break;
+          case PRINTF_LENGTH_LONG_LONG:
+            output_signed(out, va_arg(args, long long), radix);
+            break;
+          }
         } else {
-            buf[i++] = (upper ? 'A' : 'a') + (dig_val - 0xA);
+          switch (length) {
+          case PRINTF_LENGTH_SHORT_SHORT:
+          case PRINTF_LENGTH_SHORT:
+          case PRINTF_LENGTH_DEFAULT:
+            output_unsigned(out, va_arg(args, unsigned int), radix);
+            break;
+          case PRINTF_LENGTH_LONG:
+            output_unsigned(out, va_arg(args, unsigned long), radix);
+            break;
+          case PRINTF_LENGTH_LONG_LONG:
+            output_unsigned(out, va_arg(args, unsigned long long), radix);
+            break;
+          }
         }
-        n /= 0x10;
+      }
+      break;
     }
+  }
 
-    // print "0x" prefix
-    put_char('0', color);
-    put_char('x', color);
-
-    while (i--)
-        put_char(buf[i], color);
+  return chars_written;
 }
 
-// Simple string printing
-static void print_string(const char* s, uint8_t color) {
-    while (*s) {
-        put_char(*s++, color);
-    }
+// ============================================================================
+// Public API - each variant sets up its output context
+// ============================================================================
+
+void vfprintf(fd_t file, const char *format, va_list args) {
+  fd_output_ctx_t ctx = {.file = file};
+  printf_output_t out = {.putc_fn = fd_putc, .context = &ctx};
+  vprintf_core(&out, format, args);
 }
 
-// Very basic printf
-void printf(const char* fmt, ...) {
-    uint8_t color = 0x07; // light grey on black
-    const char* p = fmt;
-    va_list args;
-    va_start(args, fmt);
+int vsnprintf(char *buffer, size_t size, const char *format, va_list args) {
+  if (size == 0)
+    return 0;
 
-    for (; *p; p++) {
-        if (*p == '%') {
-            p++;
-            switch (*p) {
-            case 'd':
-                print_int(va_arg(args, int), color);
-                break;
-            case 'u':
-                print_uint(va_arg(args, uint32_t), color);
-                break;
-            case 'x':
-                print_hex(va_arg(args, uint32_t), color, false);
-                break;
-            case 'X':
-                print_hex(va_arg(args, uint32_t), color, true);
-                break;
-            case 's':
-                print_string(va_arg(args, const char*), color);
-                break;
-            case 'c':
-                put_char((char)va_arg(args, int), color);
-                break;
-            case '%':
-                put_char('%', color);
-                break;
-                ;
-                break;
-            default:
-                put_char(*p, color);
-            }
-        } else {
-            put_char(*p, color);
-        }
-    }
+  buffer_output_ctx_t ctx = {.buffer = buffer, .size = size, .pos = 0};
+  printf_output_t out = {.putc_fn = buffer_putc, .context = &ctx};
 
-    va_end(args);
+  vprintf_core(&out, format, args);
+
+  // Null-terminate the buffer
+  if (ctx.pos < size) {
+    buffer[ctx.pos] = '\0';
+  } else {
+    buffer[size - 1] = '\0';
+  }
+
+  return ctx.pos; // Return number of chars that would have been written
 }
+
+int vsprintf(char *buffer, const char *format, va_list args) {
+  // Unsafe version - no size limit
+  return vsnprintf(buffer, SIZE_MAX, format, args);
+}
+
+// ============================================================================
+// Convenience wrappers
+// ============================================================================
+
+void fprintf(fd_t file, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  vfprintf(file, fmt, args);
+  va_end(args);
+}
+
+void printf(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  vfprintf(VFS_FD_STDOUT, fmt, args);
+  va_end(args);
+}
+
+void debugf(const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  vfprintf(VFS_FD_DEBUG, fmt, args);
+  va_end(args);
+}
+
+int snprintf(char *buffer, size_t size, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int ret = vsnprintf(buffer, size, fmt, args);
+  va_end(args);
+  return ret;
+}
+
+int sprintf(char *buffer, const char *fmt, ...) {
+  va_list args;
+  va_start(args, fmt);
+  int ret = vsprintf(buffer, fmt, args);
+  va_end(args);
+  return ret;
+}
+
+// ============================================================================
+// Simple character/string functions
+// ============================================================================
+
+void fputc(char c, fd_t file) { pvfs_write(file, (uint8_t *)&c, sizeof(c)); }
+
+void fputs(const char *s, fd_t file) {
+  while (*s) {
+    fputc(*s, file);
+    s++;
+  }
+}
+
+void putc(char c) { fputc(c, VFS_FD_STDOUT); }
+
+void puts(const char *s) { fputs(s, VFS_FD_STDOUT); }
+
+void debugc(char c) { fputc(c, VFS_FD_DEBUG); }
+
+void debugs(const char *s) { fputs(s, VFS_FD_DEBUG); }

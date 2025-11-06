@@ -1,2 +1,2 @@
 ; Auto-generated - do not edit
-STAGE2_SECTORS_TOTAL equ 9
+STAGE2_SECTORS_TOTAL equ 12

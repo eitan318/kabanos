@@ -1,15 +1,19 @@
 ; stage1.asm - MBR bootloader
 bits 16
-
-
 STAGE1_ADDR         equ  0x7C00
 STAGE2_ADDR         equ  0x7E00
+STAGE2_LBA          equ  1
 
 org STAGE1_ADDR
 
-STAGE2_LBA  equ 1
+; Jump over BPB/EBR
+jmp short stage1_start
+nop
 
-; Include auto-generated stage2 size
+; BPB + EBR (59 bytes) - will be filled by mkfs.fat
+times 59 db 0
+
+; Include auto-generated stage2 size AFTER the BPB area
 %include "stage2_sectors.inc"
 
 global stage1_start
