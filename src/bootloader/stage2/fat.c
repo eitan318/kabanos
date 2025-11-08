@@ -44,7 +44,4 @@ void check(DiskParams *disk) {
     debugf("Failed to read boot sector\n");
     return;
   }
-
-  debugf("drive number:%u\n",
-         (unsigned int)g_boot_sector.boot_sector.drive_number);
 }

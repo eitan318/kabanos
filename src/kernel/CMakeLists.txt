@@ -42,7 +42,6 @@ set_target_properties(kernel.elf PROPERTIES
 target_compile_options(kernel.elf PRIVATE
     -ffreestanding
     -nostdlib
-
 )
 
 # Linker flags

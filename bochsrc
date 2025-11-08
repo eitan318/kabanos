@@ -1,0 +1,13 @@
+megs: 32
+romimage: file=/usr/share/bochs/BIOS-bochs-latest
+vgaromimage: file=/usr/share/bochs/VGABIOS-lgpl-latest
+
+boot: disk
+ata0-master: type=disk, path="build/out/os.img", mode=flat
+
+# Enable GUI and debugger
+display_library: sdl2, options="gui_debug"
+log: bochsout.txt
+debug: action=report
+magic_break: enabled=1
+

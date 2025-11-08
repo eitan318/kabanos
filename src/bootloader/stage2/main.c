@@ -15,7 +15,9 @@ uint8_t *Kernel = (uint8_t *)KERNEL_FINEL_ADDR;
 typedef void (*KernelStart)();
 
 void __attribute__((cdecl)) start(uint32_t boot_drive) {
-  vga_clrscr();
+  debugf("Stage2: Initializing...\n");
+  // vga_clrscr();
+  vga_setcursor(0, 0);
 
   debugf("Stage2: Initializing...\n");
   debugf("Boot drive: %x\n", boot_drive);
@@ -28,36 +30,35 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   }
 
   check(&disk_params);
-
   //
   // // Calculate kernel LBA
   // uint32_t kernel_lba = 1 + STAGE2_SECTORS_TOTAL;
-  // printf("Loading %u sectors of kernel from LBA %u to addr%x\n",
+  // debugf("Loading %u sectors of kernel from LBA %u to addr%x\n",
   //        KERNEL_SECTORS_TOTAL, kernel_lba, KERNEL_TEMP_ADDR);
   //
   // // Load kernel
   // if (!disk_read_sectors(&disk_params, kernel_lba, KERNEL_SECTORS_TOTAL,
-  //                        (void*)KERNEL_TEMP_ADDR)) {
-  //     printf("ERROR: Failed to load kernel!\n");
-  //     goto halt;
+  //                        (void *)KERNEL_TEMP_ADDR)) {
+  //   printf("ERROR: Failed to load kernel!\n");
+  //   goto halt;
   // }
-  // printf("Copying kernel from temp addr%x to addr %x\n", KERNEL_TEMP_ADDR,
+  // debugf("Copying kernel from temp addr%x to addr %x\n", KERNEL_TEMP_ADDR,
   //        KERNEL_FINEL_ADDR);
   //
-  // uint8_t* kernel_src = (uint8_t*)KERNEL_TEMP_ADDR;
-  // uint8_t* kernel_dst = (uint8_t*)KERNEL_FINEL_ADDR;
+  // uint8_t *kernel_src = (uint8_t *)KERNEL_TEMP_ADDR;
+  // uint8_t *kernel_dst = (uint8_t *)KERNEL_FINEL_ADDR;
   //
   // memcpy(kernel_dst, kernel_src, KERNEL_SECTORS_TOTAL * 512);
   //
-  // printf("Kernel loaded successfully, jumping...");
+  // debugf("Kernel loaded successfully, jumping...");
   //
   // // execute kernel
   // KernelStart kernelStart = (KernelStart)Kernel;
   // kernelStart();
   //
   // // Should never reach here
-  // printf("ERROR: Kernel returned!\n");
-
+  // debugf("ERROR: Kernel returned!\n");
+  //
 halt:
   debugf("\nSystem halted.\n");
   while (1) {
