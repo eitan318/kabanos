@@ -1,5 +1,5 @@
 #pragma once
-#include "arch/i686/disk.h"
+#include "disk.h"
 #include <stdbool.h>
 #include <stdint.h>
 

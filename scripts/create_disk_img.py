@@ -26,12 +26,14 @@ def main():
     p.add_argument("--boot", required=True)  # bootloader (512-byte MBR expected)
     p.add_argument("--stage2", required=True)  # stage2 binary (arbitrary size)
     p.add_argument("--kernel", required=True)  # kernel to put in FAT12 partition
+    p.add_argument("--boot_cfg", required=True)
     args = p.parse_args()
 
     image = args.image
     boot = args.boot
     stage2 = args.stage2
     kernel = args.kernel
+    boot_cfg = args.boot_cfg
 
     # sanity
     if not os.path.exists(boot):
@@ -40,6 +42,8 @@ def main():
         raise SystemExit("stage2 not found")
     if not os.path.exists(kernel):
         raise SystemExit("kernel not found")
+    if not os.path.exists(boot_cfg):
+        raise SystemExit("boot_cfg not found", boot_cfg)
 
     stage2_size = os.path.getsize(stage2)
     stage2_sectors = math.ceil(stage2_size / SECTOR)
@@ -99,6 +103,10 @@ def main():
 
     # ensure mtools can operate on the file: use -i device for mtools to use image directly
     run(["mcopy", "-i", part_img, kernel, "::kernel.bin"])
+
+    if not os.path.exists(boot_cfg):
+        raise SystemExit("boot.cfg not found")
+    run(["mcopy", "-i", part_img, boot_cfg, "::boot.cfg"])
 
     # print("writing partition image into final image at sector", part_start)
     run(
