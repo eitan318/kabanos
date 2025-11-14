@@ -1,2 +1,2 @@
 // Auto-generated - do not edit
-#define STAGE2_SECTORS_TOTAL 22
+#define STAGE2_SECTORS_TOTAL 25

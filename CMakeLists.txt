@@ -44,6 +44,7 @@ add_subdirectory("${SRC_DIR}/bootloader")
 add_subdirectory("${SRC_DIR}/kernel")
 
 set(OS_IMAGE_OUT ${OUT_DIR}/os.img)
+set(BOOT_CONFIG ${CMAKE_SOURCE_DIR}/boot.cfg)
 
 set(CREATE_IMAGE_PY "${CMAKE_SOURCE_DIR}/scripts/create_disk_img.py")
 add_custom_command(
@@ -54,6 +55,7 @@ add_custom_command(
           --boot ${STAGE1_BIN} 
           --stage2 ${STAGE2_BIN} 
           --kernel ${KERNEL_OUTPUT}
+          --boot_cfg ${BOOT_CONFIG}
   DEPENDS ${STAGE2_BIN} ${STAGE1_BIN} ${KERNEL_OUTPUT}
   COMMENT "Creating partitioned OS image (MBR + stage2 + FAT12 partition)"
 )

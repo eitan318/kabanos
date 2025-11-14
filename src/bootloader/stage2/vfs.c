@@ -1,6 +1,6 @@
 #include "vfs.h"
-#include "arch/i686/e9.h"
-#include "arch/i686/vga_text.h"
+#include "e9.h"
+#include "vga_text.h"
 
 size_t pvfs_write(int fd, uint8_t *buf, size_t size) {
   switch (fd) {

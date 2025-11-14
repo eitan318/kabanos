@@ -1,6 +1,6 @@
 #pragma once
 
-#include "arch/i686/disk.h"
+#include "disk.h"
 #include <stdint.h>
 
 // Function prototypes
