@@ -1,4 +1,10 @@
 #pragma once
 
-#include "disk.h"
-void check(DiskParams *disk);
+#include "arch/i686/disk.h"
+#include <stdint.h>
+
+// Function prototypes
+
+int fat_read_file(const char *path, void *buffer);
+bool fat_initialize(DiskParams *disk, uint32_t partition_lba);
+int check(DiskParams *disk, uint32_t fat_boot_sector_lba);

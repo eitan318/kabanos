@@ -35,24 +35,28 @@ set(BOOTLOADER_OUTPUT ${BOOTLOADER_OUT_DIR}/bootloader.bin)
 set(KERNEL_OUT_DIR ${OUT_DIR}/kernel)
 set(KERNEL_OUTPUT ${KERNEL_OUT_DIR}/kernel.bin)
 
+set(STAGE1_OUT_DIR ${OUT_DIR}/bootloader/stage1)
+set(STAGE2_OUT_DIR ${OUT_DIR}/bootloader/stage2)
+set(STAGE1_BIN ${STAGE1_OUT_DIR}/stage1.bin)
+set(STAGE2_BIN ${STAGE2_OUT_DIR}/stage2.bin)
+
 add_subdirectory("${SRC_DIR}/bootloader")
 add_subdirectory("${SRC_DIR}/kernel")
 
 set(OS_IMAGE_OUT ${OUT_DIR}/os.img)
-set(OS_IMAGE_UNPADDED ${OUT_DIR}/os_unpadded.img)
 
+set(CREATE_IMAGE_PY "${CMAKE_SOURCE_DIR}/scripts/create_disk_img.py")
 add_custom_command(
   OUTPUT ${OS_IMAGE_OUT}
   COMMAND ${CMAKE_COMMAND} -E make_directory ${OUT_DIR}
-  COMMAND ${CMAKE_COMMAND} -E echo "Creating unpadded OS image..."
-  COMMAND cat ${BOOTLOADER_OUTPUT} ${KERNEL_OUTPUT} > ${OS_IMAGE_UNPADDED}
-  COMMAND dd if=/dev/zero of=${OS_IMAGE_OUT} bs=512 count=2880
-  COMMAND dd if=${OS_IMAGE_UNPADDED} of=${OS_IMAGE_OUT} bs=512 conv=notrunc
-  COMMAND ${CMAKE_COMMAND} -E rm -f ${OS_IMAGE_UNPADDED}
-  DEPENDS ${BOOTLOADER_OUTPUT} ${KERNEL_OUTPUT}
-  COMMENT "Creating disk image"
+  COMMAND ${Python_EXECUTABLE} ${CREATE_IMAGE_PY}
+          --image ${OS_IMAGE_OUT}
+          --boot ${STAGE1_BIN} 
+          --stage2 ${STAGE2_BIN} 
+          --kernel ${KERNEL_OUTPUT}
+  DEPENDS ${STAGE2_BIN} ${STAGE1_BIN} ${KERNEL_OUTPUT}
+  COMMENT "Creating partitioned OS image (MBR + stage2 + FAT12 partition)"
 )
-
 
 # Targets
 add_custom_target(os_image ALL DEPENDS ${OS_IMAGE_OUT})

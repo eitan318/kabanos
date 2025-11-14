@@ -22,6 +22,7 @@ bios_check_lba_support:
     push esi
     push edi
 
+    push dword 0  ; assum failiur
     x86_enter_real_mode
     [bits 16]
 
@@ -31,13 +32,11 @@ bios_check_lba_support:
     stc
     int 0x13
 
-    xor eax, eax            ; assume failure
     jc .done
     cmp bx, 0xAA55
     jne .done
-    mov eax, 1              ; success
-    push eax
-
+    mov [esp], dword 1 ; sign success
+   
 .done:
     x86_enter_protected_mode
     [bits 32]
@@ -70,6 +69,7 @@ bios_get_drive_params:
 
     mov dl, [ebp+8]
 
+    push dword 0  ; assum failiur
     x86_enter_real_mode
     [bits 16]
 
@@ -78,14 +78,9 @@ bios_get_drive_params:
     mov es, di
     stc
     int 0x13               ; Get drive parameters
+    jc .done
 
-    ; out params
-    mov eax, 1
-    sbb eax, 0
-    push eax
-
-    cmp eax, 0
-    je .done
+    mov [esp], dword 1 ;sign success
 
     ; drive type from bl
     linear_to_segment_offset [bp + 12], es, esi, si
@@ -145,6 +140,7 @@ bios_read_lba:
     mov si, [ebp + 12]   ; pointer to DAP
 
     ; Enter real mode
+
     x86_enter_real_mode
     [bits 16]
 

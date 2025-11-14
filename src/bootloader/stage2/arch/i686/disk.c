@@ -87,7 +87,8 @@ bool disk_read_sectors(const DiskParams *disk_params, uint32_t lba,
         .start_lba_high = 0};
 
     for (int i = 0; i < reread; i++) {
-      debugf("Loading %u sectors from LBA=%u\n", count,
+      // ERROR: the debug statement currupt mem in func FAT_ReadFile
+      debugf("Loading %hu sectors from LBA=%u\n", count,
              lba); // Fixed format string
       if (bios_read_lba(disk_params->drive_id, &dap)) {
         return true;

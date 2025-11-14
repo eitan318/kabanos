@@ -1,24 +1,35 @@
 // start.c - Stage2 C entry point
-#include "disk.h"
+#include "arch/i686/disk.h"
+#include "arch/i686/gdt.h"
+#include "arch/i686/memory_map.h"
+#include "arch/i686/vga_text.h"
 #include "fat.h"
 #include "kernel_sectors.h"
-#include "memory.h"
+#include "mbr.h"
 #include "stage2_sectors.h"
 #include "stdio.h"
-#include "vga_text.h"
 #include <stdint.h>
 
-#define KERNEL_TEMP_ADDR 0x10000
 #define KERNEL_FINEL_ADDR 0x100000
 
 uint8_t *Kernel = (uint8_t *)KERNEL_FINEL_ADDR;
-typedef void (*KernelStart)();
+typedef void (*KernelStart)(const MBRPartitionEntry *partition_table,
+                            int num_partitions, DiskParams disk_params,
+                            const E820Entry *memory_map,
+                            const int memory_map_entry_count);
 
 void __attribute__((cdecl)) start(uint32_t boot_drive) {
-  vga_clrscr();
+  i686_gdt_init();
 
+  vga_setcursor(0, 0);
   debugf("Stage2: Initializing...\n");
-  debugf("Boot drive: %x\n", boot_drive);
+  //
+  if (!memory_map_init()) {
+    debugf("ERROR: Failed to init memory map\n");
+    goto halt;
+  }
+  const E820Entry *memory_map = memory_map_get();
+  const int memory_map_count = memory_map_count_get();
 
   // Initialize disk
   DiskParams disk_params = {0};
@@ -27,36 +38,30 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
     goto halt;
   }
 
-  check(&disk_params);
+  // Read MBR
+  mbr_read(&disk_params);
+  const MBRPartitionEntry *partition_table = mbr_get_partitions();
+  const int partitions_count = mbr_get_partition_count();
 
-  //
-  // // Calculate kernel LBA
-  // uint32_t kernel_lba = 1 + STAGE2_SECTORS_TOTAL;
-  // printf("Loading %u sectors of kernel from LBA %u to addr%x\n",
-  //        KERNEL_SECTORS_TOTAL, kernel_lba, KERNEL_TEMP_ADDR);
-  //
-  // // Load kernel
-  // if (!disk_read_sectors(&disk_params, kernel_lba, KERNEL_SECTORS_TOTAL,
-  //                        (void*)KERNEL_TEMP_ADDR)) {
-  //     printf("ERROR: Failed to load kernel!\n");
-  //     goto halt;
-  // }
-  // printf("Copying kernel from temp addr%x to addr %x\n", KERNEL_TEMP_ADDR,
-  //        KERNEL_FINEL_ADDR);
-  //
-  // uint8_t* kernel_src = (uint8_t*)KERNEL_TEMP_ADDR;
-  // uint8_t* kernel_dst = (uint8_t*)KERNEL_FINEL_ADDR;
-  //
-  // memcpy(kernel_dst, kernel_src, KERNEL_SECTORS_TOTAL * 512);
-  //
-  // printf("Kernel loaded successfully, jumping...");
-  //
-  // // execute kernel
-  // KernelStart kernelStart = (KernelStart)Kernel;
-  // kernelStart();
-  //
-  // // Should never reach here
-  // printf("ERROR: Kernel returned!\n");
+  debugf("\nInitializing FAT filesystem from partition 1...\n");
+  if (!fat_initialize(&disk_params, partition_table[0].lba_start)) {
+    debugf("ERROR: Failed to initialize FAT filesystem!\n");
+    goto halt;
+  }
+
+  int kernel_size = fat_read_file("/kernel.bin", (void *)KERNEL_FINEL_ADDR);
+
+  if (kernel_size < 0) {
+    debugf("ERROR: Failed to load kernel (error code: %d)!\n", kernel_size);
+    goto halt;
+  }
+
+  debugf("Kernel loaded successfully, jumping...\n");
+  KernelStart kernelStart = (KernelStart)KERNEL_FINEL_ADDR;
+  kernelStart(partition_table, partitions_count, disk_params, memory_map,
+              memory_map_count);
+
+  debugf("ERROR: Kernel returned!\n");
 
 halt:
   debugf("\nSystem halted.\n");

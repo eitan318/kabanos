@@ -59,11 +59,12 @@ uint8_t vga_get_color(void) { return g_CurrentColor; }
 
 // Clear screen
 void vga_clrscr() {
-  for (int y = 0; y < SCREEN_HEIGHT; y++)
+  for (int y = 0; y < SCREEN_HEIGHT; y++) {
     for (int x = 0; x < SCREEN_WIDTH; x++) {
       vga_putchr(x, y, '\0');
       vga_putcolor(x, y, g_CurrentColor);
     }
+  }
   g_ScreenX = 0;
   g_ScreenY = 0;
   vga_setcursor(g_ScreenX, g_ScreenY);
