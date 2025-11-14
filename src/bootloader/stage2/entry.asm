@@ -22,7 +22,6 @@ DATA_SEG_16b       equ 0x20      ; 16-bit data segment selector
 
 ; --- Stack setup ---
 STACK_16_END   equ 0xFFF0    ; Temporary 16-bit stack (real mode)
-STACK_32_START equ 0x9000   ; 32-bit stack top (protected mode)
 
 ; --- CR0 flags ---
 CR0_PE         equ 0x01      ; Protection Enable bit (bit 0)
@@ -66,7 +65,7 @@ stage2_entry:
     mov ss, ax
     
     ; Setup stack
-    mov esp, STACK_32_START
+    mov esp, stage2_entry
    
     ; Clear BSS (uninitialized data)
     mov edi, __bss_start

@@ -24,9 +24,17 @@ typedef struct __attribute__((packed)) {
   uint32_t total_sectors;
 } MBRPartitionEntry;
 
+typedef struct {
+  uint64_t base;
+  uint64_t length;
+  uint32_t type;
+  uint32_t acpi_flags;
+} __attribute__((packed)) E820Entry;
+
 void __attribute__((section(".entry")))
 start(const MBRPartitionEntry *partition_table, int partitions_count,
-      DiskParams disk_params) {
+      DiskParams disk_params, const E820Entry *memory_map,
+      const int memory_map_entry_count) {
 
   memset(&__bss_start, 0, (&__end) - (&__bss_start));
   clear_screen();
@@ -41,11 +49,21 @@ start(const MBRPartitionEntry *partition_table, int partitions_count,
            p.lba_start, p.total_sectors);
   }
 
+  printf("Memory map:\n"
+         "Base | Length | Type | ACPI flags\n"
+         "-----------------------------------------------\n");
+
+  for (int i = 0; i < memory_map_entry_count; i++) {
+    E820Entry e = memory_map[i];
+    printf("%d |  0x%X | 0x%X | %u | %u\n", i, e.base, e.length, e.type,
+           e.acpi_flags);
+  }
+
   printf("===== Disk Parameters =====\n"
          "Cylinders    : %u\n"
          "Heads        : %u\n"
          "Sectors/Track: %u\n"
-         "Drive ID     : 0x%02X\n"
+         "Drive ID     : %X\n"
          "HDD Count    : %u\n"
          "LBA Support  : %s\n"
          "===========================\n",
