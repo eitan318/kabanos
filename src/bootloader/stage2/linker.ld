@@ -7,7 +7,7 @@ ENTRY(stage2_entry)
 SECTIONS
 {
     /* Where stage2 is loaded in memory */
-    . = 0x7E00;
+    . = 0x9000;
 
     /* 16-bit entry code */
     .entry : {

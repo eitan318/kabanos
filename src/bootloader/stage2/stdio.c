@@ -70,10 +70,13 @@ static void output_unsigned(printf_output_t *out, unsigned long long number,
     buffer[pos] = g_hex_chars[reminder_out];
     pos++;
   } while (number > 0);
-
-  // print number in reverse order
-  while (--pos >= 0)
-    output_char(out, buffer[pos]);
+  for (int i = pos - 1; i >= 0; i--) {
+    if (pos < 0 || pos >= 32) {
+      // Add a breakpoint or error message here
+      break;
+    }
+    output_char(out, buffer[i]);
+  }
 }
 
 static void output_signed(printf_output_t *out, long long number, int radix) {

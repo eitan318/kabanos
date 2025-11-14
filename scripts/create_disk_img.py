@@ -60,12 +60,10 @@ def main():
     )
 
     # create blank image
-    print("creating blank image:", image)
     with open(image, "wb") as f:
         f.truncate(TOTAL_SECTORS * SECTOR)
 
     # write bootloader (MBR) into sector 0 (not truncating)
-    print("writing bootloader (MBR) to sector 0")
     run(
         [
             "dd",
@@ -78,7 +76,6 @@ def main():
     )
 
     # write stage2 at offset sector 1
-    print("writing stage2 to sector 1..")
     run(
         [
             "dd",
@@ -93,22 +90,17 @@ def main():
     # create a temporary file for the partition (the raw partition contents)
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         part_img = tmp.name
-    print("creating temporary partition image:", part_img)
+
     with open(part_img, "wb") as f:
         f.truncate(part_sectors * SECTOR)
 
     # Format the partition image as FAT12 (requires mkfs.fat - part of dosfstools)
-    print("mkfs.fat -F 12 on partition image (requires mkfs.fat/dosfstools).")
     run(["mkfs.fat", "-F", "12", part_img])
 
-    # Use mtools (mcopy) to copy kernel into the root of the FAT12 image.
-    # mtools uses environment variable MTOOLS_SKIP_CHECK=1 sometimes needed
-    print("copying kernel into partition image (requires mtools 'mcopy').")
     # ensure mtools can operate on the file: use -i device for mtools to use image directly
     run(["mcopy", "-i", part_img, kernel, "::kernel.bin"])
 
-    # write partition image into final image at partition start
-    print("writing partition image into final image at sector", part_start)
+    # print("writing partition image into final image at sector", part_start)
     run(
         [
             "dd",
@@ -120,9 +112,7 @@ def main():
         ]
     )
 
-    # create partition table with sfdisk: type 0x01 is FAT12
-    # sfdisk input format: start,size,type,bootable
-    print("writing partition table with sfdisk (type 0x01 = FAT12)")
+    # print("writing partition table with sfdisk (type 0x01 = FAT12)")
     sfdisk_input = "{} , {} , 1 , *\n".format(part_start, part_sectors)
     # We feed sfdisk through stdin
     proc = subprocess.run(["sfdisk", image], input=sfdisk_input.encode("utf-8"))
