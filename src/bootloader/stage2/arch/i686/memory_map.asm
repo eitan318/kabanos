@@ -1,12 +1,7 @@
-; ============================================================
-; bios_fill_memory_map(e820_entry_t* buf, int max_entries)
-; ============================================================
 ; 32-bit cdecl:
+; extern bool bios_fill_memory_map(E820Entry *buf, int max_entries);
 ;   [esp+4]  = pointer to buffer (linear)
 ;   [esp+8]  = max entries
-;
-; Each entry is 20 bytes (0x14)
-;
 [BITS 32]
 global bios_fill_memory_map
 %include "mode_switch.inc"
@@ -19,23 +14,14 @@ bios_fill_memory_map:
     push esi
     push edi
 
-    mov edi, [ebp+8]     ; pointer to buffer
     mov esi, [ebp+12]    ; max entries
-    mov edx, edi         ; save start for ES:DI conversion later
 
     ; switch to real mode
     x86_enter_real_mode
 
 [BITS 16]
 
-    ; Convert protected-mode pointer → segment:offset
-    ; real-mode ES:DI must point to memory <1MB
-    ; you MUST identity-map the first MB in paging
-    mov ax, dx
-    shr dx, 4
-    and ax, 0xF
-    mov es, dx
-    mov di, ax
+    linear_to_segment_offset [ebp+8], es, edi, di
 
     xor ebx, ebx          ; continuation = 0
     mov ecx, 20h          ; size of entry = 32 bytes
@@ -46,6 +32,7 @@ bios_fill_memory_map:
     int 0x15
     xor eax, eax  ; assume failiur
     jc .done              ; CF=1 → stop
+    mov eax, 1 ; success
 
     test ebx, ebx
     jz .done              ; no more entries
@@ -54,10 +41,9 @@ bios_fill_memory_map:
     dec si
     jnz .next
 
-    mov eax, 1
-    push eax
 
 .done:
+    push eax
     ; back to protected mode
     x86_enter_protected_mode
 

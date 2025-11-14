@@ -8,6 +8,8 @@ typedef struct {
   uint64_t length;
   uint32_t type;
   uint32_t acpi_flags;
+  uint32_t reserved1;
+  uint32_t reserved2;
 } __attribute__((packed)) E820Entry;
 
 bool memory_map_init();

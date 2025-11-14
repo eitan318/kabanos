@@ -23,7 +23,13 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
 
   vga_setcursor(0, 0);
   debugf("Stage2: Initializing...\n");
-  debugf("Boot drive: %x\n", boot_drive);
+  //
+  if (!memory_map_init()) {
+    debugf("ERROR: Failed to init memory map\n");
+    goto halt;
+  }
+  const E820Entry *memory_map = memory_map_get();
+  const int memory_map_count = memory_map_count_get();
 
   // Initialize disk
   DiskParams disk_params = {0};
@@ -49,13 +55,6 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
     debugf("ERROR: Failed to load kernel (error code: %d)!\n", kernel_size);
     goto halt;
   }
-
-  if (!memory_map_init()) {
-    debugf("ERROR: Failed to init memory map\n", kernel_size);
-    goto halt;
-  }
-  const E820Entry *memory_map = memory_map_get();
-  const int memory_map_count = memory_map_count_get();
 
   debugf("Kernel loaded successfully, jumping...\n");
   KernelStart kernelStart = (KernelStart)KERNEL_FINEL_ADDR;
