@@ -44,7 +44,7 @@ add_subdirectory("${SRC_DIR}/bootloader")
 add_subdirectory("${SRC_DIR}/kernel")
 
 set(OS_IMAGE_OUT ${OUT_DIR}/os.img)
-set(BOOT_CONFIG ${CMAKE_SOURCE_DIR}/boot.cfg)
+set(BOOT_CONFIG ${CMAKE_SOURCE_DIR}/BOOT/boot.cfg)
 
 set(CREATE_IMAGE_PY "${CMAKE_SOURCE_DIR}/scripts/create_disk_img.py")
 add_custom_command(

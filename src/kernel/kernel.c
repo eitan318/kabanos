@@ -1,4 +1,5 @@
 #include "arch/i686/vga_text.h"
+#include "boot/bootparams.h"
 #include "include/memory.h"
 #include "include/stdio.h"
 #include <stdbool.h>
@@ -6,121 +7,6 @@
 
 extern uint8_t __bss_start;
 extern uint8_t __end;
-
-typedef struct DiskParams {
-  uint8_t hdds_count;
-  uint8_t drive_id;
-  uint16_t cylinders;
-  uint16_t sectors;
-  uint16_t heads;
-  bool lba_support;
-} DiskParams;
-
-typedef struct __attribute__((packed)) {
-  uint8_t boot_flag;      // 0x80 = bootable, 0x00 = non-bootable
-  uint8_t chs_start[3];   // CHS address of first sector (ignored by LBA)
-  uint8_t partition_type; // 0x01=FAT12, 0x0B/F=FAT32, etc
-  uint8_t chs_end[3];
-  uint32_t lba_start;
-  uint32_t total_sectors;
-} MBRPartitionEntry;
-
-typedef struct {
-  uint64_t base;
-  uint64_t length;
-  uint32_t type;
-  uint32_t acpi_flags;
-  uint32_t reserved1;
-  uint32_t reserved2;
-} __attribute__((packed)) E820Entry;
-
-// Structure to pass CPU info to kernel
-typedef struct {
-  // Basic CPUID info
-  uint32_t max_basic_cpuid;
-  uint32_t max_extended_cpuid;
-  char vendor[13];
-
-  // CPU features (CPUID.01H)
-  uint32_t stepping : 4;
-  uint32_t model : 4;
-  uint32_t family : 4;
-  uint32_t processor_type : 2;
-  uint32_t extended_model : 4;
-  uint32_t extended_family : 8;
-
-  // Feature flags from EDX (CPUID.01H)
-  bool fpu;   // x87 FPU
-  bool pse;   // Page Size Extension
-  bool pae;   // Physical Address Extension
-  bool msr;   // Model Specific Registers
-  bool apic;  // APIC on chip
-  bool sep;   // SYSENTER/SYSEXIT
-  bool mtrr;  // Memory Type Range Registers
-  bool pge;   // Page Global Enable
-  bool cmov;  // CMOV instruction
-  bool pat;   // Page Attribute Table
-  bool pse36; // 36-bit PSE
-  bool mmx;   // MMX Technology
-  bool fxsr;  // FXSAVE/FXRSTOR
-  bool sse;   // SSE
-  bool sse2;  // SSE2
-  bool htt;   // Hyper-Threading Technology
-
-  // Feature flags from ECX (CPUID.01H)
-  bool sse3;   // SSE3
-  bool ssse3;  // SSSE3
-  bool sse4_1; // SSE4.1
-  bool sse4_2; // SSE4.2
-  bool x2apic; // x2APIC
-  bool aes;    // AES instruction set
-  bool xsave;  // XSAVE/XRSTOR
-  bool avx;    // AVX
-  bool rdrand; // RDRAND
-
-  // Extended features (CPUID.07H)
-  bool fsgsbase; // FSGSBASE instructions
-  bool bmi1;     // Bit Manipulation Instruction Set 1
-  bool bmi2;     // Bit Manipulation Instruction Set 2
-  bool avx2;     // AVX2
-  bool smep;     // Supervisor Mode Execution Prevention
-  bool smap;     // Supervisor Mode Access Prevention
-  bool avx512f;  // AVX-512 Foundation
-  bool rdseed;   // RDSEED instruction
-  bool sha;      // SHA extensions
-
-  // Extended CPUID info
-  bool syscall; // SYSCALL/SYSRET
-  bool nx;      // No-Execute bit
-  bool pdpe1gb; // 1GB pages
-  bool rdtscp;  // RDTSCP instruction
-  bool lm;      // Long mode (64-bit)
-
-  // Cache info
-  uint32_t cache_line_size;
-  uint32_t l2_cache_size; // KB
-  uint32_t l3_cache_size; // KB
-
-  // Processor counts
-  uint32_t logical_processors;
-  uint32_t cores_per_package;
-
-  // Address sizes
-  uint32_t phys_addr_bits;
-  uint32_t virt_addr_bits;
-
-} CPUInfo;
-
-typedef struct {
-  const MBRPartitionEntry *partition_table;
-  int partitions_count;
-  DiskParams disk_params;
-  const E820Entry *memory_map;
-  int memory_map_entry_count;
-  CPUInfo *cpu_info;
-  char *cmdline_buffer;
-  int cmdline_size;
-} BootInfo;
 
 void print_partition_table(const MBRPartitionEntry *partition_table,
                            const int partitions_count) {
@@ -135,17 +21,16 @@ void print_partition_table(const MBRPartitionEntry *partition_table,
   }
 }
 
-void print_memory_map(const E820Entry *memory_map,
-                      const int memory_map_entry_count) {
+void print_memory_map(MemoryMap memory_map) {
   debugf("\nMemory map:\n"
          "Idx | Base  |  Length    | Type | ACPI\n"
          "-----------------------------------------------------------------\n");
 
-  for (int i = 0; i < memory_map_entry_count; i++) {
-    E820Entry *e = &memory_map[i];
+  for (int i = 0; i < memory_map.region_count; i++) {
+    const MemoryRegion *e = &memory_map.regions[i];
 
-    debugf("%d | %llu | %llu | %u | %u\n", i, e->base, e->length, e->type,
-           e->acpi_flags);
+    debugf("%x | %llx | %llx | %x | %x\n", i, e->base, e->length, e->type,
+           e->acpi_flag);
   }
 }
 
@@ -241,16 +126,21 @@ void print_cmdline(char *cmdline, const int cmdline_size) {
   debugf("\nCmdline: %s", cmdline);
 }
 
-void __attribute__((section(".entry"))) start(BootInfo *bootInfo) {
+void load_modules() {}
+
+void __attribute__((section(".entry"))) start(BootParams boot_params) {
   memset(&__bss_start, 0, (&__end) - (&__bss_start));
   vga_clrscr();
   vga_setcursor(0, 0);
 
-  print_partition_table(bootInfo->partition_table, bootInfo->partitions_count);
-  print_memory_map(bootInfo->memory_map, bootInfo->memory_map_entry_count);
-  print_disk_params(&bootInfo->disk_params);
-  print_cpu_info(bootInfo->cpu_info);
-  print_cmdline(bootInfo->cmdline_buffer, bootInfo->cmdline_size);
+  print_partition_table(boot_params.partition_table,
+                        boot_params.partitions_count);
+  print_memory_map(boot_params.memory_map);
+  print_disk_params(&boot_params.disk_params);
+  print_cpu_info(boot_params.cpu_info);
+  print_cmdline(boot_params.cmdline_buffer, boot_params.cmdline_size);
+
+  load_modules();
 
   for (;;) {
   }
