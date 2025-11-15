@@ -142,7 +142,7 @@ void print_memory_map(const E820Entry *memory_map,
          "-----------------------------------------------------------------\n");
 
   for (int i = 0; i < memory_map_entry_count; i++) {
-    E820Entry *e = &memory_map[i];
+    const E820Entry *e = &memory_map[i];
 
     debugf("%d | %llu | %llu | %u | %u\n", i, e->base, e->length, e->type,
            e->acpi_flags);
@@ -241,6 +241,8 @@ void print_cmdline(char *cmdline, const int cmdline_size) {
   debugf("\nCmdline: %s", cmdline);
 }
 
+void load_modules() {}
+
 void __attribute__((section(".entry"))) start(BootInfo *bootInfo) {
   memset(&__bss_start, 0, (&__end) - (&__bss_start));
   vga_clrscr();
@@ -251,6 +253,8 @@ void __attribute__((section(".entry"))) start(BootInfo *bootInfo) {
   print_disk_params(&bootInfo->disk_params);
   print_cpu_info(bootInfo->cpu_info);
   print_cmdline(bootInfo->cmdline_buffer, bootInfo->cmdline_size);
+
+  load_modules();
 
   for (;;) {
   }
