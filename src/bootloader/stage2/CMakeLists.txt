@@ -9,15 +9,22 @@ file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 set(GENERATED_DIR ${CMAKE_BINARY_DIR}/generated)
 set(KERNEL_SECTORS_HEADER ${GENERATED_DIR}/kernel_sectors.inc)
 
+# Define include directories
+set(STAGE2_INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${SRC_DIR}/libs
+    ${GENERATED_DIR}
+)
+
 # Gather sources
-file(GLOB_RECURSE STAGE2_C_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.c)
+file(GLOB_RECURSE STAGE2_C_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.c ${SRC_DIR}/libs/*.c)
 file(GLOB_RECURSE STAGE2_ASM_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.asm)
 
 # NASM include directories - include generated headers
-set(NASM_INCLUDE_DIRS 
-    -I${CMAKE_CURRENT_SOURCE_DIR}
-    -I${GENERATED_DIR}
-)
+set(NASM_INCLUDE_DIRS "")
+foreach(DIR ${STAGE2_INCLUDE_DIRS})
+    list(APPEND NASM_INCLUDE_DIRS "-I${DIR}")
+endforeach()
 
 # Assemble ASM sources to ELF32 objects (so they can link with 32-bit C)
 set(STAGE2_ASM_OBJECTS "")
@@ -30,7 +37,7 @@ foreach(ASM_SOURCE IN LISTS STAGE2_ASM_SOURCES)
     add_custom_command(
         OUTPUT ${ASM_OBJECT}
         COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/${ASM_REL_DIR}"
-        COMMAND nasm -f elf32 ${ASM_SOURCE} -o ${ASM_OBJECT} -g -F dwarf ${NASM_INCLUDE_DIRS}
+        COMMAND nasm -f elf32 ${NASM_INCLUDE_DIRS} ${ASM_SOURCE} -o ${ASM_OBJECT} -g -F dwarf
         DEPENDS ${ASM_SOURCE}
         COMMENT "Compiling ASM: ${ASM_SOURCE}"
     )
@@ -47,6 +54,7 @@ add_executable(stage2.elf
 set_target_properties(stage2.elf PROPERTIES
     LINKER_LANGUAGE C
     RUNTIME_OUTPUT_DIRECTORY ${STAGE2_OUT_DIR}
+    LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/linker.ld
 )
 
 # Compiler flags for 32-bit freestanding build
@@ -56,15 +64,13 @@ target_compile_options(stage2.elf PRIVATE
 )
 
 # Include dirs for C code (and generated header)
-target_include_directories(stage2.elf PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}
-    ${GENERATED_DIR}
-)
+target_include_directories(stage2.elf PRIVATE ${STAGE2_INCLUDE_DIRS})
 
 # Linker flags - link to a flat layout for loading at the stage1-chosen address
 target_link_options(stage2.elf PRIVATE
     -nostdlib
-    -T${CMAKE_CURRENT_SOURCE_DIR}/linker.ld
+    LINKER:-m,elf_i386
+    LINKER:-T,${CMAKE_CURRENT_SOURCE_DIR}/linker.ld
 )
 
 # Paths for outputs
@@ -84,14 +90,13 @@ add_custom_command(
     OUTPUT ${STAGE2_BIN}
     COMMAND ${CMAKE_COMMAND} -E echo "Padding ${STAGE2_BIN_UNPADDED} to sector boundary → ${STAGE2_BIN}"
     COMMAND dd if=${STAGE2_BIN_UNPADDED} of=${STAGE2_BIN} bs=512 conv=sync status=none
-    COMMAND rm -f ${STAGE2_BIN_UNPADDED}
+    COMMAND ${CMAKE_COMMAND} -E rm -f ${STAGE2_BIN_UNPADDED}
     DEPENDS ${STAGE2_BIN_UNPADDED}
     COMMENT "Padding stage2 to sector boundary"
     VERBATIM
 )
 
 # Generate stage2_sectors.h (readable by stage1.asm)
-set(STAGE2_SECTORS_C_HEADER ${SRC_DIR}/bootloader/stage2/stage2_sectors.h)
 set(STAGE2_SECTORS_ASM_HEADER ${SRC_DIR}/bootloader/stage1/stage2_sectors.inc)
 
 # Create a CMake script to generate the header
@@ -101,17 +106,14 @@ math(EXPR STAGE2_SECTORS \"(\${STAGE2_SIZE} + 511) / 512\")
 file(MAKE_DIRECTORY \"\${GENERATED_DIR}\")
 file(WRITE \"\${STAGE2_SECTORS_ASM_HEADER}\" \"; Auto-generated - do not edit\\n\")
 file(APPEND \"\${STAGE2_SECTORS_ASM_HEADER}\" \"STAGE2_SECTORS_TOTAL equ \${STAGE2_SECTORS}\\n\")
-    file(WRITE \"\${STAGE2_SECTORS_C_HEADER}\" \"// Auto-generated - do not edit\\n\")
-    file(APPEND \"\${STAGE2_SECTORS_C_HEADER}\" \"#define STAGE2_SECTORS_TOTAL \${STAGE2_SECTORS}\\n\")
 message(STATUS \"Stage2: \${STAGE2_SIZE} bytes = \${STAGE2_SECTORS} sectors\")
 ")
 
 add_custom_command(
-    OUTPUT ${STAGE2_SECTORS_ASM_HEADER} ${STAGE2_SECTORS_C_HEADER}
+    OUTPUT ${STAGE2_SECTORS_ASM_HEADER}
     COMMAND ${CMAKE_COMMAND} 
         -DSTAGE2_BIN=${STAGE2_BIN}
         -DGENERATED_DIR=${GENERATED_DIR}
-        -DSTAGE2_SECTORS_C_HEADER=${STAGE2_SECTORS_C_HEADER}
         -DSTAGE2_SECTORS_ASM_HEADER=${STAGE2_SECTORS_ASM_HEADER}
         -P ${CMAKE_BINARY_DIR}/generate_stage2_sectors.cmake
     DEPENDS ${STAGE2_BIN}
@@ -121,8 +123,7 @@ add_custom_command(
 
 # Bootloader stage2 target depends on final binary + generated header
 add_custom_target(bootloader_stage2 ALL 
-    DEPENDS ${STAGE2_BIN} ${STAGE2_SECTORS_C_HEADER} ${STAGE2_SECTORS_ASM_HEADER}
+    DEPENDS ${STAGE2_BIN} ${STAGE2_SECTORS_ASM_HEADER}
 )
 
 add_dependencies(bootloader_stage2 kernel)
-

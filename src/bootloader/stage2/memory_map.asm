@@ -1,59 +1,72 @@
-; 32-bit cdecl:
-; extern bool bios_fill_memory_map(E820Entry *buf, int max_entries);
-;   [esp+4]  = pointer to buffer (linear)
-;   [esp+8]  = max entries
 [BITS 32]
-global bios_fill_memory_map
+global x86_e820_get_next_block 
+
 %include "mode_switch.inc"
 
-bios_fill_memory_map:
-    push ebp
-    mov ebp, esp
+e820_signature   equ 0x534D4150
+;
+; int ASMCALL x86_E820GetNextBlock(E820MemoryBlock* block, uint32_t* continuationId);
+;
+x86_e820_get_next_block:
 
-    push ebx
-    push esi
-    push edi
+    ; make new call frame
+    push ebp             ; save old call frame
+    mov ebp, esp          ; initialize new call frame
 
-    mov esi, [ebp+12]    ; max entries
-
-    ; switch to real mode
     x86_enter_real_mode
 
-[BITS 16]
+    ; save modified regs
+    push ebx
+    push ecx
+    push edx
+    push esi
+    push edi
+    push ds
+    push es
 
-    linear_to_segment_offset [ebp+8], es, edi, di
+    ; setup params
+    linear_to_segment_offset [bp + 8], es, edi, di     ; es:di pointer to structure
+    
+    linear_to_segment_offset [bp + 12], ds, esi, si    ; ebx - pointer to continuationId
+    mov ebx, ds:[si]
 
-    xor ebx, ebx          ; continuation = 0
-    mov ecx, 20h          ; size of entry = 32 bytes
-    mov edx, 0x534D4150   ; "SMAP"
+    mov eax, 0xE820                             ; eax - function
+    mov edx, e820_signature                      ; edx - signature
+    mov ecx, 24                                 ; ecx - size of structure
 
-.next:
-    mov eax, 0xE820
+    ; call interrupt
     int 0x15
-    xor eax, eax  ; assume failiur
-    jc .done              ; CF=1 → stop
-    mov eax, 1 ; success
 
-    test ebx, ebx
-    jz .done              ; no more entries
+    ; test results
+    cmp eax,e820_signature 
+    jne .error
 
-    add di, 20h           ; next entry
-    dec si
-    jnz .next
+    .if_success:
+        mov eax, ecx            ; return size
+        mov ds:[si], ebx        ; fill continuation parameter
+        jmp .endif
 
+    .error:
+        mov eax, -1
 
-.done:
-    push eax
-    ; back to protected mode
-    x86_enter_protected_mode
+    .endif:
 
-[BITS 32]
-    pop eax
-
+    ; restore regs
+    pop es
+    pop ds
     pop edi
     pop esi
+    pop edx
+    pop ecx
     pop ebx
+
+    push eax
+
+    x86_enter_protected_mode
+
+    pop eax
+
+    ; restore old call frame
     mov esp, ebp
     pop ebp
     ret
-

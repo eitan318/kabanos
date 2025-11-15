@@ -17,15 +17,15 @@ typedef struct {
 } VideoMode;
 
 typedef struct {
-  char *root_device;
   char *kernel;
   char *initrd;
   Module modules[MAX_MODULES];
   int module_count;
-  bool debug_enabled;
   VideoMode video;
+  char *cmdline;
 } BCD;
 
-void bcd_cmdline_construct(BCD *bcd, char *cmdline);
+void bcd_cmdline_construct(const char *bcd_cmdline, const int bcd_cmdline_size,
+                           char *out);
 void bcd_parse_into(char *boot_config, BCD *out);
 void load_initrd(char *initrd_path);

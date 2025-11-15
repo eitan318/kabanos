@@ -73,51 +73,18 @@ static void video_to_str(VideoMode *v, char *out) {
 }
 
 // Construct kernel command line from BCD
-void bcd_cmdline_construct(BCD *bcd, char *cmdline) {
-  char *p = cmdline;
-
-  // root=
-  if (bcd->root_device) {
-    strcpy(p, "root=");
-    p += 5; // strlen("root=")
-    strcpy(p, bcd->root_device);
-    p += strlen(bcd->root_device);
-    *p++ = ' ';
-  }
-
-  // debug
-  if (bcd->debug_enabled) {
-    strcpy(p, "debug ");
-    p += 6; // strlen("debug ")
-  }
-
-  // video
-  if (bcd->video.width || bcd->video.height || bcd->video.bpp ||
-      bcd->video.type) {
-    strcpy(p, "video=");
-    p += 6; // strlen("video=")
-    char buf[32];
-    video_to_str(&bcd->video, buf);
-    strcpy(p, buf);
-    p += strlen(buf);
-    *p++ = ' ';
-  }
-
-  // Terminate - remove trailing space
-  if (p != cmdline && p[-1] == ' ')
-    p[-1] = '\0';
-  else
-    *p = '\0';
+void bcd_cmdline_construct(const char *bcd_cmdline, const int bcd_cmdline_size,
+                           char *out) {
+  strncpy(out, bcd_cmdline, bcd_cmdline_size - 1);
+  out[bcd_cmdline_size - 1] = '\0';
 }
 
 // Parse boot configuration file
 void bcd_parse_into(char *boot_config, BCD *out) {
   // Initialize structure
-  out->root_device = NULL;
   out->kernel = NULL;
   out->initrd = NULL;
   out->module_count = 0;
-  out->debug_enabled = 0;
   out->video = (VideoMode){0};
 
   // Parse line by line (newline-delimited)
@@ -138,17 +105,15 @@ void bcd_parse_into(char *boot_config, BCD *out) {
       out->kernel = line + 7;
     } else if (starts_with(line, "initrd=")) {
       out->initrd = line + 7;
-    } else if (starts_with(line, "root=")) {
-      out->root_device = line + 5;
     } else if (starts_with(line, "video=")) {
       out->video = str_to_video(line + 6);
+    } else if (starts_with(line, "cmdline=")) {
+      out->cmdline = line + 8;
     } else if (starts_with(line, "module=")) {
       if (out->module_count < MAX_MODULES) {
         out->modules[out->module_count].path = line + 7;
         out->module_count++;
       }
-    } else if (!strcmp(line, "debug")) {
-      out->debug_enabled = 1;
     }
 
     line = strtok(NULL, "\n\r");

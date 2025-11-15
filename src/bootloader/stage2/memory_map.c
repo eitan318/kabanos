@@ -1,21 +1,30 @@
 #include "memory_map.h"
-#define MAX_E820_ENTRIES 32
+#include "stdio.h"
 
-E820Entry memory_map[MAX_E820_ENTRIES];
+#define MAX_REGIONS 256
 
-extern bool bios_fill_memory_map(E820Entry *buf, int max_entries);
+MemoryRegion g_mem_regions[MAX_REGIONS];
+int g_mem_region_count;
 
-bool memory_map_init() {
-  return bios_fill_memory_map(memory_map, MAX_E820_ENTRIES);
-}
+void memory_map_detect(MemoryMap *memory_map) {
+  MemoryRegion block;
+  uint32_t continuation = 0;
+  int ret;
 
-E820Entry *memory_map_get() { return memory_map; }
+  g_mem_region_count = 0;
+  ret = x86_e820_get_next_block(&block, &continuation);
 
-int memory_map_count_get() {
-  int i;
-  for (i = 0; i < MAX_E820_ENTRIES; i++) {
-    if (memory_map[i].type == 0)
-      return i;
+  while (ret > 0 && continuation != 0) {
+    g_mem_regions[g_mem_region_count].base = block.base;
+    g_mem_regions[g_mem_region_count].length = block.length;
+    g_mem_regions[g_mem_region_count].type = block.type;
+    g_mem_regions[g_mem_region_count].acpi_flag = block.acpi_flag;
+    ++g_mem_region_count;
+
+    ret = x86_e820_get_next_block(&block, &continuation);
   }
-  return i;
+
+  // fill meminfo structure
+  memory_map->region_count = g_mem_region_count;
+  memory_map->regions = g_mem_regions;
 }

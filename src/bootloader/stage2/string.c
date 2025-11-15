@@ -37,6 +37,31 @@ char *strcpy(char *dst, const char *src) {
   return origDst;
 }
 
+char *strncpy(char *dst, const char *src, unsigned n) {
+  char *origDst = dst;
+
+  if (!dst)
+    return NULL;
+
+  if (!src) {
+    while (n--)
+      *dst++ = '\0';
+    return origDst;
+  }
+
+  while (n && *src) {
+    *dst++ = *src++;
+    n--;
+  }
+
+  // pad remaining bytes with '\0'
+  while (n--) {
+    *dst++ = '\0';
+  }
+
+  return origDst;
+}
+
 unsigned strlen(const char *str) {
   unsigned len = 0;
   while (*str) {
