@@ -1,4 +1,5 @@
 #include "mbr.h"
+#include "disk.h"
 #include <string.h> // optional for memset
 
 #define SECTOR_SIZE 512
@@ -9,27 +10,28 @@ typedef struct __attribute__((packed)) {
   uint16_t boot_signature; // should be 0xAA55
 } MBR;
 
-// internal, invisible to outside
 static union {
   MBR mbr;
   uint8_t bytes[SECTOR_SIZE];
 } g_mbr;
 
-// Read MBR from disk into g_mbr
-bool mbr_read(DiskParams *disk) {
+bool mbr_partition_table_get(DiskParams *disk,
+                             PartitionTable *partition_table) {
   if (!disk_read_sectors(disk, 0, 1, g_mbr.bytes)) {
     return false;
   }
   if (g_mbr.mbr.boot_signature != 0xAA55) {
     return false;
   }
+
+  partition_table->entries_count = MBR_PARTITIONS;
+  partition_table->partition_entries = g_mbr.mbr.partitions;
+
   return true;
 }
 
-// Getter: pointer to partition table
-const MBRPartitionEntry *mbr_get_partitions(void) {
-  return g_mbr.mbr.partitions;
+bool Partition_read_sectors(Partition *part, uint32_t lba, uint8_t sectors,
+                            void *lowerDataOut) {
+  return disk_read_sectors(part->disk, lba + part->partitionOffset, sectors,
+                           lowerDataOut);
 }
-
-// Getter: number of partitions (always 4 in MBR)
-int mbr_get_partition_count(void) { return MBR_PARTITIONS; }

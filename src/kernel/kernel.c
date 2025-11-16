@@ -8,14 +8,13 @@
 extern uint8_t __bss_start;
 extern uint8_t __end;
 
-void print_partition_table(const MBRPartitionEntry *partition_table,
-                           const int partitions_count) {
+void print_partition_table(PartitionTable partition_table) {
   debugf("MBR Partition Table:\n"
          "Idx | Boot | Type |   LBA Start  | Total Sectors\n"
          "-----------------------------------------------\n");
 
-  for (int i = 0; i < partitions_count; i++) {
-    MBRPartitionEntry p = partition_table[i];
+  for (int i = 0; i < partition_table.entries_count; i++) {
+    MBRPartitionEntry p = partition_table.partition_entries[i];
     debugf("%d |  0x%X | 0x%X | %u | %u\n", i, p.boot_flag, p.partition_type,
            p.lba_start, p.total_sectors);
   }
@@ -133,8 +132,7 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   vga_clrscr();
   vga_setcursor(0, 0);
 
-  print_partition_table(boot_params.partition_table,
-                        boot_params.partitions_count);
+  print_partition_table(boot_params.partition_table);
   print_memory_map(boot_params.memory_map);
   print_disk_params(&boot_params.disk_params);
   print_cpu_info(boot_params.cpu_info);
