@@ -13,7 +13,7 @@ bool ELF_Read(Partition* part, const char* path, void** entryPoint)
     uint32_t read;
 
     // Read header
-    FAT_File* fd = FAT_Open(part, path);
+    FAT_File* fd = fat_open(part, path);
     if ((read = FAT_Read(part, fd, sizeof(ELFHeader), headerBuffer)) != sizeof(ELFHeader))
     {
         printf("ELF Load error!\n");

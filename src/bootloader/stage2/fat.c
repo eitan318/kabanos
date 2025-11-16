@@ -15,28 +15,6 @@
 #define MEMORY_FAT_ADDR ((void *)0x20000)
 #define MEMORY_FAT_SIZE 0x00010000
 
-typedef struct __attribute__((packed)) {
-  uint8_t name[11];
-  uint8_t attributes;
-  uint8_t reserved0;
-  uint8_t created_time_tenths;
-  uint16_t created_time;
-  uint16_t created_date;
-  uint16_t accessed_date;
-  uint16_t first_cluster_high;
-  uint16_t modified_time;
-  uint16_t modified_date;
-  uint16_t first_cluster_low;
-  uint32_t size;
-} FAT_DirectoryEntry;
-
-typedef struct {
-  int handle;
-  bool is_directory;
-  uint32_t position;
-  uint32_t size;
-} FAT_File;
-
 enum FAT_Attributes {
   FAT_ATTRIBUTE_READ_ONLY = 0x01,
   FAT_ATTRIBUTE_HIDDEN = 0x02,
@@ -396,4 +374,20 @@ int fat_read_file(const char *path, void *buffer) {
 
   debugf("FAT: File loaded successfully (%u bytes)\n", read);
   return read;
+}
+
+uint32_t FAT_Read(Partition* disk, FAT_File* file, uint32_t byteCount, void* dataOut) {
+    return fat_read(disk, file, byteCount, dataOut);
+}
+
+bool FAT_ReadEntry(Partition* disk, FAT_File* file, FAT_DirectoryEntry* dirEntry) {
+    return fat_read_entry(disk, file, dirEntry);
+}
+
+void FAT_Close(FAT_File* file) {
+    fat_close(file);
+}
+
+FAT_File* FAT_Open(Partition* disk, const char* path) {
+    return fat_open(disk, path);
 }
