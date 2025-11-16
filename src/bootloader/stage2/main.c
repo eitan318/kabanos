@@ -30,9 +30,6 @@ typedef void (*KernelStart)(BootParams boot_params);
 void __attribute__((cdecl)) start(uint32_t boot_drive) {
   i686_gdt_init();
 
-  vga_setcursor(0, 0);
-  debugf("Stage2: Initializing...\n");
-
   // Initialize disk
   DiskParams disk_params = {0};
   if (!disk_init(boot_drive, &disk_params)) {
@@ -41,12 +38,29 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   }
 
   // Read MBR
-  mbr_read(&disk_params);
-  const MBRPartitionEntry *partition_table = mbr_get_partitions();
-  int partitions_count = mbr_get_partition_count();
+  PartitionTable partition_table;
+  bool res = mbr_partition_table_get(&disk_params, &partition_table);
 
-  debugf("\nInitializing FAT filesystem from partition 1...\n");
-  if (!fat_initialize(&disk_params, partition_table[0].lba_start)) {
+  MBRPartitionEntry *boot_partition_entry;
+
+  int active_count = 0;
+  for (int i = 0; i < 4; i++) {
+    if (partition_table.partition_entries[i].boot_flag == BOOTABLE) {
+      active_count++;
+      boot_partition_entry = &partition_table.partition_entries[i];
+    }
+  }
+
+  if (active_count > 1) {
+    debugf("WARNING: multiple active partitions!\n");
+  }
+
+  Partition boot_partition;
+  boot_partition.partitionOffset = boot_partition_entry->lba_start;
+  boot_partition.partitionSize = boot_partition_entry->total_sectors;
+  boot_partition.disk = &disk_params;
+
+  if (!fat_initialize(&boot_partition)) {
     debugf("ERROR: Failed to initialize FAT filesystem!\n");
     halt();
   }
@@ -54,11 +68,9 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   MemoryMap memory_map;
   memory_map_detect(&memory_map);
 
-  // Collect CPU info
   CPUInfo cpu_info;
   collect_cpu_info(&cpu_info);
 
-  // Read command line
   char config_buffer[2048];
   int config_size = fat_read_file("/boot.cfg", config_buffer);
   if (config_size < 0) {
@@ -76,7 +88,7 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
     debugf("ERROR: Failed to load initrd (error code: %d)!\n", initrd_size);
     halt();
   }
-
+  //
   // void *module_load_addr = (void *)MODULE_LOAD_ADDR;
   //
   // for (int i = 0; i < bcd.module_count; i++) {
@@ -88,7 +100,7 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   //
   //   module_load_addr += size; // move next module in memory
   // }
-  g_boot_params.module_count = bcd.module_count;
+  // g_boot_params.module_count = bcd.module_count;
 
   // Fill BootInfo
   g_boot_params.cpu_info = &cpu_info;
@@ -97,7 +109,6 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   g_boot_params.cmdline_size = CMDLINE_SIZE;
   g_boot_params.memory_map = memory_map;
   g_boot_params.partition_table = partition_table;
-  g_boot_params.partitions_count = partitions_count;
 
   int kernel_size = fat_read_file(bcd.kernel, (void *)KERNEL_LOAD_ADDR);
   if (kernel_size < 0) {
