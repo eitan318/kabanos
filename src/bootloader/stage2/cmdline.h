@@ -1,12 +1,7 @@
 #pragma once
+#include "boot/bootparams.h"
 #include <stdbool.h>
 #include <stddef.h>
-
-#define MAX_MODULES 16
-
-typedef struct {
-  char *path;
-} Module;
 
 typedef struct {
   int width;

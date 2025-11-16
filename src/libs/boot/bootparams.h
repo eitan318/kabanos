@@ -2,6 +2,8 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define MAX_MODULES 16
+
 typedef struct DiskParams {
   uint8_t hdds_count;
   uint8_t drive_id;
@@ -108,6 +110,12 @@ typedef struct {
 } CPUInfo;
 
 typedef struct {
+  void *start;
+  void *end;
+  char *path;
+} Module;
+
+typedef struct {
   const MBRPartitionEntry *partition_table;
   int partitions_count;
   DiskParams disk_params;
@@ -115,4 +123,10 @@ typedef struct {
   CPUInfo *cpu_info;
   char *cmdline_buffer;
   int cmdline_size;
+  void *kernel_start;
+  void *kernel_end;
+  void *initrd_start;
+  void *initrd_end;
+  Module modules[MAX_MODULES];
+  int module_count;
 } BootParams;

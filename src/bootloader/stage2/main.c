@@ -11,7 +11,11 @@
 #include "vga_text.h"
 #include <stdint.h>
 
-#define KERNEL_FINAL_ADDR 0x100000
+#define KERNEL_LOAD_ADDR 0x100000
+#define INITRD_LOAD_ADDR 0x200000
+#define MODULE_LOAD_ADDR 0x300000
+#define CMDLINE_SIZE 2048
+
 void halt() {
   debugf("\nSystem halted.\n");
   while (1) {
@@ -19,7 +23,6 @@ void halt() {
   }
 }
 
-#define CMDLINE_SIZE 2048
 BootParams g_boot_params = {0};
 
 typedef void (*KernelStart)(BootParams boot_params);
@@ -58,13 +61,34 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   // Read command line
   char config_buffer[2048];
   int config_size = fat_read_file("/boot.cfg", config_buffer);
-  if (config_size < 0)
-    config_size = 0; // fallback
+  if (config_size < 0) {
+    debugf("ERROR: Failed to read config (error code: %d)!\n", config_size);
+    halt();
+  }
 
   BCD bcd;
   bcd_parse_into(config_buffer, &bcd);
   char cmdline[CMDLINE_SIZE];
   bcd_cmdline_construct(bcd.cmdline, strlen(bcd.cmdline), cmdline);
+
+  int initrd_size = fat_read_file(bcd.initrd, (void *)INITRD_LOAD_ADDR);
+  if (initrd_size < 0) {
+    debugf("ERROR: Failed to load initrd (error code: %d)!\n", initrd_size);
+    halt();
+  }
+
+  // void *module_load_addr = (void *)MODULE_LOAD_ADDR;
+  //
+  // for (int i = 0; i < bcd.module_count; i++) {
+  //   uint32_t size;
+  //   int res = fat_read_file(bcd.modules[i].path, (void *)module_load_addr);
+  //   g_boot_params.modules[i].start = module_load_addr;
+  //   g_boot_params.modules[i].end = (void *)((uint8_t *)module_load_addr +
+  //   size); g_boot_params.modules[i].path = bcd.modules[i].path;
+  //
+  //   module_load_addr += size; // move next module in memory
+  // }
+  g_boot_params.module_count = bcd.module_count;
 
   // Fill BootInfo
   g_boot_params.cpu_info = &cpu_info;
@@ -75,14 +99,14 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   g_boot_params.partition_table = partition_table;
   g_boot_params.partitions_count = partitions_count;
 
-  int kernel_size = fat_read_file(bcd.kernel, (void *)KERNEL_FINAL_ADDR);
+  int kernel_size = fat_read_file(bcd.kernel, (void *)KERNEL_LOAD_ADDR);
   if (kernel_size < 0) {
     debugf("ERROR: Failed to load kernel (error code: %d)!\n", kernel_size);
     halt();
   }
 
   debugf("Kernel loaded successfully, jumping...\n");
-  KernelStart kernelStart = (KernelStart)KERNEL_FINAL_ADDR;
+  KernelStart kernelStart = (KernelStart)KERNEL_LOAD_ADDR;
   kernelStart(g_boot_params);
 
   debugf("ERROR: Kernel returned!\n");
