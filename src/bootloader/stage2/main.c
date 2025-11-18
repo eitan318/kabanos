@@ -15,6 +15,8 @@
 #define INITRD_LOAD_ADDR 0x200000
 #define MODULE_LOAD_ADDR 0x300000
 #define CMDLINE_SIZE 2048
+#define MODULE_PATH_SIZE 256
+#define MODULES_MAX 16
 
 void halt() {
   debugf("\nSystem halted.\n");
@@ -88,21 +90,48 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
     debugf("ERROR: Failed to load initrd (error code: %d)!\n", initrd_size);
     halt();
   }
-  //
-  // void *module_load_addr = (void *)MODULE_LOAD_ADDR;
-  //
-  // for (int i = 0; i < bcd.module_count; i++) {
-  //   uint32_t size;
-  //   int res = fat_read_file(bcd.modules[i].path, (void *)module_load_addr);
-  //   g_boot_params.modules[i].start = module_load_addr;
-  //   g_boot_params.modules[i].end = (void *)((uint8_t *)module_load_addr +
-  //   size); g_boot_params.modules[i].path = bcd.modules[i].path;
-  //
-  //   module_load_addr += size; // move next module in memory
-  // }
-  // g_boot_params.module_count = bcd.module_count;
 
-  // Fill BootInfo
+  g_boot_params.initrd_start = (void *)INITRD_LOAD_ADDR;
+  g_boot_params.initrd_size = (uint32_t)initrd_size;
+  debugf("Initrd loaded at 0x%x, size: %d bytes\n", INITRD_LOAD_ADDR,
+         initrd_size);
+
+  // Load modules
+  void *module_load_addr = (void *)MODULE_LOAD_ADDR;
+  g_boot_params.module_count = 0;
+
+  for (int i = 0; i < bcd.module_count; i++) {
+    debugf("Loading module %d: %s\n", i, bcd.modules[i].path);
+
+    int module_size = fat_read_file(bcd.modules[i].path, module_load_addr);
+    if (module_size < 0) {
+      debugf("WARNING: Failed to load module %s (error: %d)\n",
+             bcd.modules[i].path, module_size);
+      continue;
+    }
+
+    // Store module information
+    g_boot_params.modules[i].start = module_load_addr;
+    g_boot_params.modules[i].size = (uint32_t)module_size;
+
+    // Copy path string to a safe location (heap or static buffer)
+    // Instead of storing pointer to BCD data which may be overwritten
+    static char module_paths[MAX_MODULES][MODULE_PATH_SIZE];
+    strncpy(module_paths[i], bcd.modules[i].path, MODULE_PATH_SIZE - 1);
+    module_paths[i][MODULE_PATH_SIZE - 1] = '\0';
+    g_boot_params.modules[i].path = module_paths[i];
+
+    debugf("Module %d loaded at 0x%p, size: %d bytes\n", i, module_load_addr,
+           module_size);
+
+    // Align next module to 4KB boundary
+    uint32_t aligned_size = (module_size + 0xFFF) & ~0xFFF;
+    module_load_addr = (void *)((uint8_t *)module_load_addr + aligned_size);
+
+    g_boot_params.module_count++;
+  }
+
+  // Fill remaining BootParams
   g_boot_params.cpu_info = &cpu_info;
   g_boot_params.disk_params = disk_params;
   g_boot_params.cmdline_buffer = cmdline;
@@ -121,5 +150,7 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   debugf("Kernel loaded successfully, jumping...\n");
   kernelEntry(g_boot_params);
 
+  // Should never reach here
   debugf("ERROR: Kernel returned!\n");
+  halt();
 }

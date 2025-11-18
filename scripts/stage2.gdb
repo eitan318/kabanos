@@ -5,6 +5,8 @@ set disassembly-flavor intel
 b start
 c
 lay src
+b main.c:144
+
 
 
 

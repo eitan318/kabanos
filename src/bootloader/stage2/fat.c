@@ -93,11 +93,12 @@ bool fat_initialize(Partition *disk) {
     return false;
   }
 
-  debugf("FAT: Boot sector loaded\n");
-  debugf("  Bytes/Sector: %u\n", g_data->bs.boot_sector.bytes_per_sector);
-  debugf("  Sectors/Cluster: %u\n", g_data->bs.boot_sector.sectors_per_cluster);
-  debugf("  FAT copies: %u\n", g_data->bs.boot_sector.fat_count);
-  debugf("  Root entries: %u\n", g_data->bs.boot_sector.dir_entry_count);
+  // debugf("FAT: Boot sector loaded\n");
+  // debugf("  Bytes/Sector: %u\n", g_data->bs.boot_sector.bytes_per_sector);
+  // debugf("  Sectors/Cluster: %u\n",
+  // g_data->bs.boot_sector.sectors_per_cluster); debugf("  FAT copies: %u\n",
+  // g_data->bs.boot_sector.fat_count); debugf("  Root entries: %u\n",
+  // g_data->bs.boot_sector.dir_entry_count);
 
   g_fat = (uint8_t *)g_data + sizeof(FAT_Data);
   uint32_t fat_size = g_data->bs.boot_sector.bytes_per_sector *
