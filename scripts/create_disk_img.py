@@ -20,6 +20,22 @@ def run(cmd, check=True):
     subprocess.run(cmd, check=check)
 
 
+def copy_all_boot_files(boot_dir, part_img):
+    if not os.path.isdir(boot_dir):
+        raise SystemExit(f"boot_dir is not a directory: {boot_dir}")
+
+    for entry in os.listdir(boot_dir):
+        path = os.path.join(boot_dir, entry)
+
+        if not os.path.isfile(path):
+            continue  # skip subdirectories if any
+
+        dest = f"::{entry}"
+        print(f"Copying {entry} -> {dest}")
+
+        run(["mcopy", "-i", part_img, path, dest], check=True)
+
+
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--image", required=True)
@@ -104,16 +120,7 @@ def main():
     # ensure mtools can operate on the file: use -i device for mtools to use image directly
     run(["mcopy", "-i", part_img, kernel, "::kernel.bin"])
 
-    # Copy boot.cfg
-    boot_cfg_path = boot_dir + "/boot.cfg"
-    if not os.path.exists(boot_cfg_path):
-        raise SystemExit(f"boot_cfg not found: {boot_cfg_path}")
-    run(["mcopy", "-i", part_img, str(boot_cfg_path), "::boot.cfg"])
-
-    initrd_path = boot_dir + "/initrd.img"
-    if not os.path.exists(initrd_path):
-        raise SystemExit(f"initrd not found: {initrd_path}")
-    run(["mcopy", "-i", part_img, str(initrd_path), "::initrd.img"])
+    copy_all_boot_files(boot_dir, part_img)
 
     # print("writing partition image into final image at sector", part_start)
     run(

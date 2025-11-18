@@ -2,8 +2,6 @@
 #include "fat.h"
 #include "string.h"
 
-#define INITRD_ADDR 0x200000
-
 // Parse video mode string
 VideoMode str_to_video(char *str) {
   VideoMode mode = {0};
@@ -117,16 +115,5 @@ void bcd_parse_into(char *boot_config, BCD *out) {
     }
 
     line = strtok(NULL, "\n\r");
-  }
-}
-
-// Load initrd into memory
-void load_initrd(char *initrd_path) {
-  if (!initrd_path)
-    return;
-
-  int size = fat_read_file(initrd_path, (void *)INITRD_ADDR);
-  if (size < 0) {
-    // Handle error - could use debugf here if available
   }
 }
