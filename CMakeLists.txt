@@ -45,8 +45,27 @@ add_subdirectory("${SRC_DIR}/kernel")
 
 set(OS_IMAGE_OUT ${OUT_DIR}/os.img)
 set(BOOT_DIR ${CMAKE_SOURCE_DIR}/BOOT)
+set(INITRD_DIR ${CMAKE_SOURCE_DIR}/initrd_files)
+set(INITRD_IMG ${BOOT_DIR}/initrd.tar)
 
 set(CREATE_IMAGE_PY "${CMAKE_SOURCE_DIR}/scripts/create_disk_img.py")
+set(MAKE_INITRD_PY "${CMAKE_SOURCE_DIR}/scripts/create_initrd.py")
+
+# Collect all files in initrd_files directory to use as dependencies
+file(GLOB_RECURSE INITRD_FILES "${INITRD_DIR}/*")
+
+# Custom command to create initrd.img from initrd_files directory
+add_custom_command(
+  OUTPUT ${INITRD_IMG}
+  COMMAND ${Python_EXECUTABLE} ${MAKE_INITRD_PY}
+          --output ${INITRD_IMG}
+          --directory ${INITRD_DIR}
+  DEPENDS ${INITRD_FILES} ${MAKE_INITRD_PY}
+  COMMENT "Creating initrd.img from ${INITRD_DIR}"
+  VERBATIM
+)
+
+# Custom command to create the final OS image
 add_custom_command(
   OUTPUT ${OS_IMAGE_OUT}
   COMMAND ${CMAKE_COMMAND} -E make_directory ${OUT_DIR}
@@ -60,9 +79,17 @@ add_custom_command(
   COMMENT "Creating partitioned OS image (MBR + stage2 + FAT12 partition)"
 )
 
-# Targets
-add_custom_target(os_image ALL DEPENDS ${OS_IMAGE_OUT})
-add_dependencies(os_image kernel bootloader)
+# Optional: Add a custom target to build initrd separately
+add_custom_target(initrd
+  DEPENDS ${INITRD_IMG}
+)
+
+# Optional: Add a target for the OS image
+add_custom_target(os_image
+  DEPENDS ${OS_IMAGE_OUT}
+)
+
+add_dependencies(os_image kernel bootloader initrd)
 
 # Run target
 add_custom_target(run

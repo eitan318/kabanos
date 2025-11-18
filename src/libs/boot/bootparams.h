@@ -129,10 +129,14 @@ typedef struct {
 
 } CPUInfo;
 
+// Module structure
 typedef struct {
   void *start;
   void *end;
   char *path;
+  uint32_t size;
+  int loaded;
+  void *module_data; // Module-specific data after loading
 } Module;
 
 typedef struct {
@@ -145,7 +149,7 @@ typedef struct {
   void *kernel_start;
   void *kernel_end;
   void *initrd_start;
-  void *initrd_end;
+  uint32_t initrd_size;
   Module modules[MAX_MODULES];
   int module_count;
 } BootParams;
