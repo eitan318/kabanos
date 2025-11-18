@@ -33,7 +33,7 @@ set(OUT_DIR "${CMAKE_BINARY_DIR}/out")
 set(BOOTLOADER_OUT_DIR ${OUT_DIR}/bootloader)
 set(BOOTLOADER_OUTPUT ${BOOTLOADER_OUT_DIR}/bootloader.bin)
 set(KERNEL_OUT_DIR ${OUT_DIR}/kernel)
-set(KERNEL_OUTPUT ${KERNEL_OUT_DIR}/kernel.bin)
+set(KERNEL_OUTPUT ${KERNEL_OUT_DIR}/kernel.elf)  
 
 set(STAGE1_OUT_DIR ${OUT_DIR}/bootloader/stage1)
 set(STAGE2_OUT_DIR ${OUT_DIR}/bootloader/stage2)
@@ -54,7 +54,7 @@ add_custom_command(
           --image ${OS_IMAGE_OUT}
           --boot ${STAGE1_BIN} 
           --stage2 ${STAGE2_BIN} 
-          --kernel ${KERNEL_OUTPUT}
+          --kernel ${KERNEL_OUTPUT}  
           --boot_dir ${BOOT_DIR}
   DEPENDS ${STAGE2_BIN} ${STAGE1_BIN} ${KERNEL_OUTPUT}
   COMMENT "Creating partitioned OS image (MBR + stage2 + FAT12 partition)"

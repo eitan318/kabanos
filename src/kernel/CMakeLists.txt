@@ -86,8 +86,9 @@ add_custom_command(
     COMMENT "Padding kernel to next sector boundary"
 )
 
-# Set output variable for parent scope
-set(KERNEL_OUTPUT ${KERNEL_BIN} PARENT_SCOPE)
+# CHANGED: Set both kernel.elf and kernel.bin for parent scope
+set(KERNEL_OUTPUT ${KERNEL_ELF} PARENT_SCOPE) 
+set(KERNEL_BIN_OUTPUT ${KERNEL_BIN} PARENT_SCOPE)  # if we still need kernel.bin elsewhere
 
 # Add target for kernel.bin and header generation
 add_custom_target(kernel ALL
