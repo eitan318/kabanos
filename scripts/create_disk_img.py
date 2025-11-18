@@ -117,8 +117,8 @@ def main():
     # Format the partition image as FAT12 (requires mkfs.fat - part of dosfstools)
     run(["mkfs.fat", "-F", "12", part_img])
 
-    # ensure mtools can operate on the file: use -i device for mtools to use image directly
-    run(["mcopy", "-i", part_img, kernel, "::kernel.bin"])
+    # Copy kernel.elf instead of kernel.bin
+    run(["mcopy", "-i", part_img, kernel, "::kernel.elf"])  # CHANGED THIS LINE
 
     copy_all_boot_files(boot_dir, part_img)
 
@@ -144,7 +144,7 @@ def main():
     # cleanup
     os.remove(part_img)
     print("done. created", image)
-    print("partition starts at sector", part_start, "contains kernel as /kernel.bin")
+    print("partition starts at sector", part_start, "contains kernel as /kernel.elf")  # UPDATED THIS LINE
 
 
 if __name__ == "__main__":

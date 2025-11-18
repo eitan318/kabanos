@@ -139,21 +139,16 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   g_boot_params.memory_map = memory_map;
   g_boot_params.partition_table = partition_table;
 
-  // Load kernel
-  debugf("Loading kernel: %s\n", bcd.kernel);
-  int kernel_size = fat_read_file(bcd.kernel, (void *)KERNEL_LOAD_ADDR);
-  if (kernel_size < 0) {
-    debugf("ERROR: Failed to load kernel (error code: %d)!\n", kernel_size);
-    halt();
+  // load kernel
+  KernelStart kernelEntry;
+  if (!ELF_Read(&boot_partition, bcd.kernel, (void**)&kernelEntry))
+  {
+      printf("ELF read failed, booting halted!");
+      halt();
   }
 
-  debugf("Kernel loaded at 0x%x, size: %d bytes\n", KERNEL_LOAD_ADDR,
-         kernel_size);
-  debugf("Jumping to kernel...\n");
-
-  // Jump to kernel
-  KernelStart kernelStart = (KernelStart)KERNEL_LOAD_ADDR;
-  kernelStart(g_boot_params);
+  debugf("Kernel loaded successfully, jumping...\n");
+  kernelEntry(g_boot_params);
 
   // Should never reach here
   debugf("ERROR: Kernel returned!\n");
