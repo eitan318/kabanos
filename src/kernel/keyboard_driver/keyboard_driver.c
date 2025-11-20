@@ -14,7 +14,24 @@ static char scancode_to_ascii[128] = {
     'o', 'p', '[',  ']',  '\n', 0,   'a', 's',  'd', 'f', 'g', 'h',
     'j', 'k', 'l',  ';',  '\'', '`', 0,   '\\', 'z', 'x', 'c', 'v',
     'b', 'n', 'm',  ',',  '.',  '/', 0,   '*',  0,   ' ', 0};
-	
+
+#define MAX_PRESS_SCANCODE 0x80
+#define KEYBOARD_PORT 0x60
+
+static void keyboard_isr_handler(Registers* regs) {
+    uint8_t scancode = i686_inb(KEYBOARD_PORT);
+    
+    if (scancode < MAX_PRESS_SCANCODE) {
+        char key_ascii = scancode_to_ascii[scancode];
+        if (key_ascii) {
+            enqueue(&keyboard_queue, (void*)(uintptr_t)key_ascii);
+        }
+    }
+
+    // Send EOI to PIC
+    pic_send_eoi(KBD_IRQ);  
+}
+
 void kbd_init() {
     queue_init(&keyboard_queue);
 
@@ -26,4 +43,7 @@ void kbd_init() {
     // Enable keyboard interrupt (IRQ1)
     pic_unmask_irq(KBD_IRQ);
 }
-	
+
+char kbd_char_get() { 
+    return (char)(uintptr_t)dequeue(&keyboard_queue); 
+}
