@@ -6,6 +6,8 @@
 #include "initrd.h"
 #include "modules.h"
 #include "print_boot_info.h"
+#include "hal/hal.h"
+#include "keyboard_driver/keyboard_driver.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -42,6 +44,19 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
 
   // Continue with kernel initialization...
   debugf("[Kernel initialization complete]\n");
+
+  hal_init();
+
+  __asm__ volatile("sti");
+    
+  printf("Keyboard ready - start typing:\n");
+
+  for (;;) {
+	  char c = kbd_char_get();
+	  if (c != 0) {
+		  printf("%c", c);
+	  }
+  }
 
   for (;;) {
   }
