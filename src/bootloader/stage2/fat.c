@@ -376,19 +376,3 @@ int fat_read_file(const char *path, void *buffer) {
   debugf("FAT: File loaded successfully (%u bytes)\n", read);
   return read;
 }
-
-uint32_t FAT_Read(Partition* disk, FAT_File* file, uint32_t byteCount, void* dataOut) {
-    return fat_read(disk, file, byteCount, dataOut);
-}
-
-bool FAT_ReadEntry(Partition* disk, FAT_File* file, FAT_DirectoryEntry* dirEntry) {
-    return fat_read_entry(disk, file, dirEntry);
-}
-
-void FAT_Close(FAT_File* file) {
-    fat_close(file);
-}
-
-FAT_File* FAT_Open(Partition* disk, const char* path) {
-    return fat_open(disk, path);
-}

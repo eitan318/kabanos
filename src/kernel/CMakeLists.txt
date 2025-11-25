@@ -66,31 +66,34 @@ set_property(TARGET kernel.elf APPEND PROPERTY LINK_DEPENDS ${CMAKE_CURRENT_SOUR
 
 # Define paths
 set(KERNEL_ELF ${KERNEL_OUT_DIR}/kernel.elf)
-set(KERNEL_BIN_UNPADDED ${KERNEL_OUT_DIR}/kernel_unpadded.bin)
-set(KERNEL_BIN ${KERNEL_OUT_DIR}/kernel.bin)
+# set(KERNEL_BIN_UNPADDED ${KERNEL_OUT_DIR}/kernel_unpadded.bin)
+# set(KERNEL_BIN ${KERNEL_OUT_DIR}/kernel.bin)
 
 # Convert kernel.elf → kernel_unpadded.bin
-add_custom_command(
-    OUTPUT ${KERNEL_BIN_UNPADDED}
-    COMMAND ${CMAKE_OBJCOPY} -O binary ${KERNEL_ELF} ${KERNEL_BIN_UNPADDED}
-    DEPENDS kernel.elf
-    COMMENT "Converting kernel.elf → kernel_unpadded.bin"
-)
+# add_custom_command(
+#     OUTPUT ${KERNEL_BIN_UNPADDED}
+#     COMMAND ${CMAKE_OBJCOPY} -O binary ${KERNEL_ELF} ${KERNEL_BIN_UNPADDED}
+#     DEPENDS kernel.elf
+#     COMMENT "Converting kernel.elf → kernel_unpadded.bin"
+# )
 
 # Pad kernel_unpadded.bin → kernel.bin (to next 512-byte sector boundary)
-add_custom_command(
-    OUTPUT ${KERNEL_BIN}
-    COMMAND dd if=${KERNEL_BIN_UNPADDED} of=${KERNEL_BIN} bs=512 conv=sync status=none
-    COMMAND ${CMAKE_COMMAND} -E rm -f ${KERNEL_BIN_UNPADDED}
-    DEPENDS ${KERNEL_BIN_UNPADDED}
-    COMMENT "Padding kernel to next sector boundary"
-)
+# add_custom_command(
+#     OUTPUT ${KERNEL_BIN}
+#     COMMAND dd if=${KERNEL_BIN_UNPADDED} of=${KERNEL_BIN} bs=512 conv=sync status=none
+#     COMMAND ${CMAKE_COMMAND} -E rm -f ${KERNEL_BIN_UNPADDED}
+#     DEPENDS ${KERNEL_BIN_UNPADDED}
+#     COMMENT "Padding kernel to next sector boundary"
+# )
 
 # CHANGED: Set both kernel.elf and kernel.bin for parent scope
 set(KERNEL_OUTPUT ${KERNEL_ELF} PARENT_SCOPE) 
-set(KERNEL_BIN_OUTPUT ${KERNEL_BIN} PARENT_SCOPE)  # if we still need kernel.bin elsewhere
+#set(KERNEL_BIN_OUTPUT ${KERNEL_BIN} PARENT_SCOPE)  # if we still need kernel.bin elsewhere
 
 # Add target for kernel.bin and header generation
 add_custom_target(kernel ALL
-    DEPENDS ${KERNEL_BIN} ${KERNEL_SECTORS_HEADER}
+    DEPENDS 
+    #    ${KERNEL_BIN}
+    ${KERNEL_ELF}
+    ${KERNEL_SECTORS_HEADER}
 )
