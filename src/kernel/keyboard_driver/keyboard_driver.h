@@ -8,6 +8,11 @@
 #define KBD_IRQ 1
 #define KBD_INT 0x21
 
+// Modifier keys
+#define KBD_SHIFT 0x2A
+#define KBD_SHIFT_R 0x36
+#define KBD_CTRL  0x1D
+
 void kbd_init();
 char kbd_char_get();
 
