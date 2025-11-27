@@ -1,13 +1,13 @@
 #include "arch/i686/vga_text.h"
 #include "boot/bootparams.h"
+#include "hal/hal.h"
 #include "include/memory.h"
 #include "include/stdio.h"
 #include "include/string.h"
 #include "initrd.h"
+#include "keyboard_driver/keyboard_driver.h"
 #include "modules.h"
 #include "print_boot_info.h"
-#include "hal/hal.h"
-#include "keyboard_driver/keyboard_driver.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -19,12 +19,12 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   vga_clrscr();
   vga_setcursor(0, 0);
 
-  // print_partition_table(boot_params.partition_table);
-  // print_memory_map(boot_params.memory_map);
-  // print_disk_params(&boot_params.disk_params);
-  // print_cpu_info(boot_params.cpu_info);
-  // print_cmdline(boot_params.cmdline_buffer, boot_params.cmdline_size);
-  //
+  print_partition_table(boot_params.partition_table);
+  print_memory_map(boot_params.memory_map);
+  print_disk_params(&boot_params.disk_params);
+  print_cpu_info(boot_params.cpu_info);
+  print_cmdline(boot_params.cmdline_buffer, boot_params.cmdline_size);
+
   debugf("[Kernel starting...]\n");
 
   // Initialize initrd
@@ -50,28 +50,29 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   __asm__ volatile("sti");
 
   while (1) {
-      printf("ctrl+c testing - stop the loop\n");
+    printf("ctrl+c testing - stop the loop\n");
 
-      // Simple busy-wait delay
-      for (volatile int i = 0; i < 100000000; i++);  
+    // Simple busy-wait delay
+    for (volatile int i = 0; i < 100000000; i++)
+      ;
 
-      // Check keyboard input
-      char c = kbd_char_get();
-      if (c != 0) {
-          if (c == 0x03) { // Ctrl+C
-              printf("Ctrl+C detected - breaking loop!\n");
-              break;
-          }
+    // Check keyboard input
+    char c = kbd_char_get();
+    if (c != 0) {
+      if (c == 0x03) { // Ctrl+C
+        printf("Ctrl+C detected - breaking loop!\n");
+        break;
       }
+    }
   }
-	
-  printf("Keyboard ready - start typing:\n");	
-	
+
+  printf("Keyboard ready - start typing:\n");
+
   for (;;) {
-	  char c = kbd_char_get();
-	  if (c != 0) {
-		  printf("%c", c);
-	  }
+    char c = kbd_char_get();
+    if (c != 0) {
+      printf("%c", c);
+    }
   }
 
   for (;;) {
