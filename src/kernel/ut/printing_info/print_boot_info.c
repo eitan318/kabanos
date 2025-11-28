@@ -1,5 +1,14 @@
 #include "print_boot_info.h"
+#include "boot/bootparams.h"
 #include "include/stdio.h"
+
+void print_boot_params(BootParams boot_params) {
+  print_partition_table(boot_params.partition_table);
+  print_memory_map(boot_params.memory_map);
+  print_disk_params(&boot_params.disk_params);
+  print_cpu_info(boot_params.cpu_info);
+  print_cmdline(boot_params.cmdline_buffer, boot_params.cmdline_size);
+}
 
 void print_partition_table(PartitionTable partition_table) {
   debugf("MBR Partition Table:\n"
@@ -115,5 +124,5 @@ void print_cpu_info(const CPUInfo *cpu) {
 }
 
 void print_cmdline(char *cmdline, const int cmdline_size) {
-  debugf("\nCmdline: %s", cmdline);
+  debugf("\nCmdline: %s\n", cmdline);
 }

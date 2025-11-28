@@ -42,6 +42,14 @@ typedef struct {
   MBRPartitionEntry *partition_entries;
 } PartitionTable;
 
+enum E820MemoryBlockType {
+  E820_USABLE = 1,
+  E820_RESERVED = 2,
+  E820_ACPI_RECLAIMABLE = 3,
+  E820_ACPI_NVS = 4,
+  E820_BAD_MEMORY = 5,
+};
+
 typedef struct {
   uint64_t base, length;
   uint32_t type, acpi_flag, reserved1, reserved2;

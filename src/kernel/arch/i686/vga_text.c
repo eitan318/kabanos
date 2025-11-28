@@ -2,7 +2,7 @@
 // vga_text.c - VGA Text Mode Driver Implementation
 // ============================================================================
 #include "vga_text.h"
-#include "io.h"
+#include "hal/io.h"
 
 const unsigned SCREEN_WIDTH = 80;
 const unsigned SCREEN_HEIGHT = 25;
@@ -32,10 +32,10 @@ uint8_t vga_getcolor(int x, int y) {
 
 void vga_setcursor(int x, int y) {
   int pos = y * SCREEN_WIDTH + x;
-  i686_outb(0x3D4, 0x0F);
-  i686_outb(0x3D5, (uint8_t)(pos & 0xFF));
-  i686_outb(0x3D4, 0x0E);
-  i686_outb(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
+  io_write8(0x3D4, 0x0F);
+  io_write8(0x3D5, (uint8_t)(pos & 0xFF));
+  io_write8(0x3D4, 0x0E);
+  io_write8(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
 }
 
 void vga_scrollback(int lines) {

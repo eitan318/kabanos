@@ -1,4 +1,4 @@
 #include "e9.h"
-#include "io.h"
+#include "hal/io.h"
 
-void e9_putc(const char c) { i686_outb(0xE9, c); }
+void e9_putc(const char c) { io_write8(0xE9, c); }

@@ -4,10 +4,12 @@
 #include "include/memory.h"
 #include "include/stdio.h"
 #include "include/string.h"
-#include "initrd.h"
-#include "keyboard_driver/keyboard_driver.h"
-#include "modules.h"
-#include "print_boot_info.h"
+#include "initrd/initrd.h"
+#include "modules/modules.h"
+#include "ut/ata/ata_ut_main.h"
+#include "ut/frame_allocator/frame_allocator_ut_main.h"
+#include "ut/keyboard_driver.h"
+#include "ut/printing_info/print_boot_info.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -18,12 +20,6 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   memset(&__bss_start, 0, (&__end) - (&__bss_start));
   vga_clrscr();
   vga_setcursor(0, 0);
-
-  print_partition_table(boot_params.partition_table);
-  print_memory_map(boot_params.memory_map);
-  print_disk_params(&boot_params.disk_params);
-  print_cpu_info(boot_params.cpu_info);
-  print_cmdline(boot_params.cmdline_buffer, boot_params.cmdline_size);
 
   debugf("[Kernel starting...]\n");
 
@@ -42,38 +38,12 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
     debugf("No modules provided\n");
   }
 
-  // Continue with kernel initialization...
-  debugf("[Kernel initialization complete]\n");
-
   hal_init();
 
   __asm__ volatile("sti");
 
-  while (1) {
-    printf("ctrl+c testing - stop the loop\n");
-
-    // Simple busy-wait delay
-    for (volatile int i = 0; i < 100000000; i++)
-      ;
-
-    // Check keyboard input
-    char c = kbd_char_get();
-    if (c != 0) {
-      if (c == 0x03) { // Ctrl+C
-        printf("Ctrl+C detected - breaking loop!\n");
-        break;
-      }
-    }
-  }
-
-  printf("Keyboard ready - start typing:\n");
-
-  for (;;) {
-    char c = kbd_char_get();
-    if (c != 0) {
-      printf("%c", c);
-    }
-  }
+  prompt_for_keyboard();
+  ut_frame_allocator_main();
 
   for (;;) {
   }

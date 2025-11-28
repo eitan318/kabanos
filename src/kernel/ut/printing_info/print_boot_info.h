@@ -1,6 +1,7 @@
 #pragma once
 #include "boot/bootparams.h"
 
+void print_boot_params(BootParams boot_params);
 void print_partition_table(PartitionTable partition_table);
 void print_memory_map(MemoryMap memory_map);
 void print_disk_params(DiskParams *disk_params);
