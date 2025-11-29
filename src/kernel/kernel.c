@@ -8,6 +8,7 @@
 #include "modules/modules.h"
 #include "ut/ata/ata_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
+#include "ut/paging/paging_ut_main.h"
 #include "ut/keyboard_driver.h"
 #include "ut/printing_info/print_boot_info.h"
 #include <stdbool.h>
@@ -41,6 +42,20 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   hal_init();
 
   __asm__ volatile("sti");
+
+  // Initialize frame allocator for paging tests
+  debugf("\n[Initializing Frame Allocator for Paging Tests]\n");
+  FrameAllocator test_allocator;
+  frame_allocator_init(&test_allocator, &boot_params.memory_map);
+  
+  debugf("Frame allocator initialized\n");
+  debugf("Total frames: %llu\n", frame_get_total_count(&test_allocator));
+  debugf("Free frames: %llu\n", frame_get_free_count(&test_allocator));
+  
+  // Run paging tests
+  run_paging_tests(&test_allocator);
+
+  for (int i = 0; i < 100000000000; i++) {}
 
   prompt_for_keyboard();
   ut_frame_allocator_main();
