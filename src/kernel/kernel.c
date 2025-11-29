@@ -53,9 +53,9 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   debugf("Free frames: %llu\n", frame_get_free_count(&test_allocator));
   
   // Run paging tests
-  run_paging_tests(&test_allocator);
+  paging_tests_run(&test_allocator);
 
-  for (int i = 0; i < 100000000000; i++) {}
+  for (int i = 0; i < 1000000000; i++) {}
 
   prompt_for_keyboard();
   ut_frame_allocator_main();

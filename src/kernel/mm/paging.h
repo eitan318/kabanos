@@ -1,5 +1,4 @@
-#ifndef PAGING_H
-#define PAGING_H
+#pragma once
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -50,7 +49,7 @@ typedef struct {
     uint32_t global     : 1;   // Global page
     uint32_t available  : 3;   // Available for OS use
     uint32_t frame      : 20;  // Physical frame address (bits 31-12)
-} __attribute__((packed)) page_table_entry_t;
+} __attribute__((packed)) PageTableEntryT;
 
 // Page Directory Entry structure
 typedef struct {
@@ -65,17 +64,17 @@ typedef struct {
     uint32_t global     : 1;   // Global page
     uint32_t available  : 3;   // Available for OS use
     uint32_t frame      : 20;  // Page table physical address (bits 31-12)
-} __attribute__((packed)) page_directory_entry_t;
+} __attribute__((packed)) PageDirectoryEntryT;
 
 // Page Table (1024 entries)
 typedef struct {
-    page_table_entry_t entries[PAGE_TABLE_ENTRIES];
-} __attribute__((aligned(PAGE_SIZE))) page_table_t;
+    PageTableEntryT entries[PAGE_TABLE_ENTRIES];
+} __attribute__((aligned(PAGE_SIZE))) PageTableT;
 
 // Page Directory (1024 entries)
 typedef struct {
-    page_directory_entry_t entries[PAGE_DIRECTORY_ENTRIES];
-} __attribute__((aligned(PAGE_SIZE))) page_directory_t;
+    PageDirectoryEntryT entries[PAGE_DIRECTORY_ENTRIES];
+} __attribute__((aligned(PAGE_SIZE))) PageDirectoryT;
 
 // Function prototypes
 
@@ -93,7 +92,7 @@ void paging_init(FrameAllocator* allocator);
  * 
  * @return Pointer to the new page directory, or NULL on failure
  */
-page_directory_t* create_page_directory(void);
+PageDirectoryT* page_directory_create(void);
 
 /**
  * Destroy a page directory
@@ -101,7 +100,7 @@ page_directory_t* create_page_directory(void);
  * 
  * @param page_dir Pointer to the page directory to destroy
  */
-void destroy_page_directory(page_directory_t* page_dir);
+void page_directory_destroy(PageDirectoryT* page_dir);
 
 /**
  * Get physical address of page directory (for loading into CR3)
@@ -109,7 +108,7 @@ void destroy_page_directory(page_directory_t* page_dir);
  * @param page_dir Pointer to the page directory
  * @return Physical address of the page directory
  */
-uint32_t get_page_directory_physical(page_directory_t* page_dir);
+uint32_t page_directory_physical_get(PageDirectoryT* page_dir);
 
 /**
  * Helper function to set a page directory entry
@@ -119,7 +118,7 @@ uint32_t get_page_directory_physical(page_directory_t* page_dir);
  * @param page_table_physical Physical address of the page table
  * @param flags Flags for the entry (PDE_PRESENT, PDE_WRITE, PDE_USER, etc.)
  */
-void set_page_directory_entry(page_directory_t* page_dir, uint32_t index, 
+void page_directory_entry_set(PageDirectoryT* page_dir, uint32_t index, 
                                uint32_t page_table_physical, uint32_t flags);
 
 /**
@@ -130,7 +129,5 @@ void set_page_directory_entry(page_directory_t* page_dir, uint32_t index,
  * @param physical_address Physical address to map
  * @param flags Flags for the entry (PTE_PRESENT, PTE_WRITE, PTE_USER, etc.)
  */
-void set_page_table_entry(page_table_t* page_table, uint32_t index,
+void page_table_entry_set(PageTableT* page_table, uint32_t index,
                           uint32_t physical_address, uint32_t flags);
-
-#endif // PAGING_H

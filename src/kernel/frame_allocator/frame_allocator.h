@@ -1,5 +1,4 @@
-#ifndef FRAME_ALLOCATOR_H
-#define FRAME_ALLOCATOR_H
+#pragma once
 
 #include "boot/bootparams.h"
 #include <stdbool.h>
@@ -39,5 +38,3 @@ void frame_mark_range_used(FrameAllocator *allocator, uint64_t start_addr,
 uint64_t frame_get_free_count(FrameAllocator *allocator);
 uint64_t frame_get_used_count(FrameAllocator *allocator);
 uint64_t frame_get_total_count(FrameAllocator *allocator);
-
-#endif // FRAME_ALLOCATOR_H

@@ -55,34 +55,34 @@ static void free_frame(uint32_t physical_addr) {
     frame_free(g_frame_allocator, (uint64_t)physical_addr);
 }
 
-page_directory_t* create_page_directory(void) {
-    printf("[create_page_directory] Starting...\n");
+PageDirectoryT* page_directory_create(void) {
+    printf("[page_directory_create] Starting...\n");
     
     uint32_t pd_physical = allocate_frame();
     if (pd_physical == 0) {
-        printf("[create_page_directory] Failed to allocate frame\n");
+        printf("[page_directory_create] Failed to allocate frame\n");
         return NULL;
     }
     
-    printf("[create_page_directory] Got frame at 0x%x\n", pd_physical);
+    printf("[page_directory_create] Got frame at 0x%x\n", pd_physical);
     
-    page_directory_t* page_dir = (page_directory_t*)pd_physical;
+    PageDirectoryT* page_dir = (PageDirectoryT*)pd_physical;
     
-    printf("[create_page_directory] About to memset...\n");
-    memset(page_dir, 0, sizeof(page_directory_t));
-    printf("[create_page_directory] memset complete\n");
+    printf("[page_directory_create] About to memset...\n");
+    memset(page_dir, 0, sizeof(PageDirectoryT));
+    printf("[page_directory_create] memset complete\n");
     
     printf("Page directory created at physical: 0x%x\n", pd_physical);
     
     return page_dir;
 }
 
-void destroy_page_directory(page_directory_t* page_dir) {
+void page_directory_destroy(PageDirectoryT* page_dir) {
     if (page_dir == NULL) {
         return;
     }
     
-    printf("[destroy_page_directory] Starting...\n");
+    printf("[page_directory_destroy] Starting...\n");
     
     // Don't iterate - just free the directory itself for now
     uint32_t pd_physical = virtual_to_physical(page_dir);
@@ -91,17 +91,17 @@ void destroy_page_directory(page_directory_t* page_dir) {
     printf("Page directory destroyed\n");
 }
 
-uint32_t get_page_directory_physical(page_directory_t* page_dir) {
+uint32_t page_directory_physical_get(PageDirectoryT* page_dir) {
     return virtual_to_physical(page_dir);
 }
 
-void set_page_directory_entry(page_directory_t* page_dir, uint32_t index, 
+void page_directory_entry_set(PageDirectoryT* page_dir, uint32_t index, 
                                uint32_t page_table_physical, uint32_t flags) {
     if (page_dir == NULL || index >= PAGE_DIRECTORY_ENTRIES) {
         return;
     }
     
-    page_directory_entry_t* pde = &page_dir->entries[index];
+    PageDirectoryEntryT* pde = &page_dir->entries[index];
     
     pde->frame = (page_table_physical >> 12) & 0xFFFFF;
     pde->present = (flags & PDE_PRESENT) ? 1 : 0;
@@ -117,13 +117,13 @@ void set_page_directory_entry(page_directory_t* page_dir, uint32_t index,
     pde->available = 0;
 }
 
-void set_page_table_entry(page_table_t* page_table, uint32_t index,
+void page_table_entry_set(PageTableT* page_table, uint32_t index,
                           uint32_t physical_address, uint32_t flags) {
     if (page_table == NULL || index >= PAGE_TABLE_ENTRIES) {
         return;
     }
     
-    page_table_entry_t* pte = &page_table->entries[index];
+    PageTableEntryT* pte = &page_table->entries[index];
     
     pte->frame = (physical_address >> 12) & 0xFFFFF;
     pte->present = (flags & PTE_PRESENT) ? 1 : 0;

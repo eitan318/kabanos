@@ -4,10 +4,10 @@
 #include "../../include/memory.h"
 #include "../../frame_allocator/frame_allocator.h"
 
-static void test_create_page_directory(void) {
+static void page_directory_create_test(void) {
     printf("\n=== Test: Create Page Directory ===\n");
     
-    page_directory_t* pd = create_page_directory();
+    PageDirectoryT* pd = page_directory_create();
     
     if (pd == NULL) {
         printf("FAIL: Page directory is NULL\n");
@@ -45,18 +45,18 @@ static void test_create_page_directory(void) {
     
     if (non_zero_count > 0) {
         printf("FAIL: Found %d non-zero entries\n", non_zero_count);
-        destroy_page_directory(pd);
+        page_directory_destroy(pd);
         return;
     }
     
-    destroy_page_directory(pd);
+    page_directory_destroy(pd);
     printf("PASS: All %d entries are properly zeroed\n", PAGE_DIRECTORY_ENTRIES);
 }
 
-static void test_destroy_page_directory(void) {
+static void page_directory_destroy_test(void) {
     printf("\n=== Test: Destroy Page Directory ===\n");
     
-    page_directory_t* pd = create_page_directory();
+    PageDirectoryT* pd = page_directory_create();
     if (pd == NULL) {
         printf("FAIL: Page directory is NULL\n");
         return;
@@ -66,14 +66,14 @@ static void test_destroy_page_directory(void) {
     printf("Created page directory at: 0x%x\n", pd_addr);
     printf("Destroying page directory...\n");
     
-    destroy_page_directory(pd);
+    page_directory_destroy(pd);
     printf("PASS: Page directory destroyed (no crash)\n");
 }
 
-static void test_set_page_directory_entry(void) {
+static void page_directory_entry_set_test(void) {
     printf("\n=== Test: Set Page Directory Entry ===\n");
     
-    page_directory_t* pd = create_page_directory();
+    PageDirectoryT* pd = page_directory_create();
     if (pd == NULL) {
         printf("FAIL: Page directory is NULL\n");
         return;
@@ -96,7 +96,7 @@ static void test_set_page_directory_entry(void) {
            pd->entries[0].user,
            pd->entries[0].frame);
     
-    set_page_directory_entry(pd, 0, page_table_addr, flags);
+    page_directory_entry_set(pd, 0, page_table_addr, flags);
     
     printf("AFTER:  Entry[0]: present=%d, write=%d, user=%d, frame=0x%x\n",
            pd->entries[0].present,
@@ -135,7 +135,7 @@ static void test_set_page_directory_entry(void) {
         success = false;
     }
     
-    destroy_page_directory(pd);
+    page_directory_destroy(pd);
     
     if (success) {
         printf("PASS: Page directory entry set correctly\n");
@@ -144,27 +144,27 @@ static void test_set_page_directory_entry(void) {
     }
 }
 
-static void test_set_page_table_entry(void) {
+static void page_table_entry_set_test(void) {
     printf("\n=== Test: Set Page Table Entry ===\n");
     printf("SKIP: Page table entry test (requires 4KB allocation)\n");
 }
 
-static void test_multiple_directories(void) {
+static void page_directories_multiple_test(void) {
     printf("\n=== Test: Multiple Page Directories ===\n");
     
     printf("Creating 3 page directories...\n");
-    page_directory_t* pd1 = create_page_directory();
-    page_directory_t* pd2 = create_page_directory();
-    page_directory_t* pd3 = create_page_directory();
+    PageDirectoryT* pd1 = page_directory_create();
+    PageDirectoryT* pd2 = page_directory_create();
+    PageDirectoryT* pd3 = page_directory_create();
     
     if (pd1 == NULL || pd2 == NULL || pd3 == NULL) {
         printf("FAIL: Could not create all directories\n");
         printf("  pd1: 0x%x\n", (uint32_t)pd1);
         printf("  pd2: 0x%x\n", (uint32_t)pd2);
         printf("  pd3: 0x%x\n", (uint32_t)pd3);
-        if (pd1) destroy_page_directory(pd1);
-        if (pd2) destroy_page_directory(pd2);
-        if (pd3) destroy_page_directory(pd3);
+        if (pd1) page_directory_destroy(pd1);
+        if (pd2) page_directory_destroy(pd2);
+        if (pd3) page_directory_destroy(pd3);
         return;
     }
     
@@ -200,11 +200,11 @@ static void test_multiple_directories(void) {
     }
     
     printf("Destroying directories in order: pd2, pd1, pd3...\n");
-    destroy_page_directory(pd2);
+    page_directory_destroy(pd2);
     printf("  pd2 destroyed\n");
-    destroy_page_directory(pd1);
+    page_directory_destroy(pd1);
     printf("  pd1 destroyed\n");
-    destroy_page_directory(pd3);
+    page_directory_destroy(pd3);
     printf("  pd3 destroyed\n");
     
     if (unique) {
@@ -214,10 +214,10 @@ static void test_multiple_directories(void) {
     }
 }
 
-static void test_page_directory_lifecycle(void) {
+static void page_directory_lifecycle_test(void) {
     printf("\n=== Test: Page Directory Lifecycle ===\n");
     
-    page_directory_t* pd = create_page_directory();
+    PageDirectoryT* pd = page_directory_create();
     if (pd == NULL) {
         printf("FAIL: Page directory is NULL\n");
         return;
@@ -227,13 +227,13 @@ static void test_page_directory_lifecycle(void) {
     printf("Setting 3 entries with different addresses and flags...\n");
     
     // Set 3 entries with different configurations
-    set_page_directory_entry(pd, 0, 0x00400000, PDE_PRESENT | PDE_WRITE);
+    page_directory_entry_set(pd, 0, 0x00400000, PDE_PRESENT | PDE_WRITE);
     printf("Entry[0] set: addr=0x00400000, flags=PRESENT|WRITE\n");
     
-    set_page_directory_entry(pd, 1, 0x00401000, PDE_PRESENT | PDE_WRITE | PDE_USER);
+    page_directory_entry_set(pd, 1, 0x00401000, PDE_PRESENT | PDE_WRITE | PDE_USER);
     printf("Entry[1] set: addr=0x00401000, flags=PRESENT|WRITE|USER\n");
     
-    set_page_directory_entry(pd, 2, 0x00402000, PDE_PRESENT);
+    page_directory_entry_set(pd, 2, 0x00402000, PDE_PRESENT);
     printf("Entry[2] set: addr=0x00402000, flags=PRESENT\n");
     
     printf("\nVerifying entries:\n");
@@ -307,7 +307,7 @@ static void test_page_directory_lifecycle(void) {
         success = false;
     }
     
-    destroy_page_directory(pd);
+    page_directory_destroy(pd);
     
     if (success) {
         printf("PASS: All entries set correctly with proper flags\n");
@@ -316,7 +316,7 @@ static void test_page_directory_lifecycle(void) {
     }
 }
 
-void run_paging_tests(FrameAllocator* allocator) {
+void paging_tests_run(FrameAllocator* allocator) {
     printf("\n");
     printf("====================================\n");
     printf("========== PAGING TESTS ===========\n");
@@ -335,12 +335,12 @@ void run_paging_tests(FrameAllocator* allocator) {
     printf("\nInitializing paging system...\n");
     paging_init(allocator);
     
-    test_create_page_directory();
-    test_destroy_page_directory();
-    test_set_page_directory_entry();
-    test_set_page_table_entry();
-    test_multiple_directories();
-    test_page_directory_lifecycle();
+    page_directory_create_test();
+    page_directory_destroy_test();
+    page_directory_entry_set_test();
+    page_table_entry_set_test();
+    page_directories_multiple_test();
+    page_directory_lifecycle_test();
     
     printf("\n");
     printf("====================================\n");
