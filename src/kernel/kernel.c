@@ -6,6 +6,7 @@
 #include "include/string.h"
 #include "initrd/initrd.h"
 #include "modules/modules.h"
+#include "paging/paging.h"
 #include "ut/ata/ata_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
 #include "ut/keyboard_driver.h"
@@ -41,8 +42,11 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   hal_init();
 
   __asm__ volatile("sti");
-
-  prompt_for_keyboard();
+  //
+  // FrameAllocator frame_allocator;
+  // frame_allocator_init(&frame_allocator, &boot_params.memory_map);
+  // paging_init(&frame_allocator);
+  //
   ut_frame_allocator_main();
 
   for (;;) {
