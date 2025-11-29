@@ -36,6 +36,11 @@
 #define PAGE_FRAME_MASK 0xFFFFF000
 #define PAGE_FLAGS_MASK 0x00000FFF
 
+// Address manipulation macros
+#define PAGE_DIRECTORY_INDEX(virt) (((uint32_t)(virt) >> 22) & 0x3FF)
+#define PAGE_TABLE_INDEX(virt) (((uint32_t)(virt) >> 12) & 0x3FF)
+#define PAGE_OFFSET(virt) ((uint32_t)(virt) & 0xFFF)
+
 // Page Table Entry structure
 typedef struct {
     uint32_t present    : 1;   // Page present in memory
@@ -131,3 +136,66 @@ void page_directory_entry_set(PageDirectoryT* page_dir, uint32_t index,
  */
 void page_table_entry_set(PageTableT* page_table, uint32_t index,
                           uint32_t physical_address, uint32_t flags);
+
+/**
+ * Create a new page table
+ * 
+ * @return Pointer to the new page table, or NULL on failure
+ */
+PageTableT* page_table_create(void);
+
+/**
+ * Destroy a page table
+ * 
+ * @param page_table Pointer to the page table to destroy
+ */
+void page_table_destroy(PageTableT* page_table);
+
+/**
+ * Map a virtual address to a physical address
+ * 
+ * @param page_dir Pointer to the page directory
+ * @param virtual_addr Virtual address to map
+ * @param physical_addr Physical address to map to
+ * @param flags Flags for the mapping (PTE_PRESENT, PTE_WRITE, PTE_USER, etc.)
+ * @return true on success, false on failure
+ */
+bool paging_map_page(PageDirectoryT* page_dir, uint32_t virtual_addr, 
+                     uint32_t physical_addr, uint32_t flags);
+
+/**
+ * Unmap a virtual address
+ * 
+ * @param page_dir Pointer to the page directory
+ * @param virtual_addr Virtual address to unmap
+ * @return true on success, false on failure
+ */
+bool paging_unmap_page(PageDirectoryT* page_dir, uint32_t virtual_addr);
+
+/**
+ * Get physical address for a virtual address
+ * 
+ * @param page_dir Pointer to the page directory
+ * @param virtual_addr Virtual address to translate
+ * @return Physical address, or 0 if not mapped
+ */
+uint32_t paging_get_physical_address(PageDirectoryT* page_dir, uint32_t virtual_addr);
+
+/**
+ * Enable paging by loading page directory into CR3
+ * 
+ * @param page_dir Pointer to the page directory to enable
+ */
+void paging_enable(PageDirectoryT* page_dir);
+
+/**
+ * Disable paging
+ */
+void paging_disable(void);
+
+/**
+ * Check if paging is currently enabled
+ * 
+ * @return true if paging is enabled, false otherwise
+ */
+bool paging_is_enabled(void);
