@@ -26,7 +26,7 @@ void paging_init(FrameAllocator* allocator) {
 /**
  * Convert virtual address to physical address (with paging enabled)
  */
-static uint32_t virtual_to_physical_with_paging(void* virtual_addr) {
+static uint32_t physical_with_paging_virtual_to(void* virtual_addr) {
     uint32_t virt = (uint32_t)virtual_addr;
     
     // Get current page directory from CR3
@@ -67,20 +67,20 @@ static uint32_t virtual_to_physical_with_paging(void* virtual_addr) {
  * Convert virtual address to physical address
  * Uses appropriate method based on whether paging is enabled
  */
-static uint32_t virtual_to_physical(void* virtual_addr) {
+static uint32_t physical_virtual_to(void* virtual_addr) {
     if (!g_paging_enabled) {
         // Before paging: identity mapping
         return (uint32_t)virtual_addr;
     } else {
         // After paging: walk page tables
-        return virtual_to_physical_with_paging(virtual_addr);
+        return physical_with_paging_virtual_to(virtual_addr);
     }
 }
 
 /**
  * Allocate a physical frame and return its address
  */
-static uint32_t allocate_frame(void) {
+static uint32_t frame_allocate(void) {
     if (g_frame_allocator == NULL) {
         debugf("ERROR: Frame allocator not initialized\n");
         return 0;
@@ -97,9 +97,9 @@ static uint32_t allocate_frame(void) {
 /**
  * Free a physical frame
  */
-static void free_frame(uint32_t physical_addr) {
+static void frame_free_internal(uint32_t physical_addr) {
     if (g_frame_allocator == NULL) {
-        debugf("ERROR: Frame allocator not initialized in free_frame\n");
+        debugf("ERROR: Frame allocator not initialized in frame_free_internal\n");
         return;
     }
     
@@ -119,7 +119,7 @@ static inline void invlpg(void* addr) {
 PageDirectoryT* page_directory_create(void) {
     debugf("[page_directory_create] Starting...\n");
     
-    uint32_t pd_physical = allocate_frame();
+    uint32_t pd_physical = frame_allocate();
     if (pd_physical == 0) {
         debugf("[page_directory_create] Failed to allocate frame\n");
         return NULL;
@@ -154,13 +154,13 @@ void page_directory_destroy(PageDirectoryT* page_dir) {
             uint32_t pt_physical = page_dir->entries[i].frame << 12;
             debugf("[page_directory_destroy] Freeing page table at index %u (0x%x)\n", 
                    i, pt_physical);
-            free_frame(pt_physical);
+            frame_free_internal(pt_physical);
         }
     }
     
     // Free the directory itself
-    uint32_t pd_physical = virtual_to_physical(page_dir);
-    free_frame(pd_physical);
+    uint32_t pd_physical = physical_virtual_to(page_dir);
+    frame_free_internal(pd_physical);
     
     debugf("Page directory destroyed\n");
 }
@@ -169,7 +169,7 @@ void page_directory_destroy(PageDirectoryT* page_dir) {
  * Get physical address of page directory
  */
 uint32_t page_directory_physical_get(PageDirectoryT* page_dir) {
-    return virtual_to_physical(page_dir);
+    return physical_virtual_to(page_dir);
 }
 
 /**
@@ -190,13 +190,13 @@ void page_directory_entry_set(PageDirectoryT* page_dir, uint32_t index,
     entry |= (page_table_physical & PAGE_FRAME_MASK);
     
     // Set flags
-    if (flags & PDE_PRESENT)      entry |= (1 << 0);
-    if (flags & PDE_WRITE)        entry |= (1 << 1);
-    if (flags & PDE_USER)         entry |= (1 << 2);
-    if (flags & PDE_WRITETHROUGH) entry |= (1 << 3);
-    if (flags & PDE_CACHEDISABLE) entry |= (1 << 4);
-    if (flags & PDE_SIZE)         entry |= (1 << 7);
-    if (flags & PDE_GLOBAL)       entry |= (1 << 8);
+    if (!!(flags & PDE_PRESENT))      entry |= (1 << 0);
+    if (!!(flags & PDE_WRITE))        entry |= (1 << 1);
+    if (!!(flags & PDE_USER))         entry |= (1 << 2);
+    if (!!(flags & PDE_WRITETHROUGH)) entry |= (1 << 3);
+    if (!!(flags & PDE_CACHEDISABLE)) entry |= (1 << 4);
+    if (!!(flags & PDE_SIZE))         entry |= (1 << 7);
+    if (!!(flags & PDE_GLOBAL))       entry |= (1 << 8);
     
     // Write entry using volatile pointer to prevent optimization
     volatile uint32_t* entry_ptr = (volatile uint32_t*)pde;
@@ -221,13 +221,13 @@ void page_table_entry_set(PageTableT* page_table, uint32_t index,
     entry |= (physical_address & PAGE_FRAME_MASK);
     
     // Set flags
-    if (flags & PTE_PRESENT)      entry |= (1 << 0);
-    if (flags & PTE_WRITE)        entry |= (1 << 1);
-    if (flags & PTE_USER)         entry |= (1 << 2);
-    if (flags & PTE_WRITETHROUGH) entry |= (1 << 3);
-    if (flags & PTE_CACHEDISABLE) entry |= (1 << 4);
-    if (flags & PTE_PAT)          entry |= (1 << 7);
-    if (flags & PTE_GLOBAL)       entry |= (1 << 8);
+    if (!!(flags & PTE_PRESENT))      entry |= (1 << 0);
+    if (!!(flags & PTE_WRITE))        entry |= (1 << 1);
+    if (!!(flags & PTE_USER))         entry |= (1 << 2);
+    if (!!(flags & PTE_WRITETHROUGH)) entry |= (1 << 3);
+    if (!!(flags & PTE_CACHEDISABLE)) entry |= (1 << 4);
+    if (!!(flags & PTE_PAT))          entry |= (1 << 7);
+    if (!!(flags & PTE_GLOBAL))       entry |= (1 << 8);
     
     // Write entry using volatile pointer to prevent optimization
     volatile uint32_t* entry_ptr = (volatile uint32_t*)pte;
@@ -238,7 +238,7 @@ void page_table_entry_set(PageTableT* page_table, uint32_t index,
  * Create a new page table
  */
 PageTableT* page_table_create(void) {
-    uint32_t pt_physical = allocate_frame();
+    uint32_t pt_physical = frame_allocate();
     if (pt_physical == 0) {
         debugf("[page_table_create] Failed to allocate frame\n");
         return NULL;
@@ -260,8 +260,8 @@ void page_table_destroy(PageTableT* page_table) {
         return;
     }
     
-    uint32_t pt_physical = virtual_to_physical(page_table);
-    free_frame(pt_physical);
+    uint32_t pt_physical = physical_virtual_to(page_table);
+    frame_free_internal(pt_physical);
     
     debugf("[page_table_destroy] Page table at 0x%x destroyed\n", pt_physical);
 }
@@ -269,7 +269,7 @@ void page_table_destroy(PageTableT* page_table) {
 /**
  * Get or create a page table for a given virtual address
  */
-static PageTableT* get_or_create_page_table(PageDirectoryT* page_dir, uint32_t virtual_addr) {
+static PageTableT* page_table_get_or_create(PageDirectoryT* page_dir, uint32_t virtual_addr) {
     if (page_dir == NULL) {
         return NULL;
     }
@@ -286,12 +286,12 @@ static PageTableT* get_or_create_page_table(PageDirectoryT* page_dir, uint32_t v
     // Create new page table
     PageTableT* page_table = page_table_create();
     if (page_table == NULL) {
-        debugf("[get_or_create_page_table] Failed to create page table\n");
+        debugf("[page_table_get_or_create] Failed to create page table\n");
         return NULL;
     }
     
     // Set the page directory entry
-    uint32_t pt_physical = virtual_to_physical(page_table);
+    uint32_t pt_physical = physical_virtual_to(page_table);
     page_directory_entry_set(page_dir, pd_index, pt_physical, 
                              PDE_PRESENT | PDE_WRITE | PDE_USER);
     
@@ -301,10 +301,10 @@ static PageTableT* get_or_create_page_table(PageDirectoryT* page_dir, uint32_t v
 /**
  * Map a virtual page to a physical page
  */
-bool paging_map_page(PageDirectoryT* page_dir, uint32_t virtual_addr, 
+bool paging_page_map(PageDirectoryT* page_dir, uint32_t virtual_addr, 
                      uint32_t physical_addr, uint32_t flags) {
     if (page_dir == NULL) {
-        debugf("[paging_map_page] NULL page directory\n");
+        debugf("[paging_page_map] NULL page directory\n");
         return false;
     }
     
@@ -312,13 +312,13 @@ bool paging_map_page(PageDirectoryT* page_dir, uint32_t virtual_addr,
     virtual_addr &= PAGE_FRAME_MASK;
     physical_addr &= PAGE_FRAME_MASK;
     
-    debugf("[paging_map_page] Mapping virt=0x%x to phys=0x%x with flags=0x%x\n",
+    debugf("[paging_page_map] Mapping virt=0x%x to phys=0x%x with flags=0x%x\n",
            virtual_addr, physical_addr, flags);
     
     // Get or create the page table for this virtual address
-    PageTableT* page_table = get_or_create_page_table(page_dir, virtual_addr);
+    PageTableT* page_table = page_table_get_or_create(page_dir, virtual_addr);
     if (page_table == NULL) {
-        debugf("[paging_map_page] Failed to get/create page table\n");
+        debugf("[paging_page_map] Failed to get/create page table\n");
         return false;
     }
     
@@ -331,14 +331,14 @@ bool paging_map_page(PageDirectoryT* page_dir, uint32_t virtual_addr,
         invlpg((void*)virtual_addr);
     }
     
-    debugf("[paging_map_page] Successfully mapped page\n");
+    debugf("[paging_page_map] Successfully mapped page\n");
     return true;
 }
 
 /**
  * Unmap a virtual page
  */
-bool paging_unmap_page(PageDirectoryT* page_dir, uint32_t virtual_addr) {
+bool paging_page_unmap(PageDirectoryT* page_dir, uint32_t virtual_addr) {
     if (page_dir == NULL) {
         return false;
     }
@@ -349,7 +349,7 @@ bool paging_unmap_page(PageDirectoryT* page_dir, uint32_t virtual_addr) {
     PageDirectoryEntryT* pde = &page_dir->entries[pd_index];
     
     if (!pde->present) {
-        debugf("[paging_unmap_page] Page table not present\n");
+        debugf("[paging_page_unmap] Page table not present\n");
         return false;
     }
     
@@ -360,7 +360,7 @@ bool paging_unmap_page(PageDirectoryT* page_dir, uint32_t virtual_addr) {
     PageTableEntryT* pte = &page_table->entries[pt_index];
     
     if (!pte->present) {
-        debugf("[paging_unmap_page] Page not present\n");
+        debugf("[paging_page_unmap] Page not present\n");
         return false;
     }
     
@@ -373,14 +373,14 @@ bool paging_unmap_page(PageDirectoryT* page_dir, uint32_t virtual_addr) {
         invlpg((void*)virtual_addr);
     }
     
-    debugf("[paging_unmap_page] Successfully unmapped page at 0x%x\n", virtual_addr);
+    debugf("[paging_page_unmap] Successfully unmapped page at 0x%x\n", virtual_addr);
     return true;
 }
 
 /**
  * Get physical address for a virtual address
  */
-uint32_t paging_get_physical_address(PageDirectoryT* page_dir, uint32_t virtual_addr) {
+uint32_t paging_physical_address_get(PageDirectoryT* page_dir, uint32_t virtual_addr) {
     if (page_dir == NULL) {
         return 0;
     }

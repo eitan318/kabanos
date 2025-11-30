@@ -5,43 +5,43 @@
 #include "../../frame_allocator/frame_allocator.h"
 
 // Helper functions for pretty output
-static void print_line(void) {
+static void line_print(void) {
     debugf("================================================================\n");
 }
 
-static void print_double_line(void) {
+static void double_line_print(void) {
     debugf("════════════════════════════════════════════════════════════════\n");
 }
 
-static void print_header(const char* text) {
+static void header_print(const char* text) {
     debugf("\n");
-    print_double_line();
+    double_line_print();
     debugf("  %s\n", text);
-    print_double_line();
+    double_line_print();
 }
 
-static void print_test_start(const char* name) {
+static void test_start_print(const char* name) {
     debugf("\n");
-    print_line();
+    line_print();
     debugf("TEST: %s\n", name);
-    print_line();
+    line_print();
 }
 
-static void print_pass(void) {
+static void pass_print(void) {
     debugf("Result: PASS\n");
 }
 
-static void print_fail(const char* message) {
+static void fail_print(const char* message) {
     debugf("Result: FAIL - %s\n", message);
 }
 
 static void page_directory_create_test(void) {
-    print_test_start("Create Page Directory");
+    test_start_print("Create Page Directory");
     
     PageDirectoryT* pd = page_directory_create();
     
     if (pd == NULL) {
-        print_fail("Page directory is NULL");
+        fail_print("Page directory is NULL");
         return;
     }
     
@@ -61,20 +61,20 @@ static void page_directory_create_test(void) {
     
     if (non_zero_count > 0) {
         page_directory_destroy(pd);
-        print_fail("Found non-zero entries");
+        fail_print("Found non-zero entries");
         return;
     }
     
     page_directory_destroy(pd);
-    print_pass();
+    pass_print();
 }
 
 static void page_directory_destroy_test(void) {
-    print_test_start("Destroy Page Directory");
+    test_start_print("Destroy Page Directory");
     
     PageDirectoryT* pd = page_directory_create();
     if (pd == NULL) {
-        print_fail("Page directory is NULL");
+        fail_print("Page directory is NULL");
         return;
     }
     
@@ -84,15 +84,15 @@ static void page_directory_destroy_test(void) {
     
     page_directory_destroy(pd);
     debugf("  Destroyed successfully\n");
-    print_pass();
+    pass_print();
 }
 
 static void page_directory_entry_set_test(void) {
-    print_test_start("Set Page Directory Entry");
+    test_start_print("Set Page Directory Entry");
     
     PageDirectoryT* pd = page_directory_create();
     if (pd == NULL) {
-        print_fail("Page directory is NULL");
+        fail_print("Page directory is NULL");
         return;
     }
     
@@ -121,18 +121,18 @@ static void page_directory_entry_set_test(void) {
     page_directory_destroy(pd);
     
     if (success) {
-        print_pass();
+        pass_print();
     } else {
-        print_fail("Entry values incorrect");
+        fail_print("Entry values incorrect");
     }
 }
 
 static void page_table_entry_set_test(void) {
-    print_test_start("Set Page Table Entry");
+    test_start_print("Set Page Table Entry");
     
     PageTableT* pt = page_table_create();
     if (pt == NULL) {
-        print_fail("Page table is NULL");
+        fail_print("Page table is NULL");
         return;
     }
     
@@ -163,14 +163,14 @@ static void page_table_entry_set_test(void) {
     page_table_destroy(pt);
     
     if (success) {
-        print_pass();
+        pass_print();
     } else {
-        print_fail("Entry values incorrect");
+        fail_print("Entry values incorrect");
     }
 }
 
 static void page_directories_multiple_test(void) {
-    print_test_start("Multiple Page Directories");
+    test_start_print("Multiple Page Directories");
     
     debugf("  Creating 3 page directories...\n");
     PageDirectoryT* pd1 = page_directory_create();
@@ -178,7 +178,7 @@ static void page_directories_multiple_test(void) {
     PageDirectoryT* pd3 = page_directory_create();
     
     if (pd1 == NULL || pd2 == NULL || pd3 == NULL) {
-        print_fail("Could not create all directories");
+        fail_print("Could not create all directories");
         if (pd1) page_directory_destroy(pd1);
         if (pd2) page_directory_destroy(pd2);
         if (pd3) page_directory_destroy(pd3);
@@ -219,18 +219,18 @@ static void page_directories_multiple_test(void) {
     debugf("  All directories destroyed\n");
     
     if (unique && aligned) {
-        print_pass();
+        pass_print();
     } else {
-        print_fail("Directories not unique or not aligned");
+        fail_print("Directories not unique or not aligned");
     }
 }
 
 static void page_directory_lifecycle_test(void) {
-    print_test_start("Page Directory Lifecycle");
+    test_start_print("Page Directory Lifecycle");
     
     PageDirectoryT* pd = page_directory_create();
     if (pd == NULL) {
-        print_fail("Page directory is NULL");
+        fail_print("Page directory is NULL");
         return;
     }
     
@@ -264,18 +264,18 @@ static void page_directory_lifecycle_test(void) {
     page_directory_destroy(pd);
     
     if (success) {
-        print_pass();
+        pass_print();
     } else {
-        print_fail("Some entries configured incorrectly");
+        fail_print("Some entries configured incorrectly");
     }
 }
 
 static void page_mapping_test(void) {
-    print_test_start("Page Mapping");
+    test_start_print("Page Mapping");
     
     PageDirectoryT* pd = page_directory_create();
     if (pd == NULL) {
-        print_fail("Page directory is NULL");
+        fail_print("Page directory is NULL");
         return;
     }
     
@@ -287,10 +287,10 @@ static void page_mapping_test(void) {
     debugf("    Physical: 0x%x (1MB)\n", phys_addr);
     debugf("    Flags:    PRESENT | WRITE\n");
     
-    bool result = paging_map_page(pd, virt_addr, phys_addr, PTE_PRESENT | PTE_WRITE);
+    bool result = paging_page_map(pd, virt_addr, phys_addr, PTE_PRESENT | PTE_WRITE);
     
     if (!result) {
-        print_fail("paging_map_page returned false");
+        fail_print("paging_page_map returned false");
         page_directory_destroy(pd);
         return;
     }
@@ -298,13 +298,13 @@ static void page_mapping_test(void) {
     debugf("  Mapping operation successful\n");
     
     // Verify
-    uint32_t retrieved = paging_get_physical_address(pd, virt_addr);
+    uint32_t retrieved = paging_physical_address_get(pd, virt_addr);
     debugf("  Verification:\n");
     debugf("    Retrieved: 0x%x\n", retrieved);
     debugf("    Expected:  0x%x\n", phys_addr);
     
     if (retrieved != phys_addr) {
-        print_fail("Physical address mismatch");
+        fail_print("Physical address mismatch");
         page_directory_destroy(pd);
         return;
     }
@@ -312,15 +312,15 @@ static void page_mapping_test(void) {
     debugf("  Address verified successfully\n");
     
     page_directory_destroy(pd);
-    print_pass();
+    pass_print();
 }
 
 static void page_unmapping_test(void) {
-    print_test_start("Page Unmapping");
+    test_start_print("Page Unmapping");
     
     PageDirectoryT* pd = page_directory_create();
     if (pd == NULL) {
-        print_fail("Page directory is NULL");
+        fail_print("Page directory is NULL");
         return;
     }
     
@@ -331,15 +331,15 @@ static void page_unmapping_test(void) {
     debugf("    Virtual:  0x%x\n", virt_addr);
     debugf("    Physical: 0x%x\n", phys_addr);
     
-    if (!paging_map_page(pd, virt_addr, phys_addr, PTE_PRESENT | PTE_WRITE)) {
-        print_fail("Could not map page");
+    if (!paging_page_map(pd, virt_addr, phys_addr, PTE_PRESENT | PTE_WRITE)) {
+        fail_print("Could not map page");
         page_directory_destroy(pd);
         return;
     }
     
-    uint32_t retrieved = paging_get_physical_address(pd, virt_addr);
+    uint32_t retrieved = paging_physical_address_get(pd, virt_addr);
     if (retrieved != phys_addr) {
-        print_fail("Initial mapping verification failed");
+        fail_print("Initial mapping verification failed");
         page_directory_destroy(pd);
         return;
     }
@@ -347,8 +347,8 @@ static void page_unmapping_test(void) {
     debugf("    Mapping verified\n");
     
     debugf("  Step 2: Unmap page\n");
-    if (!paging_unmap_page(pd, virt_addr)) {
-        print_fail("paging_unmap_page returned false");
+    if (!paging_page_unmap(pd, virt_addr)) {
+        fail_print("paging_page_unmap returned false");
         page_directory_destroy(pd);
         return;
     }
@@ -356,11 +356,11 @@ static void page_unmapping_test(void) {
     debugf("    Unmap operation completed\n");
     
     debugf("  Step 3: Verify unmapping\n");
-    retrieved = paging_get_physical_address(pd, virt_addr);
+    retrieved = paging_physical_address_get(pd, virt_addr);
     debugf("    Retrieved: 0x%x (expected 0x0)\n", retrieved);
     
     if (retrieved != 0) {
-        print_fail("Page still mapped after unmapping");
+        fail_print("Page still mapped after unmapping");
         page_directory_destroy(pd);
         return;
     }
@@ -368,11 +368,11 @@ static void page_unmapping_test(void) {
     debugf("    Unmapping verified\n");
     
     page_directory_destroy(pd);
-    print_pass();
+    pass_print();
 }
 
 static void paging_state_test(void) {
-    print_test_start("Paging State");
+    test_start_print("Paging State");
     
     bool enabled = paging_is_enabled();
     debugf("  Current paging state: %s\n", enabled ? "ENABLED" : "DISABLED");
@@ -383,15 +383,15 @@ static void paging_state_test(void) {
         debugf("  Paging is correctly disabled\n");
     }
     
-    print_pass();
+    pass_print();
 }
 
 static void multiple_page_mappings_test(void) {
-    print_test_start("Multiple Page Mappings");
+    test_start_print("Multiple Page Mappings");
     
     PageDirectoryT* pd = page_directory_create();
     if (pd == NULL) {
-        print_fail("Page directory is NULL");
+        fail_print("Page directory is NULL");
         return;
     }
     
@@ -405,9 +405,9 @@ static void multiple_page_mappings_test(void) {
         uint32_t virt = virt_base + (i * PAGE_SIZE);
         uint32_t phys = phys_base + (i * PAGE_SIZE);
         
-        if (!paging_map_page(pd, virt, phys, PTE_PRESENT | PTE_WRITE)) {
+        if (!paging_page_map(pd, virt, phys, PTE_PRESENT | PTE_WRITE)) {
             debugf("    ERROR: Failed to map page %d\n", i);
-            print_fail("Could not map all pages");
+            fail_print("Could not map all pages");
             page_directory_destroy(pd);
             return;
         }
@@ -420,7 +420,7 @@ static void multiple_page_mappings_test(void) {
     for (int i = 0; i < 5; i++) {
         uint32_t virt = virt_base + (i * PAGE_SIZE);
         uint32_t expected = phys_base + (i * PAGE_SIZE);
-        uint32_t actual = paging_get_physical_address(pd, virt);
+        uint32_t actual = paging_physical_address_get(pd, virt);
         
         debugf("    [%d] 0x%x -> 0x%x ", i, virt, actual);
         
@@ -435,14 +435,14 @@ static void multiple_page_mappings_test(void) {
     page_directory_destroy(pd);
     
     if (all_correct) {
-        print_pass();
+        pass_print();
     } else {
-        print_fail("Some mappings incorrect");
+        fail_print("Some mappings incorrect");
     }
 }
 
 void paging_tests_run(FrameAllocator* allocator) {
-    print_header("PAGING UNIT TESTS");
+    header_print("PAGING UNIT TESTS");
     
     if (allocator == NULL) {
         debugf("\nERROR: NULL allocator provided\n");
@@ -470,6 +470,6 @@ void paging_tests_run(FrameAllocator* allocator) {
     paging_state_test();
     multiple_page_mappings_test();
     
-    print_header("ALL TESTS COMPLETE");
+    header_print("ALL TESTS COMPLETE");
     debugf("\n");
 }

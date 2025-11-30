@@ -160,7 +160,7 @@ void page_table_destroy(PageTableT* page_table);
  * @param flags Flags for the mapping (PTE_PRESENT, PTE_WRITE, PTE_USER, etc.)
  * @return true on success, false on failure
  */
-bool paging_map_page(PageDirectoryT* page_dir, uint32_t virtual_addr, 
+bool paging_page_map(PageDirectoryT* page_dir, uint32_t virtual_addr, 
                      uint32_t physical_addr, uint32_t flags);
 
 /**
@@ -170,7 +170,7 @@ bool paging_map_page(PageDirectoryT* page_dir, uint32_t virtual_addr,
  * @param virtual_addr Virtual address to unmap
  * @return true on success, false on failure
  */
-bool paging_unmap_page(PageDirectoryT* page_dir, uint32_t virtual_addr);
+bool paging_page_unmap(PageDirectoryT* page_dir, uint32_t virtual_addr);
 
 /**
  * Get physical address for a virtual address
@@ -179,7 +179,7 @@ bool paging_unmap_page(PageDirectoryT* page_dir, uint32_t virtual_addr);
  * @param virtual_addr Virtual address to translate
  * @return Physical address, or 0 if not mapped
  */
-uint32_t paging_get_physical_address(PageDirectoryT* page_dir, uint32_t virtual_addr);
+uint32_t paging_physical_address_get(PageDirectoryT* page_dir, uint32_t virtual_addr);
 
 /**
  * Enable paging by loading page directory into CR3
