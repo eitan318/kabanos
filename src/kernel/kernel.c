@@ -52,8 +52,13 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   debugf("Total frames: %llu\n", frame_get_total_count(&test_allocator));
   debugf("Free frames: %llu\n", frame_get_free_count(&test_allocator));
   
-  // Run paging tests
+  debugf("\n*** STARTING PAGING TESTS WITH ACTUAL PAGING ***\n");
+  
+  // Run paging tests - these will actually enable and test paging!
   paging_tests_run(&test_allocator);
+  
+  debugf("\n*** PAGING TESTS COMPLETE ***\n");
+  debugf("System is back to non-paged mode\n");
 
   for (int i = 0; i < 1000000000; i++) {}
 
