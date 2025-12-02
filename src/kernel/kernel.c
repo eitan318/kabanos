@@ -9,6 +9,7 @@
 #include "paging/paging.h"
 #include "ut/ata/ata_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
+#include "ut/paging/paging_ut_main.h"
 #include "ut/keyboard_driver.h"
 #include "ut/printing_info/print_boot_info.h"
 #include <stdbool.h>
@@ -42,11 +43,27 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   hal_init();
 
   __asm__ volatile("sti");
-  //
-  // FrameAllocator frame_allocator;
-  // frame_allocator_init(&frame_allocator, &boot_params.memory_map);
-  // paging_init(&frame_allocator);
-  //
+
+  // Initialize frame allocator for paging tests
+  debugf("\n[Initializing Frame Allocator for Paging Tests]\n");
+  FrameAllocator test_allocator;
+  frame_allocator_init(&test_allocator, &boot_params.memory_map);
+  
+  debugf("Frame allocator initialized\n");
+  debugf("Total frames: %llu\n", frame_get_total_count(&test_allocator));
+  debugf("Free frames: %llu\n", frame_get_free_count(&test_allocator));
+  
+  debugf("\n*** STARTING PAGING TESTS WITH ACTUAL PAGING ***\n");
+  
+  // Run paging tests - these will actually enable and test paging!
+  paging_tests_run(&test_allocator);
+  
+  debugf("\n*** PAGING TESTS COMPLETE ***\n");
+  debugf("System is back to non-paged mode\n");
+
+  for (int i = 0; i < 1000000000; i++) {}
+
+  prompt_for_keyboard();
   ut_frame_allocator_main();
 
   for (;;) {

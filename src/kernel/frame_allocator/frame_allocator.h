@@ -1,3 +1,5 @@
+#pragma once
+
 #include "boot/bootparams.h"
 #include <stdbool.h>
 #include <stdint.h>
