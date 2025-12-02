@@ -1,5 +1,5 @@
 #include "idt.h"
-#include "utils/binary_flags.h"
+#include "utils/binary.h"
 
 #define IDT_SELECTOR_GDT_IDX_START 3
 
@@ -46,9 +46,9 @@ void i686_idt_gate_set(int interrupt_code, void *offset,
 }
 
 void i686_idt_gate_enable(int interrupt_code) {
-  FLAG_SET(g_idt[interrupt_code].flags, IDT_FLAGS_PRESENT);
+  MASK_SET(g_idt[interrupt_code].flags, IDT_FLAGS_PRESENT);
 }
 
 void i686_idt_gate_disable(int interrupt_code) {
-  FLAG_UNSET(g_idt[interrupt_code].flags, IDT_FLAGS_PRESENT);
+  MASK_UNSET(g_idt[interrupt_code].flags, IDT_FLAGS_PRESENT);
 }

@@ -1,6 +1,4 @@
 #include "drivers/block/ata.h"
-#include "include/stdio.h"
-#include "include/string.h"
 #include "ut/ut_framework.h"
 #include <stdint.h>
 

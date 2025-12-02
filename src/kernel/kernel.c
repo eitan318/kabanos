@@ -6,6 +6,7 @@
 #include "include/string.h"
 #include "initrd/initrd.h"
 #include "modules/modules.h"
+#include "paging/paging.h"
 #include "ut/ata/ata_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
 #include "ut/paging/paging_ut_main.h"
