@@ -39,7 +39,7 @@ static uint32_t physical_with_paging_virtual_to(void* virtual_addr) {
     
     // Get page directory entry
     uint32_t pd_index = PAGE_DIRECTORY_INDEX(virt);
-    PageDirectoryEntryT* pde = &page_dir->entries[pd_index];
+    PageDirectoryEntry* pde = &page_dir->entries[pd_index];
     
     if (!pde->present) {
         debugf("ERROR: Page table not present for virtual address 0x%x\n", virt);
@@ -54,7 +54,7 @@ static uint32_t physical_with_paging_virtual_to(void* virtual_addr) {
     
     // Get page table entry
     uint32_t pt_index = PAGE_TABLE_INDEX(virt);
-    PageTableEntryT* pte = &page_table->entries[pt_index];
+    PageTableEntry* pte = &page_table->entries[pt_index];
     
     if (!pte->present) {
         debugf("ERROR: Page not present for virtual address 0x%x\n", virt);
@@ -201,7 +201,7 @@ void page_directory_entry_set(PageDirectoryT* page_dir, uint32_t index,
         return;
     }
     
-    PageDirectoryEntryT* pde = &page_dir->entries[index];
+    PageDirectoryEntry* pde = &page_dir->entries[index];
     
     // Build entry as 32-bit value
     uint32_t entry = 0;
@@ -232,7 +232,7 @@ void page_table_entry_set(PageTableT* page_table, uint32_t index,
         return;
     }
     
-    PageTableEntryT* pte = &page_table->entries[index];
+    PageTableEntry* pte = &page_table->entries[index];
     
     // Build entry as 32-bit value
     uint32_t entry = 0;
@@ -294,7 +294,7 @@ static PageTableT* page_table_get_or_create(PageDirectoryT* page_dir, uint32_t v
     }
     
     uint32_t pd_index = PAGE_DIRECTORY_INDEX(virtual_addr);
-    PageDirectoryEntryT* pde = &page_dir->entries[pd_index];
+    PageDirectoryEntry* pde = &page_dir->entries[pd_index];
     
     // If page table already exists, return it
     if (pde->present) {
@@ -363,7 +363,7 @@ bool paging_page_unmap(PageDirectoryT* page_dir, uint32_t virtual_addr) {
     virtual_addr &= PAGE_FRAME_MASK;
     
     uint32_t pd_index = PAGE_DIRECTORY_INDEX(virtual_addr);
-    PageDirectoryEntryT* pde = &page_dir->entries[pd_index];
+    PageDirectoryEntry* pde = &page_dir->entries[pd_index];
     
     if (!pde->present) {
         return false;
@@ -373,7 +373,7 @@ bool paging_page_unmap(PageDirectoryT* page_dir, uint32_t virtual_addr) {
     PageTableT* page_table = (PageTableT*)pt_physical;
     
     uint32_t pt_index = PAGE_TABLE_INDEX(virtual_addr);
-    PageTableEntryT* pte = &page_table->entries[pt_index];
+    PageTableEntry* pte = &page_table->entries[pt_index];
     
     if (!pte->present) {
         return false;
@@ -400,7 +400,7 @@ uint32_t paging_physical_address_get(PageDirectoryT* page_dir, uint32_t virtual_
     }
     
     uint32_t pd_index = PAGE_DIRECTORY_INDEX(virtual_addr);
-    PageDirectoryEntryT* pde = &page_dir->entries[pd_index];
+    PageDirectoryEntry* pde = &page_dir->entries[pd_index];
     
     if (!pde->present) {
         return 0;
@@ -410,7 +410,7 @@ uint32_t paging_physical_address_get(PageDirectoryT* page_dir, uint32_t virtual_
     PageTableT* page_table = (PageTableT*)pt_physical;
     
     uint32_t pt_index = PAGE_TABLE_INDEX(virtual_addr);
-    PageTableEntryT* pte = &page_table->entries[pt_index];
+    PageTableEntry* pte = &page_table->entries[pt_index];
     
     if (!pte->present) {
         return 0;

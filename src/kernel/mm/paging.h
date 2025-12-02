@@ -54,7 +54,7 @@ typedef struct {
     uint32_t global     : 1;   // Global page
     uint32_t available  : 3;   // Available for OS use
     uint32_t frame      : 20;  // Physical frame address (bits 31-12)
-} __attribute__((packed)) PageTableEntryT;
+} __attribute__((packed)) PageTableEntry;
 
 // Page Directory Entry structure
 typedef struct {
@@ -69,16 +69,16 @@ typedef struct {
     uint32_t global     : 1;   // Global page
     uint32_t available  : 3;   // Available for OS use
     uint32_t frame      : 20;  // Page table physical address (bits 31-12)
-} __attribute__((packed)) PageDirectoryEntryT;
+} __attribute__((packed)) PageDirectoryEntry;
 
 // Page Table (1024 entries)
 typedef struct {
-    PageTableEntryT entries[PAGE_TABLE_ENTRIES];
+    PageTableEntry entries[PAGE_TABLE_ENTRIES];
 } __attribute__((aligned(PAGE_SIZE))) PageTableT;
 
 // Page Directory (1024 entries)
 typedef struct {
-    PageDirectoryEntryT entries[PAGE_DIRECTORY_ENTRIES];
+    PageDirectoryEntry entries[PAGE_DIRECTORY_ENTRIES];
 } __attribute__((aligned(PAGE_SIZE))) PageDirectoryT;
 
 // Function prototypes
