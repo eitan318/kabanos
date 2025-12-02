@@ -1,6 +1,6 @@
-#include "frame_allocator/frame_allocator.h"
 #include "include/stdio.h"
 #include "include/string.h"
+#include "memory_management/frame_allocator.h"
 #include "ut/ut_framework.h"
 #include <stdint.h>
 
@@ -40,21 +40,20 @@ MemoryMap create_test_memory_map(void) {
 
 int ut_basic_allocation(void) {
   MemoryMap mmap = create_test_memory_map();
-  FrameAllocator allocator;
 
-  frame_allocator_init(&allocator, &mmap);
+  frame_allocator_init(&mmap);
 
-  debugf("  Total frames: %lu\n", frame_get_total_count(&allocator));
-  debugf("  Free frames: %lu\n", frame_get_free_count(&allocator));
-  debugf("  Used frames: %lu\n", frame_get_used_count(&allocator));
+  debugf("  Total frames: %lu\n", frame_get_total_count());
+  debugf("  Free frames: %lu\n", frame_get_free_count());
+  debugf("  Used frames: %lu\n", frame_get_used_count());
 
-  if (frame_get_free_count(&allocator) == 0) {
+  if (frame_get_free_count() == 0) {
     debugf("FAIL: No free frames available\n");
     return UT_FAIL;
   }
 
   // Allocate first frame
-  uint64_t frame1 = frame_alloc(&allocator);
+  uint64_t frame1 = frame_alloc();
   debugf("  Allocated frame 1: 0x%lx\n", frame1);
 
   if (frame1 == 0) {
@@ -67,7 +66,7 @@ int ut_basic_allocation(void) {
   }
 
   // Allocate second frame
-  uint64_t frame2 = frame_alloc(&allocator);
+  uint64_t frame2 = frame_alloc();
   debugf("  Allocated frame 2: 0x%lx\n", frame2);
 
   if (frame2 == 0) {
@@ -88,18 +87,17 @@ int ut_basic_allocation(void) {
 
 int ut_free_and_realloc(void) {
   MemoryMap mmap = create_test_memory_map();
-  FrameAllocator allocator;
 
-  frame_allocator_init(&allocator, &mmap);
+  frame_allocator_init(&mmap);
 
-  uint64_t initial_free = frame_get_free_count(&allocator);
+  uint64_t initial_free = frame_get_free_count();
 
   // Allocate frame
-  uint64_t frame = frame_alloc(&allocator);
+  uint64_t frame = frame_alloc();
   UT_ASSERT_SUCCESS(frame, "Frame allocation");
   debugf("  Allocated: 0x%lx\n", frame);
 
-  uint64_t after_alloc = frame_get_free_count(&allocator);
+  uint64_t after_alloc = frame_get_free_count();
   if (after_alloc != initial_free - 1) {
     debugf("FAIL: Free count incorrect after alloc: %lu (expected %lu)\n",
            after_alloc, initial_free - 1);
@@ -107,10 +105,10 @@ int ut_free_and_realloc(void) {
   }
 
   // Free frame
-  frame_free(&allocator, frame);
+  frame_free(frame);
   debugf("  Freed: 0x%lx\n", frame);
 
-  uint64_t after_free = frame_get_free_count(&allocator);
+  uint64_t after_free = frame_get_free_count();
   if (after_free != initial_free) {
     debugf("FAIL: Free count incorrect after free: %lu (expected %lu)\n",
            after_free, initial_free);
@@ -118,7 +116,7 @@ int ut_free_and_realloc(void) {
   }
 
   // Reallocate
-  uint64_t frame2 = frame_alloc(&allocator);
+  uint64_t frame2 = frame_alloc();
   UT_ASSERT_SUCCESS(frame2, "Frame reallocation");
   debugf("  Reallocated: 0x%lx\n", frame2);
 
@@ -127,19 +125,17 @@ int ut_free_and_realloc(void) {
 
 int ut_multiple_alloc_free(void) {
   MemoryMap mmap = create_test_memory_map();
-  FrameAllocator allocator;
-
-  frame_allocator_init(&allocator, &mmap);
+  frame_allocator_init(&mmap);
 
 #define NUM_FRAMES 10
   uint64_t frames[NUM_FRAMES];
 
-  uint64_t initial_free = frame_get_free_count(&allocator);
+  uint64_t initial_free = frame_get_free_count();
 
   // Allocate multiple frames
   debugf("  Allocating %d frames...\n", NUM_FRAMES);
   for (int i = 0; i < NUM_FRAMES; i++) {
-    frames[i] = frame_alloc(&allocator);
+    frames[i] = frame_alloc();
     if (frames[i] == 0) {
       debugf("FAIL: Failed to allocate frame %d\n", i);
       return UT_FAIL;
@@ -156,7 +152,7 @@ int ut_multiple_alloc_free(void) {
     }
   }
 
-  uint64_t after_alloc = frame_get_free_count(&allocator);
+  uint64_t after_alloc = frame_get_free_count();
   if (after_alloc != initial_free - NUM_FRAMES) {
     debugf("FAIL: Free count after alloc: %lu (expected %lu)\n", after_alloc,
            initial_free - NUM_FRAMES);
@@ -167,10 +163,10 @@ int ut_multiple_alloc_free(void) {
   // Free all frames
   debugf("  Freeing %d frames...\n", NUM_FRAMES);
   for (int i = 0; i < NUM_FRAMES; i++) {
-    frame_free(&allocator, frames[i]);
+    frame_free(frames[i]);
   }
 
-  uint64_t after_free = frame_get_free_count(&allocator);
+  uint64_t after_free = frame_get_free_count();
   if (after_free != initial_free) {
     debugf("FAIL: Memory leak detected! Free count: %lu (expected %lu)\n",
            after_free, initial_free);
@@ -187,18 +183,17 @@ int ut_multiple_alloc_free(void) {
 
 int ut_double_free(void) {
   MemoryMap mmap = create_test_memory_map();
-  FrameAllocator allocator;
 
-  frame_allocator_init(&allocator, &mmap);
+  frame_allocator_init(&mmap);
 
-  uint64_t frame = frame_alloc(&allocator);
+  uint64_t frame = frame_alloc();
   UT_ASSERT_SUCCESS(frame, "Frame allocation");
 
-  uint64_t before_free = frame_get_free_count(&allocator);
+  uint64_t before_free = frame_get_free_count();
 
   // First free
-  frame_free(&allocator, frame);
-  uint64_t after_first_free = frame_get_free_count(&allocator);
+  frame_free(frame);
+  uint64_t after_first_free = frame_get_free_count();
   if (after_first_free != before_free + 1) {
     debugf("FAIL: Free count incorrect after first free: %lu (expected %lu)\n",
            after_first_free, before_free + 1);
@@ -206,8 +201,8 @@ int ut_double_free(void) {
   }
 
   // Second free (should be ignored)
-  frame_free(&allocator, frame);
-  uint64_t after_second_free = frame_get_free_count(&allocator);
+  frame_free(frame);
+  uint64_t after_second_free = frame_get_free_count();
   if (after_second_free != after_first_free) {
     debugf("FAIL: Double free not detected! Count: %lu (expected %lu)\n",
            after_second_free, after_first_free);
@@ -219,19 +214,18 @@ int ut_double_free(void) {
 
 int ut_invalid_operations(void) {
   MemoryMap mmap = create_test_memory_map();
-  FrameAllocator allocator;
 
-  frame_allocator_init(&allocator, &mmap);
+  frame_allocator_init(&mmap);
 
-  uint64_t initial_free = frame_get_free_count(&allocator);
+  uint64_t initial_free = frame_get_free_count();
 
   // Try to free invalid addresses
-  frame_free(&allocator, 0);                    // NULL
-  frame_free(&allocator, 0x123);                // Unaligned
-  frame_free(&allocator, 0xFFFFFFFFFFFF0000UL); // Out of range
+  frame_free(0);                    // NULL
+  frame_free(0x123);                // Unaligned
+  frame_free(0xFFFFFFFFFFFF0000UL); // Out of range
 
   // Free count should not change
-  uint64_t after_invalid = frame_get_free_count(&allocator);
+  uint64_t after_invalid = frame_get_free_count();
   if (after_invalid != initial_free) {
     debugf("FAIL: Invalid operations changed free count: %lu -> %lu\n",
            initial_free, after_invalid);
@@ -247,11 +241,10 @@ int ut_invalid_operations(void) {
 
 int ut_mark_range_used(void) {
   MemoryMap mmap = create_test_memory_map();
-  FrameAllocator allocator;
 
-  frame_allocator_init(&allocator, &mmap);
+  frame_allocator_init(&mmap);
 
-  uint64_t initial_free = frame_get_free_count(&allocator);
+  uint64_t initial_free = frame_get_free_count();
 
   // Mark a range as used (e.g., kernel memory)
   uint64_t kernel_start = 0x100000; // 1MB
@@ -261,9 +254,9 @@ int ut_mark_range_used(void) {
   debugf("  Marking 0x%lx-0x%lx as used (%lu frames)\n", kernel_start,
          kernel_end, frames_to_mark);
 
-  frame_mark_range_used(&allocator, kernel_start, kernel_end);
+  frame_mark_range_used(kernel_start, kernel_end);
 
-  uint64_t after_mark = frame_get_free_count(&allocator);
+  uint64_t after_mark = frame_get_free_count();
   debugf("  Free frames: %lu -> %lu\n", initial_free, after_mark);
 
   if (after_mark > initial_free) {
@@ -276,11 +269,10 @@ int ut_mark_range_used(void) {
 
 int ut_exhaustion(void) {
   MemoryMap mmap = create_test_memory_map();
-  FrameAllocator allocator;
 
-  frame_allocator_init(&allocator, &mmap);
+  frame_allocator_init(&mmap);
 
-  uint64_t total_free = frame_get_free_count(&allocator);
+  uint64_t total_free = frame_get_free_count();
   debugf("  Available frames: %lu\n", total_free);
 
 // Allocate all available frames
@@ -292,7 +284,7 @@ int ut_exhaustion(void) {
       total_free < MAX_TEST_FRAMES ? total_free : MAX_TEST_FRAMES;
 
   for (uint64_t i = 0; i < frames_to_test; i++) {
-    frames[i] = frame_alloc(&allocator);
+    frames[i] = frame_alloc();
     if (frames[i] != 0) {
       allocated++;
     } else {
@@ -309,13 +301,12 @@ int ut_exhaustion(void) {
 
   // Try to allocate when exhausted (if we allocated all)
   if (frames_to_test == total_free) {
-    if (frame_get_free_count(&allocator) != 0) {
-      debugf("FAIL: Free count should be 0, got %lu\n",
-             frame_get_free_count(&allocator));
+    if (frame_get_free_count() != 0) {
+      debugf("FAIL: Free count should be 0, got %lu\n", frame_get_free_count());
       return UT_FAIL;
     }
 
-    uint64_t should_fail = frame_alloc(&allocator);
+    uint64_t should_fail = frame_alloc();
     if (should_fail != 0) {
       debugf("FAIL: Allocation should fail when exhausted, got 0x%lx\n",
              should_fail);
@@ -326,7 +317,7 @@ int ut_exhaustion(void) {
 
   // Free all
   for (uint64_t i = 0; i < allocated; i++) {
-    frame_free(&allocator, frames[i]);
+    frame_free(frames[i]);
   }
 
   debugf("  All frames freed successfully\n");
