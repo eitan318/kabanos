@@ -313,7 +313,7 @@ int test_setup() {
   return 0;
 }
 
-int page_teardown() { page_dir_destroy(g_test_page_dir); }
+void page_teardown() { page_dir_destroy(g_test_page_dir); }
 
 /*=============================================================================
  * DEFINE THE TEST SUITE
@@ -331,8 +331,8 @@ static ut_test_case_t tests[] = {
 // Export the suite
 ut_test_suite_t paging_suite = {
     .suite_name = "Paging",
-    .setup = NULL,
-    .teardown = NULL,
+    .setup = test_setup,
+    .teardown = page_teardown,
     .suite_setup = NULL,
     .suite_teardown = NULL,
     .tests = tests,
