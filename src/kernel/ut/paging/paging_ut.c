@@ -186,7 +186,6 @@ int ut_page_offset_preservation(void) {
   if (!paging_page_map(g_test_page_dir, virt_base, phys_base,
                        PTE_PRESENT | PTE_WRITE)) {
     debugf("FAIL: Could not create mapping\n");
-    page_dir_destroy(g_test_page_dir);
     return UT_FAIL;
   }
 
@@ -243,7 +242,6 @@ int ut_remap_page(void) {
   if (!paging_page_map(g_test_page_dir, virt_addr, phys_addr1,
                        PTE_PRESENT | PTE_WRITE)) {
     debugf("FAIL: Could not create initial mapping\n");
-    page_dir_destroy(g_test_page_dir);
     return UT_FAIL;
   }
 
@@ -299,42 +297,68 @@ int ut_different_page_tables(void) {
   return UT_PASS;
 }
 
-int test_setup() {
-  MemoryMap mmap = create_test_memory_map();
-  frame_allocator_init(&mmap);
+/*=============================================================================
+ * SETUP AND TEARDOWN
+ *===========================================================================*/
 
+int suite_setup() {
+  debugf("Setting up paging test suite...\n");
+  
   g_test_page_dir = page_dir_create();
   if (g_test_page_dir == NULL) {
     debugf("FAIL: Could not create page directory\n");
     return UT_FAIL;
   }
 
+  // Identity map the first 128MB so all frame allocations are accessible
+  debugf("Identity mapping kernel memory (0-128MB)...\n");
+  for (uint32_t addr = 0; addr < 0x8000000; addr += PAGE_SIZE) {
+    if (!paging_page_map(g_test_page_dir, addr, addr, PTE_PRESENT | PTE_WRITE)) {
+      debugf("FAIL: Could not identity map 0x%x\n", addr);
+      return UT_FAIL;
+    }
+  }
+
+  debugf("Enabling paging...\n");
   paging_enable(g_test_page_dir);
+  
   return 0;
 }
 
-void page_teardown() { page_dir_destroy(g_test_page_dir); }
+void suite_teardown() {
+  debugf("Tearing down paging test suite...\n");
+  paging_disable();
+  page_dir_destroy(g_test_page_dir);
+}
+
+void page_teardown() {
+  // Clean up any test-specific mappings if needed
+  // For now, we don't need to do anything
+}
 
 /*=============================================================================
  * DEFINE THE TEST SUITE
  *===========================================================================*/
 
 static ut_test_case_t tests[] = {
-    // UT_TEST(ut_page_dir_create_destroy),
-    UT_TEST(ut_page_table_create_destroy), UT_TEST(ut_simple_mapping),
-    UT_TEST(ut_multiple_mappings),         UT_TEST(ut_unmapping),
-    UT_TEST(ut_identity_mapping),          UT_TEST(ut_page_offset_preservation),
-    UT_TEST(ut_unmap_nonexistent),         UT_TEST(ut_remap_page),
+    UT_TEST(ut_page_table_create_destroy), 
+    UT_TEST(ut_simple_mapping),
+    UT_TEST(ut_multiple_mappings),         
+    UT_TEST(ut_unmapping),
+    UT_TEST(ut_identity_mapping),          
+    UT_TEST(ut_page_offset_preservation),
+    UT_TEST(ut_unmap_nonexistent),         
+    UT_TEST(ut_remap_page),
     UT_TEST(ut_different_page_tables),
 };
 
 // Export the suite
 ut_test_suite_t paging_suite = {
     .suite_name = "Paging",
-    .setup = test_setup,
-    .teardown = page_teardown,
-    .suite_setup = NULL,
-    .suite_teardown = NULL,
+    .setup = NULL,
+    .teardown = NULL,
+    .suite_setup = suite_setup,
+    .suite_teardown = NULL, 
     .tests = tests,
     .num_tests = sizeof(tests) / sizeof(tests[0]),
 };

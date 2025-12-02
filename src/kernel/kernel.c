@@ -43,13 +43,31 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
 
   __asm__ volatile("sti");
 
-  // ut_frame_allocator_main();
-  ut_paging_main();
-
-  // Initialize frame allocator for paging tests
+  // Initialize frame allocator ONCE before tests
   frame_allocator_init(&boot_params.memory_map);
 
+  // Run tests
+  ut_paging_main();
+
+  // If you want to keep a page directory after tests, create one
+  // But note: tests already enabled paging, so this might conflict
   PageDirectory *pageDir = page_dir_create();
+  
+  if (pageDir == NULL) {
+    debugf("FAIL: Could not create page directory\n");
+    return;
+  }
+
+  // Identity map the first 128MB so all frame allocations are accessible
+  debugf("Identity mapping kernel memory (0-128MB)...\n");
+  for (uint32_t addr = 0; addr < 0x8000000; addr += PAGE_SIZE) {
+    if (!paging_page_map(pageDir, addr, addr, PTE_PRESENT | PTE_WRITE)) {
+      debugf("FAIL: Could not identity map 0x%x\n", addr);
+      return;
+    }
+  }
+
+  debugf("Enabling paging...\n");
   paging_enable(pageDir);
 
   for (int i = 0; i < 1000000000; i++) {
