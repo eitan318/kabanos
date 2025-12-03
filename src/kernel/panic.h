@@ -1,2 +1,3 @@
 #pragma once
-void kernel_panic();
+#include <stdint.h>
+void kernel_panic(uintptr_t fault_eip);

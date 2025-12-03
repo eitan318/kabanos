@@ -52,7 +52,7 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   // If you want to keep a page directory after tests, create one
   // But note: tests already enabled paging, so this might conflict
   PageDirectory *pageDir = page_dir_create();
-  
+
   if (pageDir == NULL) {
     debugf("FAIL: Could not create page directory\n");
     return;
@@ -67,6 +67,7 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
     }
   }
 
+  debugf("Enabling paging...\n");
   debugf("Enabling paging...\n");
   paging_enable(pageDir);
 

@@ -55,6 +55,7 @@ set(MAKE_INITRD_PY "${CMAKE_SOURCE_DIR}/scripts/create_initrd.py")
 file(GLOB_RECURSE INITRD_FILES "${INITRD_DIR}/*")
 
 # Custom command to create initrd.img from initrd_files directory
+
 add_custom_command(
   OUTPUT ${INITRD_IMG}
   COMMAND ${Python_EXECUTABLE} ${MAKE_INITRD_PY}
@@ -75,33 +76,30 @@ add_custom_command(
           --stage2 ${STAGE2_BIN} 
           --kernel ${KERNEL_OUTPUT}  
           --boot_dir ${BOOT_DIR}
-  DEPENDS ${STAGE2_BIN} ${STAGE1_BIN} ${KERNEL_OUTPUT}
+  DEPENDS ${STAGE2_BIN} ${STAGE1_BIN} ${KERNEL_OUTPUT} ${INITRD_IMG}
   COMMENT "Creating partitioned OS image (MBR + stage2 + FAT12 partition)"
 )
 
-# Optional: Add a custom target to build initrd separately
-add_custom_target(initrd
-  DEPENDS ${INITRD_IMG}
-)
-
-# Optional: Add a target for the OS image
+# Single real target
 add_custom_target(os_image
-  DEPENDS ${OS_IMAGE_OUT}
+    DEPENDS ${OS_IMAGE_OUT}
 )
-
-add_dependencies(os_image kernel bootloader initrd)
+add_dependencies(os_image bootloader kernel initrd)
 
 # Run target
 add_custom_target(run
-    COMMAND qemu-system-i386 -debugcon stdio -drive format=raw,file=${OS_IMAGE_OUT}
-    DEPENDS os_image
-    COMMENT "Running os-image.bin in QEMU"
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/run.py
+            --kernel ${KERNEL_OUTPUT}
+            --image ${OS_IMAGE_OUT}
+    DEPENDS ${OS_IMAGE_OUT}
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+    COMMENT "Running OS in QEMU and resolving panic addresses"
+    VERBATIM
 )
-
 
 add_custom_target(debug
     COMMAND qemu-system-i386 -debugcon stdio -drive format=raw,file=${OS_IMAGE_OUT} -s -S
-    DEPENDS os_image
+    DEPENDS ${OS_IMAGE_OUT} 
   COMMENT "Running QEMU with GDB server (port 1234)"
 )
 
