@@ -36,10 +36,11 @@ qemu_debug_cmd = [
 ]
 
 # Regex for the stack backtrace
-stack_regex = re.compile(r"STACK:\s*((?:0x[0-9A-Fa-f]+\s*)+)")
+stack_regex = re.compile(r"STACK_OF_PANIC\[123\]:\s*((?:0x[0-9A-Fa-f]+\s*)+)")
 
 # Regex for the faulting instruction
-fault_regex = re.compile(r"FAULTING_INSTRUCTION:\s*(0x[0-9A-Fa-f]+)")
+fault_regex = re.compile(r"FAULTING_INSTRUCTION_OF_PANIC\[123\]:\s*(0x[0-9A-Fa-f]+)")
+
 
 proc = subprocess.Popen(
     qemu_debug_cmd if is_debug else qemu_run_cmd,

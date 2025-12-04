@@ -42,6 +42,8 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
 
   __asm__ volatile("sti");
 
+  int x = 9 / 0;
+
   // Initialize frame allocator ONCE before tests
   frame_allocator_init(&boot_params);
 

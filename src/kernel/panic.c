@@ -23,7 +23,7 @@ static void panic_ebp_backtrace(uintptr_t *ebp) {
 
 // for than the run.py to use with addr2line tool
 void debugf_stacktrace_line(uintptr_t *ebp) {
-  debugf("STACK:");
+  debugf("STACK_OF_PANIC[123]:");
   int depth = 0;
   uintptr_t *cur_ebp = ebp; // keep a copy for tool output
   while (cur_ebp && depth < 32) {
@@ -38,7 +38,7 @@ void debugf_stacktrace_line(uintptr_t *ebp) {
 }
 
 void kernel_panic(uintptr_t fault_eip) {
-  debugf("FAULTING_INSTRUCTION: 0x%x\n", (unsigned)fault_eip);
+  debugf("FAULTING_INSTRUCTION_OF_PANIC[123]: 0x%x\n", (unsigned)fault_eip);
 
   uintptr_t *ebp;
   __asm__ volatile("mov %%ebp, %0" : "=r"(ebp));
