@@ -147,6 +147,9 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   }
 
   debugf("Kernel loaded successfully, jumping...\n");
+  debugf("Kernel entry point address: 0x%x\n", (uint32_t)kernelEntry);
+  debugf("Expected address should be: 0x%x\n", KERNEL_LOAD_ADDR);
+  
   kernelEntry(g_boot_params);
 
   // Should never reach here

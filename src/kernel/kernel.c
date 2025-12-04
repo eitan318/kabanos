@@ -6,8 +6,10 @@
 #include "initrd/initrd.h"
 #include "memory_management/frame_allocator.h"
 #include "memory_management/paging.h"
+#include "process/pcb.h"
 #include "modules/modules.h"
 #include "ut/ata/ata_ut_main.h"
+#include "ut/pcb/pcb_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
 #include "ut/keyboard_driver.h"
 #include "ut/paging/paging_ut_main.h"
@@ -42,11 +44,9 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
 
   __asm__ volatile("sti");
 
-  int x = 9 / 0;
-
   // Initialize frame allocator ONCE before tests
   frame_allocator_init(&boot_params);
-
+	
   PageDirectory *pageDir = page_dir_create();
 
   if (pageDir == NULL) {
@@ -66,7 +66,9 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   debugf("Enabling paging...\n");
 
   paging_enable(pageDir);
-
+	
+  debugf("SUCCESS: Paging enabled! Virtual memory is now active.\n");	
+	
   prompt_for_keyboard();
 
   for (;;) {
