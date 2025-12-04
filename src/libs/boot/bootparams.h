@@ -151,11 +151,9 @@ typedef struct {
   PartitionTable partition_table;
   DiskParams disk_params;
   MemoryMap memory_map;
-  CPUInfo *cpu_info;
+  CPUInfo cpu_info;
   char *cmdline_buffer;
   int cmdline_size;
-  void *kernel_start;
-  void *kernel_end;
   void *initrd_start;
   uint32_t initrd_size;
   Module modules[MAX_MODULES];

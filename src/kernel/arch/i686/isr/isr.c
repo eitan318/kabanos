@@ -67,7 +67,7 @@ void __attribute__((cdecl)) i686_isr_handler(Registers *regs) {
 
     printf("  interrupt=%x  errorcode=%x\n", regs->interrupt, regs->error);
 
-    kernel_panic();
+    kernel_panic(regs->eip);
   }
 }
 

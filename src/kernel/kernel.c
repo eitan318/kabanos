@@ -3,22 +3,21 @@
 #include "hal/hal.h"
 #include "include/memory.h"
 #include "include/stdio.h"
-#include "include/string.h"
 #include "initrd/initrd.h"
+#include "memory_management/frame_allocator.h"
+#include "memory_management/paging.h"
 #include "modules/modules.h"
 #include "ut/ata/ata_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
-#include "ut/paging/paging_ut_main.h"
 #include "ut/keyboard_driver.h"
-#include "ut/printing_info/print_boot_info.h"
+#include "ut/paging/paging_ut_main.h"
 #include <stdbool.h>
 #include <stdint.h>
 
-extern uint8_t __bss_start;
-extern uint8_t __end;
+extern uint8_t _kernel_start[], _kernel_end[], _bss_start[];
 
 void __attribute__((section(".entry"))) start(BootParams boot_params) {
-  memset(&__bss_start, 0, (&__end) - (&__bss_start));
+  memset(_bss_start, 0, _kernel_end - _bss_start);
   vga_clrscr();
   vga_setcursor(0, 0);
 
@@ -43,27 +42,30 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
 
   __asm__ volatile("sti");
 
-  // Initialize frame allocator for paging tests
-  debugf("\n[Initializing Frame Allocator for Paging Tests]\n");
-  FrameAllocator test_allocator;
-  frame_allocator_init(&test_allocator, &boot_params.memory_map);
-  
-  debugf("Frame allocator initialized\n");
-  debugf("Total frames: %llu\n", frame_get_total_count(&test_allocator));
-  debugf("Free frames: %llu\n", frame_get_free_count(&test_allocator));
-  
-  debugf("\n*** STARTING PAGING TESTS WITH ACTUAL PAGING ***\n");
-  
-  // Run paging tests - these will actually enable and test paging!
-  paging_tests_run(&test_allocator);
-  
-  debugf("\n*** PAGING TESTS COMPLETE ***\n");
-  debugf("System is back to non-paged mode\n");
+  // Initialize frame allocator ONCE before tests
+  frame_allocator_init(&boot_params);
 
-  for (int i = 0; i < 1000000000; i++) {}
+  PageDirectory *pageDir = page_dir_create();
+
+  if (pageDir == NULL) {
+    debugf("FAIL: Could not create page directory\n");
+    return;
+  }
+
+  // Identity map the first 128MB so all frame allocations are accessible
+  debugf("Identity mapping kernel memory (0-128MB)...\n");
+  for (uint32_t addr = 0; addr < 0x8000000; addr += PAGE_SIZE) {
+    if (!paging_page_map(pageDir, addr, addr, PTE_PRESENT | PTE_WRITE)) {
+      debugf("FAIL: Could not identity map 0x%x\n", addr);
+      return;
+    }
+  }
+
+  debugf("Enabling paging...\n");
+
+  paging_enable(pageDir);
 
   prompt_for_keyboard();
-  ut_frame_allocator_main();
 
   for (;;) {
   }

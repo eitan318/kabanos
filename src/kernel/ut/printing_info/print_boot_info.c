@@ -6,7 +6,7 @@ void print_boot_params(BootParams boot_params) {
   print_partition_table(boot_params.partition_table);
   print_memory_map(boot_params.memory_map);
   print_disk_params(&boot_params.disk_params);
-  print_cpu_info(boot_params.cpu_info);
+  print_cpu_info(&boot_params.cpu_info);
   print_cmdline(boot_params.cmdline_buffer, boot_params.cmdline_size);
 }
 

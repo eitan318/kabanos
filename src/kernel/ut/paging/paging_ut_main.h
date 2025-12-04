@@ -1,10 +1,19 @@
 #pragma once
 
-#include "../../frame_allocator/frame_allocator.h"
+#include "boot/bootparams.h"
+#include "ut/ut_framework.h"
 
-/**
- * Run all paging unit tests
- * 
- * @param allocator Pointer to initialized frame allocator
- */
-void paging_tests_run(FrameAllocator* allocator);
+// Export the test suite
+extern ut_test_suite_t paging_suite;
+
+// Main function to run paging tests
+int ut_paging_main(BootParams *boot_params) {
+  // Initialize frame allocator ONCE before tests
+  frame_allocator_init(boot_params);
+
+  ut_test_suite_t suites[] = {paging_suite};
+  ut_config_t config = {
+      .verbose = 1, .stop_on_fail = 0, .show_passed = 0, .quiet = 0};
+  ut_run_suites(suites, 1, &config);
+  return 0;
+}

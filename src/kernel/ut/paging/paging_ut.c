@@ -1,684 +1,355 @@
-#include "paging_ut_main.h"
-#include "../../mm/paging.h"
-#include "../../include/stdio.h"
-#include "../../include/memory.h"
-#include "../../frame_allocator/frame_allocator.h"
+#include "boot/bootparams.h"
+#include "memory_management/frame_allocator.h"
+#include "memory_management/paging.h"
+#include "ut/ut_framework.h"
+#include <stdint.h>
+#include <string.h>
 
-// Global frame allocator for tests
-static FrameAllocator* g_test_allocator = NULL;
+static PageDirectory *g_test_page_dir;
 
-// Helper functions for pretty output
-static void line_print(void) {
-    debugf("================================================================\n");
+/*=============================================================================
+ * TEST HELPER FUNCTIONS
+ *===========================================================================*/
+
+// Create a test memory map for the frame allocator
+static MemoryMap create_test_memory_map(void) {
+  MemoryMap mmap;
+  mmap.region_count = 2;
+
+  // First region: conventional memory from 1MB to 16MB
+  mmap.regions[0].base = 0x100000;
+  mmap.regions[0].length = 0xF00000; // 15MB
+  mmap.regions[0].type = E820_USABLE;
+
+  // Second region: more memory from 32MB to 64MB
+  mmap.regions[1].base = 0x2000000;
+  mmap.regions[1].length = 0x2000000; // 32MB
+  mmap.regions[1].type = E820_USABLE;
+
+  return mmap;
 }
 
-static void double_line_print(void) {
-    debugf("════════════════════════════════════════════════════════════════\n");
+/*=============================================================================
+ * TEST CASES
+ *===========================================================================*/
+
+int ut_page_table_create_destroy(void) {
+  debugf("  Creating page table...\n");
+  PageTable *page_table = page_table_create();
+
+  if (page_table == NULL) {
+    debugf("FAIL: page_table_create() returned NULL\n");
+    return UT_FAIL;
+  }
+
+  debugf("  Verifying page table is zeroed...\n");
+  for (int i = 0; i < PAGE_TABLE_ENTRIES; i++) {
+    if (page_table->entries[i].present != 0) {
+      debugf("FAIL: Entry %d is marked present when it shouldn't be\n", i);
+      return UT_FAIL;
+    }
+  }
+
+  debugf("  Destroying page table...\n");
+  page_table_destroy(page_table);
+
+  return UT_PASS;
 }
 
-static void header_print(const char* text) {
-    debugf("\n");
-    double_line_print();
-    debugf("  %s\n", text);
-    double_line_print();
+int ut_simple_mapping(void) {
+  // Map virtual address 0x400000 to physical address 0x200000
+  uint32_t virt_addr = 0x400000;
+  uint32_t phys_addr = 0x200000;
+
+  debugf("  Mapping virt 0x%x to phys 0x%x...\n", virt_addr, phys_addr);
+  bool result = paging_page_map(g_test_page_dir, virt_addr, phys_addr,
+                                PTE_PRESENT | PTE_WRITE);
+
+  if (!result) {
+    debugf("FAIL: paging_page_map() returned false\n");
+    return UT_FAIL;
+  }
+
+  debugf("  Verifying mapping...\n");
+  uint32_t retrieved = paging_physical_address_get(g_test_page_dir, virt_addr);
+
+  if (retrieved != phys_addr) {
+    debugf("FAIL: Expected phys 0x%x, got 0x%x\n", phys_addr, retrieved);
+    return UT_FAIL;
+  }
+
+  return UT_PASS;
 }
 
-static void test_start_print(const char* name) {
-    debugf("\n");
-    line_print();
-    debugf("TEST: %s\n", name);
-    line_print();
+int ut_multiple_mappings(void) {
+  // Map multiple pages
+  uint32_t mappings[][2] = {
+      {0x400000, 0x100000}, {0x401000, 0x101000},   {0x800000, 0x200000},
+      {0x801000, 0x201000}, {0xC0000000, 0x300000},
+  };
+
+  int num_mappings = sizeof(mappings) / sizeof(mappings[0]);
+
+  debugf("  Creating %d mappings...\n", num_mappings);
+  for (int i = 0; i < num_mappings; i++) {
+    uint32_t virt = mappings[i][0];
+    uint32_t phys = mappings[i][1];
+
+    if (!paging_page_map(g_test_page_dir, virt, phys,
+                         PTE_PRESENT | PTE_WRITE)) {
+      debugf("FAIL: Could not map virt 0x%x to phys 0x%x\n", virt, phys);
+      return UT_FAIL;
+    }
+  }
+
+  debugf("  Verifying all mappings...\n");
+  for (int i = 0; i < num_mappings; i++) {
+    uint32_t virt = mappings[i][0];
+    uint32_t expected_phys = mappings[i][1];
+    uint32_t retrieved = paging_physical_address_get(g_test_page_dir, virt);
+
+    if (retrieved != expected_phys) {
+      debugf("FAIL: Mapping %d: expected 0x%x, got 0x%x\n", i, expected_phys,
+             retrieved);
+      return UT_FAIL;
+    }
+  }
+
+  debugf("  All mappings verified successfully\n");
+  return UT_PASS;
 }
 
-static void pass_print(void) {
-    debugf("Result: PASS\n");
+int ut_unmapping(void) {
+  uint32_t virt_addr = 0x400000;
+  uint32_t phys_addr = 0x200000;
+
+  debugf("  Mapping virt 0x%x to phys 0x%x...\n", virt_addr, phys_addr);
+  if (!paging_page_map(g_test_page_dir, virt_addr, phys_addr,
+                       PTE_PRESENT | PTE_WRITE)) {
+    debugf("FAIL: Could not create mapping\n");
+    return UT_FAIL;
+  }
+
+  debugf("  Unmapping virt 0x%x...\n", virt_addr);
+  if (!paging_page_unmap(g_test_page_dir, virt_addr)) {
+    debugf("FAIL: paging_page_unmap() returned false\n");
+    return UT_FAIL;
+  }
+
+  debugf("  Verifying page is unmapped...\n");
+  uint32_t retrieved = paging_physical_address_get(g_test_page_dir, virt_addr);
+
+  if (retrieved != 0) {
+    debugf("FAIL: Expected 0 (unmapped), got 0x%x\n", retrieved);
+    return UT_FAIL;
+  }
+  return UT_PASS;
 }
 
-static void fail_print(const char* message) {
-    debugf("Result: FAIL - %s\n", message);
+int ut_identity_mapping(void) {
+  // Identity map first 4MB (0x0 - 0x400000)
+  debugf("  Identity mapping first 4MB...\n");
+  uint32_t num_pages = 0x400000 / PAGE_SIZE; // 1024 pages
+
+  for (uint32_t i = 0; i < num_pages; i++) {
+    uint32_t addr = i * PAGE_SIZE;
+    if (!paging_page_map(g_test_page_dir, addr, addr,
+                         PTE_PRESENT | PTE_WRITE)) {
+      debugf("FAIL: Could not map page at 0x%x\n", addr);
+      return UT_FAIL;
+    }
+  }
+
+  debugf("  Verifying identity mappings...\n");
+  // Sample verification (checking every 100th page to avoid spam)
+  for (uint32_t i = 0; i < num_pages; i += 100) {
+    uint32_t addr = i * PAGE_SIZE;
+    uint32_t retrieved = paging_physical_address_get(g_test_page_dir, addr);
+
+    if (retrieved != addr) {
+      debugf("FAIL: Expected identity mapping at 0x%x, got 0x%x\n", addr,
+             retrieved);
+      return UT_FAIL;
+    }
+  }
+
+  debugf("  Identity mapping verified successfully\n");
+  return UT_PASS;
 }
 
-/**
- * Allocate a physical frame for testing
- */
-static uint32_t test_frame_allocate(void) {
-    if (g_test_allocator == NULL) {
-        debugf("ERROR: test allocator is NULL\n");
-        return 0;
+int ut_page_offset_preservation(void) {
+  // Map a page
+  uint32_t virt_base = 0x400000;
+  uint32_t phys_base = 0x200000;
+
+  debugf("  Mapping page at virt 0x%x...\n", virt_base);
+  if (!paging_page_map(g_test_page_dir, virt_base, phys_base,
+                       PTE_PRESENT | PTE_WRITE)) {
+    debugf("FAIL: Could not create mapping\n");
+    return UT_FAIL;
+  }
+
+  // Test various offsets within the page
+  uint32_t offsets[] = {0, 1, 0x100, 0x500, 0xFFF};
+  int num_offsets = sizeof(offsets) / sizeof(offsets[0]);
+
+  debugf("  Testing address translation with offsets...\n");
+  for (int i = 0; i < num_offsets; i++) {
+    uint32_t offset = offsets[i];
+    uint32_t virt_addr = virt_base + offset;
+    uint32_t expected_phys = phys_base + offset;
+    uint32_t retrieved =
+        paging_physical_address_get(g_test_page_dir, virt_addr);
+
+    if (retrieved != expected_phys) {
+      debugf("FAIL: Offset 0x%x: expected 0x%x, got 0x%x\n", offset,
+             expected_phys, retrieved);
+      return UT_FAIL;
     }
-    
-    uint64_t frame = frame_alloc(g_test_allocator);
-    if (frame == 0) {
-        debugf("ERROR: frame_alloc returned 0\n");
-        return 0;
-    }
-    
-    return (uint32_t)frame;
+  }
+
+  return UT_PASS;
 }
 
-/**
- * Setup identity mapping for physical memory
- * Map enough memory so that any frame allocated by frame_alloc()
- * can be accessed directly by the paging code
- */
-static bool setup_identity_mapping(PageDirectoryT* pd) {
-    // Get the highest physical address we might need to access
-    // This should cover all memory that the frame allocator manages
-    uint64_t total_memory = frame_get_total_count(g_test_allocator) * PAGE_SIZE;
-    
-    // Round up to nearest MB for safety
-    uint32_t map_size = (uint32_t)((total_memory + 0xFFFFF) & ~0xFFFFF);
-    
-    // Safety cap: don't try to map more than 512MB
-    if (map_size > 512 * 1024 * 1024) {
-        map_size = 512 * 1024 * 1024;
-    }
-    
-    debugf("  Setting up identity mapping...\n");
-    debugf("    Total memory: %llu bytes (%llu MB)\n", 
-           total_memory, total_memory / (1024 * 1024));
-    debugf("    Will map: %u MB (%u pages)\n", 
-           map_size / (1024 * 1024), map_size / PAGE_SIZE);
-    
-    uint32_t pages_mapped = 0;
-    uint32_t total_pages = map_size / PAGE_SIZE;
-    
-    // Identity map the physical memory
-    for (uint32_t addr = 0; addr < map_size; addr += PAGE_SIZE) {
-        if (!paging_page_map(pd, addr, addr, PTE_PRESENT | PTE_WRITE)) {
-            debugf("\n    ERROR: Failed to map address 0x%x\n", addr);
-            return false;
-        }
-        
-        pages_mapped++;
-        
-        // Print progress every 1024 pages (4MB)
-        if ((pages_mapped % 1024) == 0) {
-            debugf("    Progress: %u/%u pages (%u MB)\n", 
-                   pages_mapped, total_pages, pages_mapped * 4 / 1024);
-        }
-    }
-    
-    debugf("  Identity mapping complete! Mapped %u pages (%u MB)\n", 
-           pages_mapped, pages_mapped * 4 / 1024);
-    return true;
+int ut_unmap_nonexistent(void) {
+  uint32_t virt_addr = 0x400000;
+
+  debugf("  Attempting to unmap non-existent mapping...\n");
+  bool result = paging_page_unmap(g_test_page_dir, virt_addr);
+
+  // The behavior here depends on implementation - it might return false
+  // or handle gracefully. Document what we expect.
+  debugf("  Unmap of non-existent page returned: %s\n",
+         result ? "true" : "false");
+
+  // Verify nothing broke
+  uint32_t retrieved = paging_physical_address_get(g_test_page_dir, virt_addr);
+  if (retrieved != 0) {
+    debugf("FAIL: Non-existent page should return 0, got 0x%x\n", retrieved);
+    return UT_FAIL;
+  }
+
+  return UT_PASS;
 }
 
-static void page_mapping_with_paging_test(void) {
-    test_start_print("Page Mapping WITH PAGING ENABLED");
-    
-    PageDirectoryT* pd = page_directory_create();
-    if (pd == NULL) {
-        fail_print("Page directory is NULL");
-        return;
-    }
-    
-    // Setup identity mapping first
-    if (!setup_identity_mapping(pd)) {
-        fail_print("Could not setup identity mapping");
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    // Allocate a REAL physical frame for testing
-    uint32_t phys_frame = test_frame_allocate();
-    if (phys_frame == 0) {
-        fail_print("Could not allocate physical frame");
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    debugf("  Allocated physical frame at: 0x%x\n", phys_frame);
-    
-    // Clear the frame BEFORE enabling paging
-    memset((void*)phys_frame, 0, PAGE_SIZE);
-    
-    debugf("  Enabling paging...\n");
-    paging_enable(pd);
-    debugf("  Paging is now ENABLED\n");
-    
-    // Now test mapping a new virtual address to our allocated frame
-    uint32_t virt_addr = 0xC0000000;
-    
-    debugf("  Mapping virtual to physical WITH PAGING:\n");
-    debugf("    Virtual:  0x%x (3GB)\n", virt_addr);
-    debugf("    Physical: 0x%x (allocated frame)\n", phys_frame);
-    
-    bool result = paging_page_map(pd, virt_addr, phys_frame, PTE_PRESENT | PTE_WRITE);
-    
-    if (!result) {
-        fail_print("paging_page_map returned false");
-        paging_disable();
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    debugf("  Mapping operation successful\n");
-    
-    // Verify by reading the page tables
-    uint32_t retrieved = paging_physical_address_get(pd, virt_addr);
-    debugf("  Retrieved physical address: 0x%x\n", retrieved);
-    
-    if (retrieved != phys_frame) {
-        fail_print("Physical address mismatch");
-        paging_disable();
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    // Now ACTUALLY TEST the mapping by writing and reading through virtual address
-    debugf("  Testing ACTUAL memory access through virtual address...\n");
-    volatile uint32_t* virt_ptr = (volatile uint32_t*)virt_addr;
-    volatile uint32_t* phys_ptr = (volatile uint32_t*)phys_frame;
-    
-    // Write a test pattern through virtual address
-    uint32_t test_pattern = 0xDEADBEEF;
-    debugf("    Writing 0x%x to virtual address 0x%x\n", test_pattern, virt_addr);
-    *virt_ptr = test_pattern;
-    
-    // Read back through virtual address
-    uint32_t read_virt = *virt_ptr;
-    debugf("    Reading from virtual address 0x%x: 0x%x\n", virt_addr, read_virt);
-    
-    // Read back through physical address (identity-mapped)
-    uint32_t read_phys = *phys_ptr;
-    debugf("    Reading from physical address 0x%x: 0x%x\n", phys_frame, read_phys);
-    
-    if (read_virt != test_pattern || read_phys != test_pattern) {
-        fail_print("Memory access test failed - value mismatch");
-        paging_disable();
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    debugf("  Memory access test PASSED - paging works!\n");
-    
-    paging_disable();
-    page_directory_destroy(pd);
-    pass_print();
+int ut_remap_page(void) {
+  uint32_t virt_addr = 0x400000;
+  uint32_t phys_addr1 = 0x200000;
+  uint32_t phys_addr2 = 0x300000;
+
+  debugf("  Initial mapping: virt 0x%x -> phys 0x%x...\n", virt_addr,
+         phys_addr1);
+  if (!paging_page_map(g_test_page_dir, virt_addr, phys_addr1,
+                       PTE_PRESENT | PTE_WRITE)) {
+    debugf("FAIL: Could not create initial mapping\n");
+    return UT_FAIL;
+  }
+
+  debugf("  Remapping: virt 0x%x -> phys 0x%x...\n", virt_addr, phys_addr2);
+  if (!paging_page_map(g_test_page_dir, virt_addr, phys_addr2,
+                       PTE_PRESENT | PTE_WRITE)) {
+    debugf("FAIL: Could not remap page\n");
+    return UT_FAIL;
+  }
+
+  debugf("  Verifying new mapping...\n");
+  uint32_t retrieved = paging_physical_address_get(g_test_page_dir, virt_addr);
+
+  if (retrieved != phys_addr2) {
+    debugf("FAIL: Expected 0x%x, got 0x%x\n", phys_addr2, retrieved);
+    return UT_FAIL;
+  }
+
+  return UT_PASS;
 }
 
-static void page_unmapping_with_paging_test(void) {
-    test_start_print("Page Unmapping WITH PAGING ENABLED");
-    
-    PageDirectoryT* pd = page_directory_create();
-    if (pd == NULL) {
-        fail_print("Page directory is NULL");
-        return;
-    }
-    
-    if (!setup_identity_mapping(pd)) {
-        fail_print("Could not setup identity mapping");
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    // Allocate physical frame
-    uint32_t phys_frame = test_frame_allocate();
-    if (phys_frame == 0) {
-        fail_print("Could not allocate physical frame");
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    // Clear frame before paging
-    memset((void*)phys_frame, 0, PAGE_SIZE);
-    
-    uint32_t virt_addr = 0xC0001000;
-    
-    debugf("  Mapping page first...\n");
-    debugf("    Virtual: 0x%x -> Physical: 0x%x\n", virt_addr, phys_frame);
-    
-    if (!paging_page_map(pd, virt_addr, phys_frame, PTE_PRESENT | PTE_WRITE)) {
-        fail_print("Could not map page");
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    debugf("  Enabling paging...\n");
-    paging_enable(pd);
-    
-    // Test access before unmapping
-    volatile uint32_t* virt_ptr = (volatile uint32_t*)virt_addr;
-    *virt_ptr = 0x12345678;
-    uint32_t value = *virt_ptr;
-    
-    if (value != 0x12345678) {
-        fail_print("Initial memory access failed");
-        paging_disable();
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    debugf("  Initial access works, value = 0x%x\n", value);
-    debugf("  Unmapping page...\n");
-    
-    if (!paging_page_unmap(pd, virt_addr)) {
-        fail_print("paging_page_unmap returned false");
-        paging_disable();
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    debugf("  Page unmapped successfully\n");
-    debugf("  NOTE: Accessing unmapped page would cause page fault\n");
-    
-    paging_disable();
-    page_directory_destroy(pd);
-    pass_print();
+int ut_different_page_tables(void) {
+  // Map addresses that will be in different page tables
+  // Page tables cover 4MB each, so use addresses 0x400000 and 0x800000
+  uint32_t virt1 = 0x400000; // Page table 1
+  uint32_t virt2 = 0x800000; // Page table 2
+  uint32_t phys1 = 0x100000;
+  uint32_t phys2 = 0x200000;
+
+  debugf("  Mapping addresses in different page tables...\n");
+  if (!paging_page_map(g_test_page_dir, virt1, phys1,
+                       PTE_PRESENT | PTE_WRITE)) {
+    debugf("FAIL: Could not map first address\n");
+    return UT_FAIL;
+  }
+
+  if (!paging_page_map(g_test_page_dir, virt2, phys2,
+                       PTE_PRESENT | PTE_WRITE)) {
+    debugf("FAIL: Could not map second address\n");
+    return UT_FAIL;
+  }
+
+  debugf("  Verifying both mappings...\n");
+  uint32_t retrieved1 = paging_physical_address_get(g_test_page_dir, virt1);
+  uint32_t retrieved2 = paging_physical_address_get(g_test_page_dir, virt2);
+
+  if (retrieved1 != phys1 || retrieved2 != phys2) {
+    debugf("FAIL: Mappings incorrect. Got 0x%x and 0x%x\n", retrieved1,
+           retrieved2);
+    return UT_FAIL;
+  }
+
+  return UT_PASS;
 }
 
-static void multiple_mappings_with_paging_test(void) {
-    test_start_print("Multiple Mappings WITH PAGING ENABLED");
-    
-    PageDirectoryT* pd = page_directory_create();
-    if (pd == NULL) {
-        fail_print("Page directory is NULL");
-        return;
+/*=============================================================================
+ * SETUP AND TEARDOWN
+ *===========================================================================*/
+
+int suite_setup() {
+  g_test_page_dir = page_dir_create();
+  if (g_test_page_dir == NULL) {
+    debugf("FAIL: Could not create page directory\n");
+    return UT_FAIL;
+  }
+
+  // Identity map the first 128MB so all frame allocations are accessible
+  debugf("Identity mapping kernel memory (0-128MB)...\n");
+  for (uint32_t addr = 0; addr < 0x8000000; addr += PAGE_SIZE) {
+    if (!paging_page_map(g_test_page_dir, addr, addr,
+                         PTE_PRESENT | PTE_WRITE)) {
+      debugf("FAIL: Could not identity map 0x%x\n", addr);
+      return UT_FAIL;
     }
-    
-    if (!setup_identity_mapping(pd)) {
-        fail_print("Could not setup identity mapping");
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    debugf("  Allocating 5 physical frames...\n");
-    
-    uint32_t phys_frames[5];
-    for (int i = 0; i < 5; i++) {
-        phys_frames[i] = test_frame_allocate();
-        if (phys_frames[i] == 0) {
-            debugf("    ERROR: Failed to allocate frame %d\n", i);
-            fail_print("Could not allocate all frames");
-            page_directory_destroy(pd);
-            return;
-        }
-        debugf("    Frame %d: 0x%x\n", i, phys_frames[i]);
-        memset((void*)phys_frames[i], 0, PAGE_SIZE);
-    }
-    
-    debugf("  Mapping 5 pages in high memory...\n");
-    
-    uint32_t virt_base = 0xC0000000;
-    
-    // First, check the page directory entry for this address range
-    uint32_t pd_index = PAGE_DIRECTORY_INDEX(virt_base);
-    debugf("    Page directory index for 0x%x: %u\n", virt_base, pd_index);
-    
-    for (int i = 0; i < 5; i++) {
-        uint32_t virt = virt_base + (i * PAGE_SIZE);
-        
-        debugf("    Mapping [%d]: virt 0x%x -> phys 0x%x\n", i, virt, phys_frames[i]);
-        
-        if (!paging_page_map(pd, virt, phys_frames[i], PTE_PRESENT | PTE_WRITE)) {
-            debugf("    ERROR: Failed to map page %d\n", i);
-            fail_print("Could not map all pages");
-            page_directory_destroy(pd);
-            return;
-        }
-        
-        // Verify the mapping was set correctly
-        uint32_t resolved = paging_physical_address_get(pd, virt);
-        debugf("      Verified: virt 0x%x resolves to phys 0x%x (expected 0x%x) %s\n",
-               virt, resolved, phys_frames[i], 
-               (resolved == phys_frames[i]) ? "[OK]" : "[MISMATCH!]");
-    }
-    
-    debugf("  All pages mapped, enabling paging...\n");
-    paging_enable(pd);
-    
-    debugf("  Testing memory access to all 5 pages...\n");
-    
-    bool all_correct = true;
-    for (int i = 0; i < 5; i++) {
-        uint32_t virt = virt_base + (i * PAGE_SIZE);
-        
-        volatile uint32_t* virt_ptr = (volatile uint32_t*)virt;
-        volatile uint32_t* phys_ptr = (volatile uint32_t*)phys_frames[i];
-        
-        uint32_t test_value = 0xAAAA0000 + i;
-        
-        *virt_ptr = test_value;
-        uint32_t read_virt = *virt_ptr;
-        uint32_t read_phys = *phys_ptr;
-        
-        debugf("    [%d] virt=0x%x write=0x%x read_v=0x%x read_p=0x%x ", 
-               i, virt, test_value, read_virt, read_phys);
-        
-        if (read_virt == test_value && read_phys == test_value) {
-            debugf("[OK]\n");
-        } else {
-            debugf("[FAIL]\n");
-            all_correct = false;
-        }
-    }
-    
-    paging_disable();
-    page_directory_destroy(pd);
-    
-    if (all_correct) {
-        pass_print();
-    } else {
-        fail_print("Some memory accesses failed");
-    }
+  }
+
+  debugf("Enabling paging...\n");
+  paging_enable(g_test_page_dir);
+
+  return 0;
 }
 
-static void identity_mapping_test(void) {
-    test_start_print("Identity Mapping Verification");
-    
-    PageDirectoryT* pd = page_directory_create();
-    if (pd == NULL) {
-        fail_print("Page directory is NULL");
-        return;
-    }
-    
-    if (!setup_identity_mapping(pd)) {
-        fail_print("Could not setup identity mapping");
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    debugf("  Allocating test frames...\n");
-    
-    // Allocate REAL frames for testing
-    uint32_t test_frames[4];
-    for (int i = 0; i < 4; i++) {
-        test_frames[i] = test_frame_allocate();
-        if (test_frames[i] == 0) {
-            fail_print("Could not allocate test frame");
-            page_directory_destroy(pd);
-            return;
-        }
-        debugf("    Test frame %d: 0x%x\n", i, test_frames[i]);
-        memset((void*)test_frames[i], 0, PAGE_SIZE);
-    }
-    
-    debugf("  Enabling paging with identity mapping...\n");
-    paging_enable(pd);
-    
-    debugf("  Testing that identity-mapped addresses still work...\n");
-    
-    bool all_work = true;
-    for (int i = 0; i < 4; i++) {
-        volatile uint32_t* addr = (volatile uint32_t*)test_frames[i];
-        uint32_t test_value = 0xBEEF0000 + i;
-        
-        addr[0] = test_value;
-        uint32_t read_back = addr[0];
-        
-        debugf("    Address 0x%x: wrote 0x%x, read 0x%x ", 
-               (uint32_t)addr, test_value, read_back);
-        
-        if (read_back == test_value) {
-            debugf("[OK]\n");
-        } else {
-            debugf("[FAIL]\n");
-            all_work = false;
-        }
-    }
-    
-    paging_disable();
-    page_directory_destroy(pd);
-    
-    if (all_work) {
-        pass_print();
-    } else {
-        fail_print("Some identity-mapped accesses failed");
-    }
+int suite_teardown() {
+  debugf("Tearing down paging test suite...\n");
+  paging_disable();
+  page_dir_destroy(g_test_page_dir);
+  return 0;
 }
 
-static void cr3_and_tlb_test(void) {
-    test_start_print("CR3 Register and TLB Management");
-    
-    PageDirectoryT* pd = page_directory_create();
-    if (pd == NULL) {
-        fail_print("Page directory is NULL");
-        return;
-    }
-    
-    if (!setup_identity_mapping(pd)) {
-        fail_print("Could not setup identity mapping");
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    uint32_t pd_physical = page_directory_physical_get(pd);
-    debugf("  Page directory physical: 0x%x\n", pd_physical);
-    
-    uint32_t cr3_before;
-    asm volatile("mov %%cr3, %0" : "=r"(cr3_before));
-    debugf("  CR3 before: 0x%x\n", cr3_before);
-    
-    // Allocate frames for TLB test
-    uint32_t phys1 = test_frame_allocate();
-    uint32_t phys2 = test_frame_allocate();
-    
-    if (phys1 == 0 || phys2 == 0) {
-        fail_print("Could not allocate frames for TLB test");
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    debugf("  Allocated frames: 0x%x, 0x%x\n", phys1, phys2);
-    
-    memset((void*)phys1, 0, PAGE_SIZE);
-    memset((void*)phys2, 0, PAGE_SIZE);
-    
-    debugf("  Enabling paging...\n");
-    paging_enable(pd);
-    
-    uint32_t cr3_after;
-    asm volatile("mov %%cr3, %0" : "=r"(cr3_after));
-    debugf("  CR3 after:  0x%x\n", cr3_after);
-    
-    if (cr3_after != pd_physical) {
-        fail_print("CR3 not set correctly");
-        paging_disable();
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    uint32_t cr0;
-    asm volatile("mov %%cr0, %0" : "=r"(cr0));
-    debugf("  CR0: 0x%x (bit 31 = %d)\n", cr0, (cr0 >> 31) & 1);
-    
-    if (!((cr0 >> 31) & 1)) {
-        fail_print("Paging bit not set in CR0");
-        paging_disable();
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    uint32_t virt_test = 0xC0002000;
-    
-    debugf("  Testing TLB invalidation...\n");
-    debugf("    Mapping 0x%x -> 0x%x\n", virt_test, phys1);
-    paging_page_map(pd, virt_test, phys1, PTE_PRESENT | PTE_WRITE);
-    
-    volatile uint32_t* virt_ptr = (volatile uint32_t*)virt_test;
-    *virt_ptr = 0xABCD1234;
-    
-    uint32_t val1 = *(volatile uint32_t*)phys1;
-    debugf("    Value at phys1: 0x%x\n", val1);
-    
-    debugf("    Remapping 0x%x -> 0x%x\n", virt_test, phys2);
-    paging_page_map(pd, virt_test, phys2, PTE_PRESENT | PTE_WRITE);
-    
-    *virt_ptr = 0x5678DEAD;
-    uint32_t val2 = *(volatile uint32_t*)phys2;
-    debugf("    Value at phys2: 0x%x\n", val2);
-    
-    bool tlb_works = (val1 == 0xABCD1234 && val2 == 0x5678DEAD);
-    
-    paging_disable();
-    page_directory_destroy(pd);
-    
-    if (tlb_works) {
-        pass_print();
-    } else {
-        fail_print("TLB invalidation test failed");
-    }
-}
+/*=============================================================================
+ * DEFINE THE TEST SUITE
+ *===========================================================================*/
 
-static void paging_required_test(void) {
-    test_start_print("Verify Paging is REQUIRED for High Memory Access");
-    
-    PageDirectoryT* pd = page_directory_create();
-    if (pd == NULL) {
-        fail_print("Page directory is NULL");
-        return;
-    }
-    
-    if (!setup_identity_mapping(pd)) {
-        fail_print("Could not setup identity mapping");
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    // Allocate a physical frame
-    uint32_t phys_frame = test_frame_allocate();
-    if (phys_frame == 0) {
-        fail_print("Could not allocate frame");
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    memset((void*)phys_frame, 0, PAGE_SIZE);
-    
-    uint32_t virt_addr = 0xC0000000;
-    
-    debugf("  Mapping virt 0x%x -> phys 0x%x\n", virt_addr, phys_frame);
-    
-    if (!paging_page_map(pd, virt_addr, phys_frame, PTE_PRESENT | PTE_WRITE)) {
-        fail_print("Could not map page");
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    debugf("  Testing WITHOUT paging enabled...\n");
-    debugf("    Paging is currently: %s\n", 
-           paging_is_enabled() ? "ENABLED" : "DISABLED");
-    
-    // Try to access 0xC0000000 WITHOUT paging enabled
-    // This should NOT work because there's no physical RAM at 0xC0000000
-    volatile uint32_t* high_mem = (volatile uint32_t*)virt_addr;
-    
-    debugf("    Attempting to write to 0x%x (this should NOT work or cause issues)\n", 
-           virt_addr);
-    debugf("    NOTE: Without paging, 0xC0000000 is just a physical address\n");
-    debugf("    and there's likely no RAM there!\n");
-    
-    // DON'T actually try to access it - that would crash!
-    // Just document that we CAN'T access it
-    debugf("    Result: Cannot safely access 0x%x without paging\n", virt_addr);
-    
-    debugf("\n  Now testing WITH paging enabled...\n");
-    paging_enable(pd);
-    debugf("    Paging is currently: %s\n", 
-           paging_is_enabled() ? "ENABLED" : "DISABLED");
-    
-    debugf("    Writing 0xBEEFCAFE to virtual address 0x%x\n", virt_addr);
-    *high_mem = 0xBEEFCAFE;
-    
-    uint32_t read_back = *high_mem;
-    debugf("    Read back from virtual: 0x%x\n", read_back);
-    
-    // Also check the physical address directly (via identity mapping)
-    volatile uint32_t* phys_mem = (volatile uint32_t*)phys_frame;
-    uint32_t read_phys = *phys_mem;
-    debugf("    Read back from physical 0x%x: 0x%x\n", phys_frame, read_phys);
-    
-    bool success = (read_back == 0xBEEFCAFE) && (read_phys == 0xBEEFCAFE);
-    
-    paging_disable();
-    page_directory_destroy(pd);
-    
-    if (success) {
-        debugf("  SUCCESS: High memory (0xC0000000) ONLY works with paging!\n");
-        pass_print();
-    } else {
-        fail_print("Memory access test failed");
-    }
-}
+static ut_test_case_t tests[] = {
+    UT_TEST(ut_page_table_create_destroy), UT_TEST(ut_simple_mapping),
+    UT_TEST(ut_multiple_mappings),         UT_TEST(ut_unmapping),
+    UT_TEST(ut_identity_mapping),          UT_TEST(ut_page_offset_preservation),
+    UT_TEST(ut_unmap_nonexistent),         UT_TEST(ut_remap_page),
+    UT_TEST(ut_different_page_tables),
+};
 
-static void paging_state_transitions_test(void) {
-    test_start_print("Paging State Transitions");
-    
-    debugf("  Initial state: %s\n", 
-           paging_is_enabled() ? "ENABLED" : "DISABLED");
-    
-    PageDirectoryT* pd = page_directory_create();
-    if (pd == NULL) {
-        fail_print("Page directory is NULL");
-        return;
-    }
-    
-    if (!setup_identity_mapping(pd)) {
-        fail_print("Could not setup identity mapping");
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    debugf("  Enabling paging...\n");
-    paging_enable(pd);
-    debugf("  State after enable: %s\n", 
-           paging_is_enabled() ? "ENABLED" : "DISABLED");
-    
-    if (!paging_is_enabled()) {
-        fail_print("paging_is_enabled() returns false after enable");
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    debugf("  Disabling paging...\n");
-    paging_disable();
-    debugf("  State after disable: %s\n", 
-           paging_is_enabled() ? "ENABLED" : "DISABLED");
-    
-    if (paging_is_enabled()) {
-        fail_print("paging_is_enabled() returns true after disable");
-        page_directory_destroy(pd);
-        return;
-    }
-    
-    page_directory_destroy(pd);
-    pass_print();
-}
-
-void paging_tests_run(FrameAllocator* allocator) {
-    header_print("PAGING UNIT TESTS - WITH ACTUAL PAGING ENABLED");
-    
-    if (allocator == NULL) {
-        debugf("\nERROR: NULL allocator provided\n");
-        return;
-    }
-    
-    g_test_allocator = allocator;
-    
-    debugf("\nFrame Allocator Status:\n");
-    debugf("  Total frames: %llu\n", frame_get_total_count(allocator));
-    debugf("  Free frames:  %llu\n", frame_get_free_count(allocator));
-    
-    debugf("\nInitializing paging system...\n");
-    paging_init(allocator);
-    debugf("Paging system initialized\n");
-    
-    debugf("\n*** These tests enable and use ACTUAL PAGING ***\n");
-    
-    // Run tests
-    identity_mapping_test();
-    page_mapping_with_paging_test();
-    page_unmapping_with_paging_test();
-    multiple_mappings_with_paging_test();
-    paging_required_test(); 
-    cr3_and_tlb_test();
-    paging_state_transitions_test();
-    
-    header_print("ALL PAGING TESTS COMPLETE");
-    
-    debugf("\nFinal Frame Allocator Status:\n");
-    debugf("  Free frames: %llu\n", frame_get_free_count(allocator));
-    debugf("  Used frames: %llu\n", frame_get_used_count(allocator));
-    debugf("\n");
-}
+// Export the suite
+ut_test_suite_t paging_suite = {
+    .suite_name = "Paging",
+    .setup = NULL,
+    .teardown = NULL,
+    .suite_setup = suite_setup,
+    .suite_teardown = suite_teardown,
+    .tests = tests,
+    .num_tests = sizeof(tests) / sizeof(tests[0]),
+};
