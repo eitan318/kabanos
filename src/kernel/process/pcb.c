@@ -12,23 +12,25 @@ void pcb_init(void) {
     if (pcb_initialized) {
         return;
     }
-    next_pid = 1;
+    next_pid = 1;	// PIDs start at 1 (PID 0 reserved for kernel)
     pcb_initialized = true;
 }
 
 // Create a new PCB
 Pcb* pcb_create(uint32_t pid, const char* name, ProcessPriority priority) {
-    // Auto-initialize on first use
+    // Auto-initialize if forgot to call pcb_init()
     if (!pcb_initialized) {
         pcb_init();
     }
     
+	// Allocate memory for PCB
     Pcb* pcb = (Pcb*)kmalloc(sizeof(Pcb));
     if (!pcb) {
         return NULL;
     }
     
     // Initialize PCB fields
+	// Zero out all fields for safety
     memset(pcb, 0, sizeof(Pcb));
     
     pcb->pid = (pid == 0) ? next_pid++ : pid;
@@ -78,10 +80,10 @@ void pcb_context_init(Pcb* pcb, uint32_t entry_point, uint32_t stack_top) {
     
     memset(&pcb->context, 0, sizeof(CpuContext));
     
-    pcb->context.eip = entry_point;
-    pcb->context.esp = stack_top;
-    pcb->context.ebp = stack_top;
-    pcb->context.eflags = 0x202;  // Enable interrupts flag
+    pcb->context.eip = entry_point;	// Where to start executing
+    pcb->context.esp = stack_top;	// Top of stack
+    pcb->context.ebp = stack_top;	// Base pointer = top (empty stack)
+    pcb->context.eflags = 0x202;    // Enable interrupts flag
 }
 
 // Set process state

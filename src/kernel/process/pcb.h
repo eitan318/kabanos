@@ -22,41 +22,41 @@ typedef enum {
 
 // CPU context structure (i686 specific)
 typedef struct {
-    uint32_t eax;
-    uint32_t ebx;
-    uint32_t ecx;
-    uint32_t edx;
-    uint32_t esi;
-    uint32_t edi;
-    uint32_t ebp;
-    uint32_t esp;
-    uint32_t eip;
-    uint32_t eflags;
-    uint32_t cr3;  // Page directory base
+    uint32_t eax;	// General purpose registers
+    uint32_t ebx;	// General purpose registers
+    uint32_t ecx;	// General purpose registers
+    uint32_t edx;	// General purpose registers
+    uint32_t esi;	// Index registers
+    uint32_t edi;	// Index registers
+    uint32_t ebp;	// Base pointer (stack frame)
+    uint32_t esp;	// Stack pointer (top of stack)
+    uint32_t eip;	// Instruction pointer (where to resume)
+    uint32_t eflags;	// CPU flags (interrupts, etc.)
+    uint32_t cr3;	// Page directory base
 } CpuContext;
 
 // Process Control Block structure
 typedef struct Pcb {
-    uint32_t pid;                    // Process ID
-    char name[32];                   // Process name
-    ProcessState state;              // Current state
-    ProcessPriority priority;        // Process priority
+    uint32_t pid;                    // Unique process identifier
+    char name[32];                   // Human-readable name
+    ProcessState state;              // Current lifecycle state
+    ProcessPriority priority;        // Scheduling priority
     
-    CpuContext context;              // Saved CPU context
+    CpuContext context;              // All CPU registers when paused
     
-    uint32_t* stack_base;            // Stack base address
-    uint32_t stack_size;             // Stack size
+    uint32_t* stack_base;            // Bottom of process's stack memory
+    uint32_t stack_size;             // How much stack memory allocated
     
-    uint32_t* page_directory;        // Pointer to page directory
+    uint32_t* page_directory;        // Virtual memory mapping
     
-    uint32_t time_slice;             // Time quantum for scheduling
-    uint32_t time_used;              // Time used in current slice
+    uint32_t time_slice;             // How long it can run (milliseconds)
+    uint32_t time_used;              // Time used in current turn
     
-    void* wait_object;               // Object process is waiting for (if any)
-    uint32_t wait_timeout;           // Timeout for waiting
+    void* wait_object;               // What it's waiting for (file, mutex, etc.)
+    uint32_t wait_timeout;           // Max time to wait
     
-    uint32_t parent_pid;             // Parent process ID
-    int exit_code;                   // Exit code when terminated
+    uint32_t parent_pid;             // Who created this process
+    int exit_code;                   // Return value when done
 } Pcb;
 
 // PCB subsystem initialization
