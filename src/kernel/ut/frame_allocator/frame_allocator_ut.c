@@ -4,45 +4,11 @@
 #include "ut/ut_framework.h"
 #include <stdint.h>
 
-MemoryMap create_test_memory_map(void) {
-  static MemoryRegion regions[4];
-
-  // Region 0: First 640KB (usable)
-  regions[0].base = 0x0;
-  regions[0].length = 640 * 1024;
-  regions[0].type = E820_USABLE;
-
-  // Region 1: 640KB-1MB (reserved for VGA, BIOS, etc.)
-  regions[1].base = 640 * 1024;
-  regions[1].length = 384 * 1024;
-  regions[1].type = E820_RESERVED;
-
-  // Region 2: 1MB-16MB (usable)
-  regions[2].base = 1024 * 1024;
-  regions[2].length = 15 * 1024 * 1024;
-  regions[2].type = E820_USABLE;
-
-  // Region 3: 16MB-20MB (usable)
-  regions[3].base = 16 * 1024 * 1024;
-  regions[3].length = 4 * 1024 * 1024;
-  regions[3].type = E820_USABLE;
-
-  MemoryMap mmap;
-  mmap.regions = regions;
-  mmap.region_count = 4;
-
-  return mmap;
-}
-
 /*=============================================================================
  * BASIC ALLOCATION TESTS
  *===========================================================================*/
 
 int ut_basic_allocation(void) {
-  MemoryMap mmap = create_test_memory_map();
-
-  frame_allocator_init(&mmap);
-
   debugf("  Total frames: %lu\n", frame_get_total_count());
   debugf("  Free frames: %lu\n", frame_get_free_count());
   debugf("  Used frames: %lu\n", frame_get_used_count());
@@ -86,10 +52,6 @@ int ut_basic_allocation(void) {
 }
 
 int ut_free_and_realloc(void) {
-  MemoryMap mmap = create_test_memory_map();
-
-  frame_allocator_init(&mmap);
-
   uint64_t initial_free = frame_get_free_count();
 
   // Allocate frame
@@ -124,9 +86,6 @@ int ut_free_and_realloc(void) {
 }
 
 int ut_multiple_alloc_free(void) {
-  MemoryMap mmap = create_test_memory_map();
-  frame_allocator_init(&mmap);
-
 #define NUM_FRAMES 10
   uint64_t frames[NUM_FRAMES];
 
@@ -182,10 +141,6 @@ int ut_multiple_alloc_free(void) {
  *===========================================================================*/
 
 int ut_double_free(void) {
-  MemoryMap mmap = create_test_memory_map();
-
-  frame_allocator_init(&mmap);
-
   uint64_t frame = frame_alloc();
   UT_ASSERT_SUCCESS(frame, "Frame allocation");
 
@@ -213,10 +168,6 @@ int ut_double_free(void) {
 }
 
 int ut_invalid_operations(void) {
-  MemoryMap mmap = create_test_memory_map();
-
-  frame_allocator_init(&mmap);
-
   uint64_t initial_free = frame_get_free_count();
 
   // Try to free invalid addresses
@@ -240,10 +191,6 @@ int ut_invalid_operations(void) {
  *===========================================================================*/
 
 int ut_mark_range_used(void) {
-  MemoryMap mmap = create_test_memory_map();
-
-  frame_allocator_init(&mmap);
-
   uint64_t initial_free = frame_get_free_count();
 
   // Mark a range as used (e.g., kernel memory)
@@ -268,10 +215,6 @@ int ut_mark_range_used(void) {
 }
 
 int ut_exhaustion(void) {
-  MemoryMap mmap = create_test_memory_map();
-
-  frame_allocator_init(&mmap);
-
   uint64_t total_free = frame_get_free_count();
   debugf("  Available frames: %lu\n", total_free);
 

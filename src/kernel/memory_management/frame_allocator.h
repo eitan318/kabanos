@@ -12,7 +12,7 @@ typedef struct FreeFrame {
 } FreeFrame;
 
 // Initialize the frame allocator
-void frame_allocator_init(MemoryMap *mmap);
+void frame_allocator_init(BootParams *boot_params);
 
 // Allocate a single frame (returns physical address or 0 on failure)
 uint64_t frame_alloc();
