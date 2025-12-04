@@ -65,9 +65,6 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
 
   paging_enable(pageDir);
 
-  for (int i = 0; i < 1000000000; i++) {
-  }
-
   prompt_for_keyboard();
 
   for (;;) {

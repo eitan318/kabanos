@@ -1,5 +1,5 @@
-#include "boot/bootparams.h"
 #include "frame_allocator.h"
+#include "boot/bootparams.h"
 #include <string.h>
 
 // Maximum memory we can track (e.g., 4GB = 1M frames = 128KB bitmap)
