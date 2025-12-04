@@ -14,11 +14,10 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-extern uint8_t __bss_start;
-extern uint8_t __end;
+extern uint8_t _kernel_start[], _kernel_end[], _bss_start[];
 
 void __attribute__((section(".entry"))) start(BootParams boot_params) {
-  memset(&__bss_start, 0, (&__end) - (&__bss_start));
+  memset(_bss_start, 0, _kernel_end - _bss_start);
   vga_clrscr();
   vga_setcursor(0, 0);
 
@@ -45,9 +44,30 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
 
   // Initialize frame allocator ONCE before tests
   frame_allocator_init(&boot_params.memory_map);
+  frame_mark_range_used((uint64_t)_kernel_start, (uint64_t)_kernel_end);
+
+  // Auto-reserve initrd
+  if (boot_params.initrd_start && boot_params.initrd_size > 0) {
+    frame_mark_range_used((uint64_t)boot_params.initrd_start,
+                          (uint64_t)boot_params.initrd_start +
+                              boot_params.initrd_size);
+  }
+
+  // Auto-reserve all modules
+  for (uint32_t i = 0; i < boot_params.module_count; i++) {
+    Module *mod = &boot_params.modules[i];
+    if (mod->start && mod->size > 0) {
+      frame_mark_range_used((uint64_t)mod->start,
+                            (uint64_t)mod->start + mod->size);
+    }
+  }
+
+  // Reserve the boot params structure itself
+  frame_mark_range_used((uint64_t)boot_params.cmdline_buffer,
+                        boot_params.cmdline_size);
 
   // Run tests
-  ut_paging_main();
+  ut_frame_allocator_main();
 
   // If you want to keep a page directory after tests, create one
   // But note: tests already enabled paging, so this might conflict
@@ -67,7 +87,6 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
     }
   }
 
-  debugf("Enabling paging...\n");
   debugf("Enabling paging...\n");
   paging_enable(pageDir);
 

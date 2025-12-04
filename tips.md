@@ -1,1 +1,2 @@
-addr2line -e build/out/kernel/kernel.elf <eip_fail>
+debugging: 
+disass page_table_destry

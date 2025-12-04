@@ -91,16 +91,20 @@ add_custom_target(run
     COMMAND ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/run.py
             --kernel ${KERNEL_OUTPUT}
             --image ${OS_IMAGE_OUT}
-    DEPENDS ${OS_IMAGE_OUT}
+    DEPENDS ${OS_IMAGE_OUT} os_image
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
     COMMENT "Running OS in QEMU and resolving panic addresses"
     VERBATIM
 )
-
 add_custom_target(debug
-    COMMAND qemu-system-i386 -debugcon stdio -drive format=raw,file=${OS_IMAGE_OUT} -s -S
-    DEPENDS ${OS_IMAGE_OUT} 
-  COMMENT "Running QEMU with GDB server (port 1234)"
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/run.py
+            --kernel ${KERNEL_OUTPUT}
+            --image ${OS_IMAGE_OUT}
+            --is_debug
+    DEPENDS ${OS_IMAGE_OUT} os_image
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+   COMMENT "Running QEMU with GDB server (port 1234)"
+    VERBATIM
 )
 
 #  bochs -f bochsrc -q

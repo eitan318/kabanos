@@ -132,7 +132,7 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   }
 
   // Fill remaining BootParams
-  g_boot_params.cpu_info = &cpu_info;
+  g_boot_params.cpu_info = cpu_info;
   g_boot_params.disk_params = disk_params;
   g_boot_params.cmdline_buffer = cmdline;
   g_boot_params.cmdline_size = CMDLINE_SIZE;

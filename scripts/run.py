@@ -9,18 +9,30 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument("--kernel", required=True, help="Path to kernel.elf")
 parser.add_argument("--image", required=True, help="Path to os.img")
+parser.add_argument("--is_debug", action="store_true", help="Enable debug mode")
 args = parser.parse_args()
 
 KERNEL_ELF = args.kernel
 OS_IMG = args.image
+is_debug = args.is_debug  # True if --is_debug was passed
 
 # QEMU command
-qemu_cmd = [
+qemu_run_cmd = [
     "qemu-system-i386",
     "-debugcon",
     "stdio",
     "-drive",
     f"format=raw,file={OS_IMG}",
+]
+
+qemu_debug_cmd = [
+    "qemu-system-i386",
+    "-debugcon",
+    "stdio",
+    "-drive",
+    f"format=raw,file={OS_IMG}",
+    "-s",
+    "-S",
 ]
 
 # Regex for the stack backtrace
@@ -30,7 +42,7 @@ stack_regex = re.compile(r"STACK:\s*((?:0x[0-9A-Fa-f]+\s*)+)")
 fault_regex = re.compile(r"FAULTING_INSTRUCTION:\s*(0x[0-9A-Fa-f]+)")
 
 proc = subprocess.Popen(
-    qemu_cmd,
+    qemu_debug_cmd if is_debug else qemu_run_cmd,
     stdout=subprocess.PIPE,
     stderr=subprocess.STDOUT,
     text=True,
