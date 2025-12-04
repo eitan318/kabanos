@@ -98,7 +98,7 @@ set(SYMBOLS_C ${CMAKE_CURRENT_BINARY_DIR}/symbols.c)
 
 add_custom_command(
     OUTPUT ${SYMBOLS_C}
-    COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/gen_symbols.py
+    COMMAND ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/gen_symbols.py
         ${CMAKE_CURRENT_BINARY_DIR}/kernel_pre.map
         ${SYMBOLS_C}
     DEPENDS kernel_pre.elf ${CMAKE_SOURCE_DIR}/scripts/gen_symbols.py
