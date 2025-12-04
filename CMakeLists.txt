@@ -84,7 +84,7 @@ add_custom_command(
 add_custom_target(os_image
     DEPENDS ${OS_IMAGE_OUT}
 )
-add_dependencies(os_image bootloader kernel initrd)
+add_dependencies(os_image bootloader kernel)
 
 # Run target
 add_custom_target(run
