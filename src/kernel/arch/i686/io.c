@@ -1,4 +1,3 @@
-#pragma once
 #include <stdint.h>
 
 uint8_t io_read8(uint16_t port) {

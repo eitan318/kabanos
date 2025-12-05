@@ -2,18 +2,17 @@
 #include "cmdline.h"
 #include "cpu_info.h"
 #include "disk.h"
+#include "elf.h"
 #include "fat.h"
 #include "gdt.h"
 #include "mbr.h"
+#include "memdefs.h"
 #include "memory_map.h"
 #include "stdio.h"
 #include "string.h"
 #include "vga_text.h"
 #include <stdint.h>
 
-#define KERNEL_LOAD_ADDR 0x100000
-#define INITRD_LOAD_ADDR 0x200000
-#define MODULE_LOAD_ADDR 0x300000
 #define CMDLINE_SIZE 2048
 #define MODULE_PATH_SIZE 256
 #define MODULES_MAX 16
@@ -147,6 +146,8 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   }
 
   debugf("Kernel loaded successfully, jumping...\n");
+  debugf("Kernel entry point address: 0x%x\n", (uint32_t)kernelEntry);
+
   kernelEntry(g_boot_params);
 
   // Should never reach here

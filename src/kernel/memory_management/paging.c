@@ -62,27 +62,6 @@ static uint32_t virtual_to_physical(void *virtual_addr) {
 }
 
 /**
- * Allocate a physical frame and return its address
- */
-static uint32_t frame_allocate(void) {
-  uint64_t frame = frame_alloc();
-  if (frame == 0) {
-    debugf("ERROR: frame_alloc returned 0\n");
-    return 0;
-  }
-
-  uint32_t frame32 = (uint32_t)frame;
-
-  // Verify frame is page-aligned
-  if (frame32 & 0xFFF) {
-    debugf("ERROR: frame_alloc returned unaligned address 0x%x\n", frame32);
-    return 0;
-  }
-
-  return frame32;
-}
-
-/**
  * Invalidate TLB entry for a virtual address
  */
 static inline void invlpg(void *addr) {
@@ -105,7 +84,7 @@ static void clear_page(void *addr) {
 }
 
 PageDirectory *page_dir_create(void) {
-  uint32_t pd_physical = frame_allocate();
+  uint32_t pd_physical = frame_alloc();
   if (pd_physical == 0) {
     debugf("ERROR: Failed to allocate frame for page directory\n");
     return NULL;
@@ -215,7 +194,7 @@ void page_table_entry_set(PageTable *page_table, uint32_t index,
 }
 
 PageTable *page_table_create(void) {
-  uint32_t pt_physical = frame_allocate();
+  uint32_t pt_physical = frame_alloc();
   if (pt_physical == 0) {
     debugf("ERROR: Failed to allocate frame for page table\n");
     return NULL;
