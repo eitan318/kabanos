@@ -2,6 +2,7 @@
 #include <stdbool.h>
 
 void trim_newline(char *str);
+int atoi(const char *str);
 void itoa(unsigned value, char *str);
 const char *strchr(const char *str, char chr);
 char *strcpy(char *dst, const char *src);

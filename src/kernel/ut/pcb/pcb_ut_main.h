@@ -7,25 +7,13 @@ extern ut_test_suite_t pcb_suite;
 
 // Main function to run PCB tests
 static inline int ut_pcb_main(void) {
-    debugf("\n");
-    debugf("╔════════════════════════════════════════════════════════════╗\n");
-    debugf("║              PCB Unit Test Suite                          ║\n");
-    debugf("╚════════════════════════════════════════════════════════════╝\n");
-    debugf("\n");
-    
-    ut_test_suite_t suites[] = {
-        pcb_suite
-    };
-    
-    ut_config_t config = {
-        .verbose = 1,
-        .stop_on_fail = 0,
-        .show_passed = 0,
-        .quiet = 0
-    };
-    
-    int result = ut_run_suites(suites, 1, &config);
-    
-    debugf("\n");
-    return result;
+  ut_test_suite_t suites[] = {pcb_suite};
+
+  ut_config_t config = {
+      .verbose = 1, .stop_on_fail = 0, .show_passed = 0, .quiet = 0};
+
+  int result = ut_run_suites(suites, 1, &config);
+
+  debugf("\n");
+  return result;
 }

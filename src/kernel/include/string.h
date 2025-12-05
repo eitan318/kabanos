@@ -1,6 +1,7 @@
 #pragma once
 #include <stdbool.h>
 
+int atoi(const char *str);
 void trim_newline(char *str);
 void itoa(unsigned value, char *str);
 const char *strchr(const char *str, char chr);

@@ -1,15 +1,6 @@
 #pragma once
-#include <stdint.h>
-#include <stddef.h>
-#include <stdbool.h>
+#include "stdint.h"
 
-void* memset(void* ptr, int value, size_t num);
-
-// Heap allocation functions
-void kmalloc_init(void);  // Initialize heap
-void* kmalloc(size_t size);
-void kfree(void* ptr);
-
-// Debug functions
-size_t kmalloc_used(void);
-size_t kmalloc_available(void);
+void *memcpy(void *dst, const void *src, uint32_t num);
+void *memset(void *ptr, int value, uint32_t num);
+int memcmp(const void *ptr1, const void *ptr2, uint32_t num);

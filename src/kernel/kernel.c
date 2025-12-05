@@ -4,15 +4,16 @@
 #include "include/memory.h"
 #include "include/stdio.h"
 #include "initrd/initrd.h"
+#include "kmalloc.h"
 #include "memory_management/frame_allocator.h"
 #include "memory_management/paging.h"
-#include "process/pcb.h"
 #include "modules/modules.h"
+#include "process/pcb.h"
 #include "ut/ata/ata_ut_main.h"
-#include "ut/pcb/pcb_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
 #include "ut/keyboard_driver.h"
 #include "ut/paging/paging_ut_main.h"
+#include "ut/pcb/pcb_ut_main.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -46,10 +47,10 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
 
   // Initialize frame allocator ONCE before tests
   frame_allocator_init(&boot_params);
-	
-  PageDirectory *pageDir = page_dir_create();
 
-  if (pageDir == NULL) {
+  PageDirectory *kernel_page_dir = page_dir_create();
+
+  if (kernel_page_dir == NULL) {
     debugf("FAIL: Could not create page directory\n");
     return;
   }
@@ -57,18 +58,18 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   // Identity map the first 128MB so all frame allocations are accessible
   debugf("Identity mapping kernel memory (0-128MB)...\n");
   for (uint32_t addr = 0; addr < 0x8000000; addr += PAGE_SIZE) {
-    if (!paging_page_map(pageDir, addr, addr, PTE_PRESENT | PTE_WRITE)) {
+    if (!paging_page_map(kernel_page_dir, addr, addr,
+                         PTE_PRESENT | PTE_WRITE)) {
       debugf("FAIL: Could not identity map 0x%x\n", addr);
       return;
     }
   }
 
-  debugf("Enabling paging...\n");
+  paging_enable(kernel_page_dir);
+  kmalloc_init(kernel_page_dir);
 
-  paging_enable(pageDir);
-	
-  debugf("SUCCESS: Paging enabled! Virtual memory is now active.\n");	
-	
+  ut_pcb_main();
+
   prompt_for_keyboard();
 
   for (;;) {

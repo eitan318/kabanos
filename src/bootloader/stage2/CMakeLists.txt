@@ -88,7 +88,6 @@ add_custom_command(
 # Pad stage2_unpadded.bin → stage2.bin (pad to 512-byte sector boundary)
 add_custom_command(
     OUTPUT ${STAGE2_BIN}
-    COMMAND ${CMAKE_COMMAND} -E echo "Padding ${STAGE2_BIN_UNPADDED} to sector boundary → ${STAGE2_BIN}"
     COMMAND dd if=${STAGE2_BIN_UNPADDED} of=${STAGE2_BIN} bs=512 conv=sync status=none
     COMMAND ${CMAKE_COMMAND} -E rm -f ${STAGE2_BIN_UNPADDED}
     DEPENDS ${STAGE2_BIN_UNPADDED}
