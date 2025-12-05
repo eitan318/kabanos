@@ -68,8 +68,6 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   paging_enable(kernel_page_dir);
   kmalloc_init(kernel_page_dir);
 
-  ut_pcb_main();
-
   prompt_for_keyboard();
 
   for (;;) {
