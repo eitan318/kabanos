@@ -3,13 +3,131 @@
 #include "memory_management/frame_allocator.h"
 #include <stddef.h>
 
+// Internal constants
+#define PAGE_SIZE 4096
+#define PAGE_DIRECTORY_ENTRIES 1024
+#define PAGE_TABLE_ENTRIES 1024
+
+// Internal PTE flags
+#define PTE_PRESENT (1 << 0)
+#define PTE_WRITE (1 << 1)
+#define PTE_USER (1 << 2)
+#define PTE_WRITETHROUGH (1 << 3)
+#define PTE_CACHEDISABLE (1 << 4)
+#define PTE_ACCESSED (1 << 5)
+#define PTE_DIRTY (1 << 6)
+#define PTE_PAT (1 << 7)
+#define PTE_GLOBAL (1 << 8)
+
+// Internal PDE flags
+#define PDE_PRESENT PTE_PRESENT
+#define PDE_WRITE PTE_WRITE
+#define PDE_USER PTE_USER
+#define PDE_WRITETHROUGH PTE_WRITETHROUGH
+#define PDE_CACHEDISABLE PTE_CACHEDISABLE
+#define PDE_ACCESSED PTE_ACCESSED
+#define PDE_SIZE (1 << 7)
+#define PDE_GLOBAL PTE_GLOBAL
+
+// Address manipulation
+#define PAGE_FRAME_MASK 0xFFFFF000
+#define PAGE_FLAGS_MASK 0x00000FFF
+#define PAGE_DIRECTORY_INDEX(virt) (((uint32_t)(virt) >> 22) & 0x3FF)
+#define PAGE_TABLE_INDEX(virt) (((uint32_t)(virt) >> 12) & 0x3FF)
+#define PAGE_OFFSET(virt) ((uint32_t)(virt)&0xFFF)
+
+// Internal structures
+typedef struct {
+  uint32_t present : 1;
+  uint32_t write : 1;
+  uint32_t user : 1;
+  uint32_t writethrough : 1;
+  uint32_t cachedisable : 1;
+  uint32_t accessed : 1;
+  uint32_t dirty : 1;
+  uint32_t pat : 1;
+  uint32_t global : 1;
+  uint32_t available : 3;
+  uint32_t frame : 20;
+} __attribute__((packed)) PageTableEntry;
+
+typedef struct {
+  uint32_t present : 1;
+  uint32_t write : 1;
+  uint32_t user : 1;
+  uint32_t writethrough : 1;
+  uint32_t cachedisable : 1;
+  uint32_t accessed : 1;
+  uint32_t zero : 1;
+  uint32_t size : 1;
+  uint32_t global : 1;
+  uint32_t available : 3;
+  uint32_t frame : 20;
+} __attribute__((packed)) PageDirectoryEntry;
+
+typedef struct {
+  PageTableEntry entries[PAGE_TABLE_ENTRIES];
+} __attribute__((aligned(PAGE_SIZE))) PageTable;
+
+// PageDirectory is now defined here (not in header)
+struct PageDirectory {
+  PageDirectoryEntry entries[PAGE_DIRECTORY_ENTRIES];
+} __attribute__((aligned(PAGE_SIZE)));
+
 static bool g_paging_enabled = false;
+
+// ============================================================================
+// Internal helper functions
+// ============================================================================
+
+/**
+ * Convert simple user flags to internal PTE flags
+ */
+static uint32_t flags_to_pte(uint32_t simple_flags) {
+  uint32_t pte_flags = PTE_PRESENT; // Always present when mapping
+
+  if (simple_flags & PAGE_WRITABLE) {
+    pte_flags |= PTE_WRITE;
+  }
+
+  if (simple_flags & PAGE_USER) {
+    pte_flags |= PTE_USER;
+  }
+
+  if (simple_flags & PAGE_NOCACHE) {
+    pte_flags |= PTE_CACHEDISABLE;
+  }
+
+  return pte_flags;
+}
+
+/**
+ * Convert simple user flags to internal PDE flags
+ */
+static uint32_t flags_to_pde(uint32_t simple_flags) {
+  uint32_t pde_flags = PDE_PRESENT; // Always present when mapping
+
+  if (simple_flags & PAGE_WRITABLE) {
+    pde_flags |= PDE_WRITE;
+  }
+
+  if (simple_flags & PAGE_USER) {
+    pde_flags |= PDE_USER;
+  }
+
+  if (simple_flags & PAGE_NOCACHE) {
+    pde_flags |= PDE_CACHEDISABLE;
+  }
+
+  return pde_flags;
+}
 
 /**
  * Convert virtual address to physical address (with paging enabled)
  */
 static uint32_t virtual_to_physical_with_paging(void *virtual_addr) {
   uint32_t virt = (uint32_t)virtual_addr;
+
   // Get current page directory from CR3
   uint32_t cr3;
   asm volatile("mov %%cr3, %0" : "=r"(cr3));
@@ -29,7 +147,6 @@ static uint32_t virtual_to_physical_with_paging(void *virtual_addr) {
 
   // CRITICAL: The frame field contains the physical page number (bits 31-12)
   // With identity mapping, physical address == virtual address
-  // So we can use the physical address directly as a virtual address
   uint32_t pt_physical = pde->frame << 12;
   PageTable *page_table = (PageTable *)pt_physical;
 
@@ -51,7 +168,6 @@ static uint32_t virtual_to_physical_with_paging(void *virtual_addr) {
 
 /**
  * Convert virtual address to physical address
- * Uses appropriate method based on whether paging is enabled
  */
 static uint32_t virtual_to_physical(void *virtual_addr) {
   if (!g_paging_enabled) {
@@ -70,11 +186,8 @@ static inline void invlpg(void *addr) {
 
 /**
  * Safely clear a page of memory
- * This is critical because frames from the free list contain linked list
- * pointers!
  */
 static void clear_page(void *addr) {
-  // Clear using 32-bit writes for efficiency
   volatile uint32_t *ptr = (volatile uint32_t *)addr;
 
   // A page is 4096 bytes = 1024 dwords
@@ -83,48 +196,39 @@ static void clear_page(void *addr) {
   }
 }
 
-PageDirectory *page_dir_create(void) {
-  uint32_t pd_physical = frame_alloc();
-  if (pd_physical == 0) {
-    debugf("ERROR: Failed to allocate frame for page directory\n");
+/**
+ * Create a page table
+ */
+static PageTable *page_table_create(void) {
+  uint32_t pt_physical = frame_alloc();
+  if (pt_physical == 0) {
+    debugf("ERROR: Failed to allocate frame for page table\n");
     return NULL;
   }
 
-  debugf("Page directory created at physical: 0x%x\n", pd_physical);
+  PageTable *page_table = (PageTable *)pt_physical;
+  clear_page(page_table);
 
-  PageDirectory *page_dir = (PageDirectory *)pd_physical;
-
-  // CRITICAL: Clear the frame AFTER getting the pointer
-  // The frame might contain free list pointers, so we must clear it
-  clear_page(page_dir);
-
-  return page_dir;
+  return page_table;
 }
 
-void page_dir_destroy(PageDirectory *page_dir) {
-  if (page_dir == NULL) {
+/**
+ * Destroy a page table
+ */
+static void page_table_destroy(PageTable *page_table) {
+  if (page_table == NULL) {
     return;
   }
 
-  // Free all page tables that are present
-  for (uint32_t i = 0; i < PAGE_DIRECTORY_ENTRIES; i++) {
-    if (page_dir->entries[i].present) {
-      uint32_t pt_physical = page_dir->entries[i].frame << 12;
-      frame_free(pt_physical);
-    }
-  }
-
-  // Free the directory itself
-  uint32_t pd_physical = virtual_to_physical(page_dir);
-  frame_free(pd_physical);
+  uint32_t pt_physical = virtual_to_physical(page_table);
+  frame_free(pt_physical);
 }
 
-uint32_t page_dir_physical_get(PageDirectory *page_dir) {
-  return virtual_to_physical(page_dir);
-}
-
-void page_dir_entry_set(PageDirectory *page_dir, uint32_t index,
-                        uint32_t page_table_physical, uint32_t flags) {
+/**
+ * Set a page directory entry
+ */
+static void page_dir_entry_set(PageDirectory *page_dir, uint32_t index,
+                               uint32_t page_table_physical, uint32_t flags) {
   if (page_dir == NULL || index >= PAGE_DIRECTORY_ENTRIES) {
     return;
   }
@@ -158,8 +262,11 @@ void page_dir_entry_set(PageDirectory *page_dir, uint32_t index,
   *entry_ptr = entry;
 }
 
-void page_table_entry_set(PageTable *page_table, uint32_t index,
-                          uint32_t physical_address, uint32_t flags) {
+/**
+ * Set a page table entry
+ */
+static void page_table_entry_set(PageTable *page_table, uint32_t index,
+                                 uint32_t physical_address, uint32_t flags) {
   if (page_table == NULL || index >= PAGE_TABLE_ENTRIES) {
     return;
   }
@@ -193,36 +300,12 @@ void page_table_entry_set(PageTable *page_table, uint32_t index,
   *entry_ptr = entry;
 }
 
-PageTable *page_table_create(void) {
-  uint32_t pt_physical = frame_alloc();
-  if (pt_physical == 0) {
-    debugf("ERROR: Failed to allocate frame for page table\n");
-    return NULL;
-  }
-
-  PageTable *page_table = (PageTable *)pt_physical;
-
-  // CRITICAL: Clear the frame AFTER getting the pointer
-  // The frame might contain free list pointers, so we must clear it
-  clear_page(page_table);
-
-  return page_table;
-}
-
-void page_table_destroy(PageTable *page_table) {
-  if (page_table == NULL) {
-    return;
-  }
-
-  uint32_t pt_physical = virtual_to_physical(page_table);
-  frame_free(pt_physical);
-}
-
 /**
  * Get or create a page table for a given virtual address
  */
 static PageTable *page_table_get_or_create(PageDirectory *page_dir,
-                                           uint32_t virtual_addr) {
+                                           uint32_t virtual_addr,
+                                           uint32_t flags) {
   if (page_dir == NULL) {
     return NULL;
   }
@@ -246,15 +329,52 @@ static PageTable *page_table_get_or_create(PageDirectory *page_dir,
   // Get the physical address
   uint32_t pt_physical = (uint32_t)page_table;
 
-  // Set the page directory entry
-  page_dir_entry_set(page_dir, pd_index, pt_physical,
-                     PDE_PRESENT | PDE_WRITE | PDE_USER);
+  // Set the page directory entry with appropriate flags
+  uint32_t pde_flags = flags_to_pde(flags);
+  page_dir_entry_set(page_dir, pd_index, pt_physical, pde_flags);
 
   return page_table;
 }
 
-bool paging_page_map(PageDirectory *page_dir, uint32_t virtual_addr,
-                     uint32_t physical_addr, uint32_t flags) {
+// ============================================================================
+// Public API implementation
+// ============================================================================
+
+PageDirectory *paging_create(void) {
+  uint32_t pd_physical = frame_alloc();
+  if (pd_physical == 0) {
+    debugf("ERROR: Failed to allocate frame for page directory\n");
+    return NULL;
+  }
+
+  debugf("Page directory created at physical: 0x%x\n", pd_physical);
+
+  PageDirectory *page_dir = (PageDirectory *)pd_physical;
+  clear_page(page_dir);
+
+  return page_dir;
+}
+
+void paging_destroy(PageDirectory *page_dir) {
+  if (page_dir == NULL) {
+    return;
+  }
+
+  // Free all page tables that are present
+  for (uint32_t i = 0; i < PAGE_DIRECTORY_ENTRIES; i++) {
+    if (page_dir->entries[i].present) {
+      uint32_t pt_physical = page_dir->entries[i].frame << 12;
+      frame_free(pt_physical);
+    }
+  }
+
+  // Free the directory itself
+  uint32_t pd_physical = virtual_to_physical(page_dir);
+  frame_free(pd_physical);
+}
+
+bool paging_map(PageDirectory *page_dir, uint32_t virtual_addr,
+                uint32_t physical_addr, uint32_t flags) {
   if (page_dir == NULL) {
     debugf("ERROR: NULL page directory\n");
     return false;
@@ -265,16 +385,20 @@ bool paging_page_map(PageDirectory *page_dir, uint32_t virtual_addr,
   physical_addr &= PAGE_FRAME_MASK;
 
   // Get or create the page table for this virtual address
-  PageTable *page_table = page_table_get_or_create(page_dir, virtual_addr);
+  PageTable *page_table =
+      page_table_get_or_create(page_dir, virtual_addr, flags);
   if (page_table == NULL) {
     debugf("ERROR: Failed to get/create page table for virt 0x%x\n",
            virtual_addr);
     return false;
   }
 
+  // Convert simple flags to internal PTE flags
+  uint32_t pte_flags = flags_to_pte(flags);
+
   // Set the page table entry
   uint32_t pt_index = PAGE_TABLE_INDEX(virtual_addr);
-  page_table_entry_set(page_table, pt_index, physical_addr, flags);
+  page_table_entry_set(page_table, pt_index, physical_addr, pte_flags);
 
   // Invalidate TLB entry (only if paging is enabled)
   if (g_paging_enabled) {
@@ -284,7 +408,7 @@ bool paging_page_map(PageDirectory *page_dir, uint32_t virtual_addr,
   return true;
 }
 
-bool paging_page_unmap(PageDirectory *page_dir, uint32_t virtual_addr) {
+bool paging_unmap(PageDirectory *page_dir, uint32_t virtual_addr) {
   if (page_dir == NULL) {
     return false;
   }
@@ -320,8 +444,7 @@ bool paging_page_unmap(PageDirectory *page_dir, uint32_t virtual_addr) {
   return true;
 }
 
-uint32_t paging_physical_address_get(PageDirectory *page_dir,
-                                     uint32_t virtual_addr) {
+uint32_t paging_get_physical(PageDirectory *page_dir, uint32_t virtual_addr) {
   if (page_dir == NULL) {
     return 0;
   }
@@ -350,13 +473,40 @@ uint32_t paging_physical_address_get(PageDirectory *page_dir,
   return page_physical | offset;
 }
 
+bool paging_map_range(PageDirectory *page_dir, uint32_t virtual_start,
+                      uint32_t physical_start, uint32_t size, uint32_t flags) {
+  if (page_dir == NULL || size == 0) {
+    return false;
+  }
+
+  // Align addresses and size to page boundaries
+  virtual_start &= PAGE_FRAME_MASK;
+  physical_start &= PAGE_FRAME_MASK;
+
+  // Calculate number of pages (round up)
+  uint32_t num_pages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+
+  // Map each page
+  for (uint32_t i = 0; i < num_pages; i++) {
+    uint32_t virt = virtual_start + (i * PAGE_SIZE);
+    uint32_t phys = physical_start + (i * PAGE_SIZE);
+
+    if (!paging_map(page_dir, virt, phys, flags)) {
+      debugf("ERROR: Failed to map page %u in range\n", i);
+      return false;
+    }
+  }
+
+  return true;
+}
+
 void paging_enable(PageDirectory *page_dir) {
   if (page_dir == NULL) {
     debugf("ERROR: NULL page directory\n");
     return;
   }
 
-  uint32_t pd_physical = page_dir_physical_get(page_dir);
+  uint32_t pd_physical = virtual_to_physical(page_dir);
 
   // Load CR3 with page directory address
   asm volatile("mov %0, %%cr3" ::"r"(pd_physical));

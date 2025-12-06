@@ -65,8 +65,8 @@ void pcb_destroy(Pcb *pcb) {
   }
 
   // Free stack if allocated
-  if (pcb->stack_base) {
-    kfree(pcb->stack_base);
+  if (pcb->stack_top) {
+    kfree(pcb->stack_top);
   }
 
   // Free the PCB itself
@@ -79,12 +79,12 @@ void pcb_context_init(Pcb *pcb, uint32_t entry_point, uint32_t stack_top) {
     return;
   }
 
-  memset(&pcb->context, 0, sizeof(CpuContext));
+  memset(&pcb->cpu_context, 0, sizeof(CpuContext));
 
-  pcb->context.eip = entry_point; // Where to start executing
-  pcb->context.esp = stack_top;   // Top of stack
-  pcb->context.ebp = stack_top;   // Base pointer = top (empty stack)
-  pcb->context.eflags = 0x202;    // Enable interrupts flag
+  pcb->cpu_context.eip = entry_point; // Where to start executing
+  pcb->cpu_context.esp = stack_top;   // Top of stack
+  pcb->cpu_context.ebp = stack_top;   // Base pointer = top (empty stack)
+  pcb->cpu_context.eflags = 0x202;    // Enable interrupts flag
 }
 
 // Set process state

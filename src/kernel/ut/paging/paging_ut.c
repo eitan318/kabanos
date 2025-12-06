@@ -32,38 +32,14 @@ static MemoryMap create_test_memory_map(void) {
 /*=============================================================================
  * TEST CASES
  *===========================================================================*/
-
-int ut_page_table_create_destroy(void) {
-  debugf("  Creating page table...\n");
-  PageTable *page_table = page_table_create();
-
-  if (page_table == NULL) {
-    debugf("FAIL: page_table_create() returned NULL\n");
-    return UT_FAIL;
-  }
-
-  debugf("  Verifying page table is zeroed...\n");
-  for (int i = 0; i < PAGE_TABLE_ENTRIES; i++) {
-    if (page_table->entries[i].present != 0) {
-      debugf("FAIL: Entry %d is marked present when it shouldn't be\n", i);
-      return UT_FAIL;
-    }
-  }
-
-  debugf("  Destroying page table...\n");
-  page_table_destroy(page_table);
-
-  return UT_PASS;
-}
-
 int ut_simple_mapping(void) {
   // Map virtual address 0x400000 to physical address 0x200000
   uint32_t virt_addr = 0x400000;
   uint32_t phys_addr = 0x200000;
 
   debugf("  Mapping virt 0x%x to phys 0x%x...\n", virt_addr, phys_addr);
-  bool result = paging_page_map(g_test_page_dir, virt_addr, phys_addr,
-                                PTE_PRESENT | PTE_WRITE);
+  bool result =
+      paging_map(g_test_page_dir, virt_addr, phys_addr, PAGE_WRITABLE);
 
   if (!result) {
     debugf("FAIL: paging_page_map() returned false\n");
@@ -71,7 +47,7 @@ int ut_simple_mapping(void) {
   }
 
   debugf("  Verifying mapping...\n");
-  uint32_t retrieved = paging_physical_address_get(g_test_page_dir, virt_addr);
+  uint32_t retrieved = paging_get_physical(g_test_page_dir, virt_addr);
 
   if (retrieved != phys_addr) {
     debugf("FAIL: Expected phys 0x%x, got 0x%x\n", phys_addr, retrieved);
@@ -95,8 +71,7 @@ int ut_multiple_mappings(void) {
     uint32_t virt = mappings[i][0];
     uint32_t phys = mappings[i][1];
 
-    if (!paging_page_map(g_test_page_dir, virt, phys,
-                         PTE_PRESENT | PTE_WRITE)) {
+    if (!paging_map(g_test_page_dir, virt, phys, PAGE_WRITABLE)) {
       debugf("FAIL: Could not map virt 0x%x to phys 0x%x\n", virt, phys);
       return UT_FAIL;
     }
@@ -106,7 +81,7 @@ int ut_multiple_mappings(void) {
   for (int i = 0; i < num_mappings; i++) {
     uint32_t virt = mappings[i][0];
     uint32_t expected_phys = mappings[i][1];
-    uint32_t retrieved = paging_physical_address_get(g_test_page_dir, virt);
+    uint32_t retrieved = paging_get_physical(g_test_page_dir, virt);
 
     if (retrieved != expected_phys) {
       debugf("FAIL: Mapping %d: expected 0x%x, got 0x%x\n", i, expected_phys,
@@ -124,20 +99,19 @@ int ut_unmapping(void) {
   uint32_t phys_addr = 0x200000;
 
   debugf("  Mapping virt 0x%x to phys 0x%x...\n", virt_addr, phys_addr);
-  if (!paging_page_map(g_test_page_dir, virt_addr, phys_addr,
-                       PTE_PRESENT | PTE_WRITE)) {
+  if (!paging_map(g_test_page_dir, virt_addr, phys_addr, PAGE_WRITABLE)) {
     debugf("FAIL: Could not create mapping\n");
     return UT_FAIL;
   }
 
   debugf("  Unmapping virt 0x%x...\n", virt_addr);
-  if (!paging_page_unmap(g_test_page_dir, virt_addr)) {
+  if (!paging_unmap(g_test_page_dir, virt_addr)) {
     debugf("FAIL: paging_page_unmap() returned false\n");
     return UT_FAIL;
   }
 
   debugf("  Verifying page is unmapped...\n");
-  uint32_t retrieved = paging_physical_address_get(g_test_page_dir, virt_addr);
+  uint32_t retrieved = paging_get_physical(g_test_page_dir, virt_addr);
 
   if (retrieved != 0) {
     debugf("FAIL: Expected 0 (unmapped), got 0x%x\n", retrieved);
@@ -153,8 +127,7 @@ int ut_identity_mapping(void) {
 
   for (uint32_t i = 0; i < num_pages; i++) {
     uint32_t addr = i * PAGE_SIZE;
-    if (!paging_page_map(g_test_page_dir, addr, addr,
-                         PTE_PRESENT | PTE_WRITE)) {
+    if (!paging_map(g_test_page_dir, addr, addr, PAGE_WRITABLE)) {
       debugf("FAIL: Could not map page at 0x%x\n", addr);
       return UT_FAIL;
     }
@@ -164,7 +137,7 @@ int ut_identity_mapping(void) {
   // Sample verification (checking every 100th page to avoid spam)
   for (uint32_t i = 0; i < num_pages; i += 100) {
     uint32_t addr = i * PAGE_SIZE;
-    uint32_t retrieved = paging_physical_address_get(g_test_page_dir, addr);
+    uint32_t retrieved = paging_get_physical(g_test_page_dir, addr);
 
     if (retrieved != addr) {
       debugf("FAIL: Expected identity mapping at 0x%x, got 0x%x\n", addr,
@@ -183,8 +156,7 @@ int ut_page_offset_preservation(void) {
   uint32_t phys_base = 0x200000;
 
   debugf("  Mapping page at virt 0x%x...\n", virt_base);
-  if (!paging_page_map(g_test_page_dir, virt_base, phys_base,
-                       PTE_PRESENT | PTE_WRITE)) {
+  if (!paging_map(g_test_page_dir, virt_base, phys_base, PAGE_WRITABLE)) {
     debugf("FAIL: Could not create mapping\n");
     return UT_FAIL;
   }
@@ -198,8 +170,7 @@ int ut_page_offset_preservation(void) {
     uint32_t offset = offsets[i];
     uint32_t virt_addr = virt_base + offset;
     uint32_t expected_phys = phys_base + offset;
-    uint32_t retrieved =
-        paging_physical_address_get(g_test_page_dir, virt_addr);
+    uint32_t retrieved = paging_get_physical(g_test_page_dir, virt_addr);
 
     if (retrieved != expected_phys) {
       debugf("FAIL: Offset 0x%x: expected 0x%x, got 0x%x\n", offset,
@@ -215,7 +186,7 @@ int ut_unmap_nonexistent(void) {
   uint32_t virt_addr = 0x400000;
 
   debugf("  Attempting to unmap non-existent mapping...\n");
-  bool result = paging_page_unmap(g_test_page_dir, virt_addr);
+  bool result = paging_unmap(g_test_page_dir, virt_addr);
 
   // The behavior here depends on implementation - it might return false
   // or handle gracefully. Document what we expect.
@@ -223,7 +194,7 @@ int ut_unmap_nonexistent(void) {
          result ? "true" : "false");
 
   // Verify nothing broke
-  uint32_t retrieved = paging_physical_address_get(g_test_page_dir, virt_addr);
+  uint32_t retrieved = paging_get_physical(g_test_page_dir, virt_addr);
   if (retrieved != 0) {
     debugf("FAIL: Non-existent page should return 0, got 0x%x\n", retrieved);
     return UT_FAIL;
@@ -239,21 +210,19 @@ int ut_remap_page(void) {
 
   debugf("  Initial mapping: virt 0x%x -> phys 0x%x...\n", virt_addr,
          phys_addr1);
-  if (!paging_page_map(g_test_page_dir, virt_addr, phys_addr1,
-                       PTE_PRESENT | PTE_WRITE)) {
+  if (!paging_map(g_test_page_dir, virt_addr, phys_addr1, PAGE_WRITABLE)) {
     debugf("FAIL: Could not create initial mapping\n");
     return UT_FAIL;
   }
 
   debugf("  Remapping: virt 0x%x -> phys 0x%x...\n", virt_addr, phys_addr2);
-  if (!paging_page_map(g_test_page_dir, virt_addr, phys_addr2,
-                       PTE_PRESENT | PTE_WRITE)) {
+  if (!paging_map(g_test_page_dir, virt_addr, phys_addr2, PAGE_WRITABLE)) {
     debugf("FAIL: Could not remap page\n");
     return UT_FAIL;
   }
 
   debugf("  Verifying new mapping...\n");
-  uint32_t retrieved = paging_physical_address_get(g_test_page_dir, virt_addr);
+  uint32_t retrieved = paging_get_physical(g_test_page_dir, virt_addr);
 
   if (retrieved != phys_addr2) {
     debugf("FAIL: Expected 0x%x, got 0x%x\n", phys_addr2, retrieved);
@@ -272,21 +241,19 @@ int ut_different_page_tables(void) {
   uint32_t phys2 = 0x200000;
 
   debugf("  Mapping addresses in different page tables...\n");
-  if (!paging_page_map(g_test_page_dir, virt1, phys1,
-                       PTE_PRESENT | PTE_WRITE)) {
+  if (!paging_map(g_test_page_dir, virt1, phys1, PAGE_WRITABLE)) {
     debugf("FAIL: Could not map first address\n");
     return UT_FAIL;
   }
 
-  if (!paging_page_map(g_test_page_dir, virt2, phys2,
-                       PTE_PRESENT | PTE_WRITE)) {
+  if (!paging_map(g_test_page_dir, virt2, phys2, PAGE_WRITABLE)) {
     debugf("FAIL: Could not map second address\n");
     return UT_FAIL;
   }
 
   debugf("  Verifying both mappings...\n");
-  uint32_t retrieved1 = paging_physical_address_get(g_test_page_dir, virt1);
-  uint32_t retrieved2 = paging_physical_address_get(g_test_page_dir, virt2);
+  uint32_t retrieved1 = paging_get_physical(g_test_page_dir, virt1);
+  uint32_t retrieved2 = paging_get_physical(g_test_page_dir, virt2);
 
   if (retrieved1 != phys1 || retrieved2 != phys2) {
     debugf("FAIL: Mappings incorrect. Got 0x%x and 0x%x\n", retrieved1,
@@ -302,7 +269,7 @@ int ut_different_page_tables(void) {
  *===========================================================================*/
 
 int suite_setup() {
-  g_test_page_dir = page_dir_create();
+  g_test_page_dir = paging_create();
   if (g_test_page_dir == NULL) {
     debugf("FAIL: Could not create page directory\n");
     return UT_FAIL;
@@ -311,8 +278,7 @@ int suite_setup() {
   // Identity map the first 128MB so all frame allocations are accessible
   debugf("Identity mapping kernel memory (0-128MB)...\n");
   for (uint32_t addr = 0; addr < 0x8000000; addr += PAGE_SIZE) {
-    if (!paging_page_map(g_test_page_dir, addr, addr,
-                         PTE_PRESENT | PTE_WRITE)) {
+    if (!paging_map(g_test_page_dir, addr, addr, PAGE_WRITABLE)) {
       debugf("FAIL: Could not identity map 0x%x\n", addr);
       return UT_FAIL;
     }
@@ -327,7 +293,7 @@ int suite_setup() {
 int suite_teardown() {
   debugf("Tearing down paging test suite...\n");
   paging_disable();
-  page_dir_destroy(g_test_page_dir);
+  paging_destroy(g_test_page_dir);
   return 0;
 }
 
@@ -336,10 +302,13 @@ int suite_teardown() {
  *===========================================================================*/
 
 static ut_test_case_t tests[] = {
-    UT_TEST(ut_page_table_create_destroy), UT_TEST(ut_simple_mapping),
-    UT_TEST(ut_multiple_mappings),         UT_TEST(ut_unmapping),
-    UT_TEST(ut_identity_mapping),          UT_TEST(ut_page_offset_preservation),
-    UT_TEST(ut_unmap_nonexistent),         UT_TEST(ut_remap_page),
+    UT_TEST(ut_simple_mapping),
+    UT_TEST(ut_multiple_mappings),
+    UT_TEST(ut_unmapping),
+    UT_TEST(ut_identity_mapping),
+    UT_TEST(ut_page_offset_preservation),
+    UT_TEST(ut_unmap_nonexistent),
+    UT_TEST(ut_remap_page),
     UT_TEST(ut_different_page_tables),
 };
 

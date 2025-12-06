@@ -48,7 +48,7 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   // Initialize frame allocator ONCE before tests
   frame_allocator_init(&boot_params);
 
-  PageDirectory *kernel_page_dir = page_dir_create();
+  PageDirectory *kernel_page_dir = paging_create();
 
   if (kernel_page_dir == NULL) {
     debugf("FAIL: Could not create page directory\n");
@@ -58,8 +58,7 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   // Identity map the first 128MB so all frame allocations are accessible
   debugf("Identity mapping kernel memory (0-128MB)...\n");
   for (uint32_t addr = 0; addr < 0x8000000; addr += PAGE_SIZE) {
-    if (!paging_page_map(kernel_page_dir, addr, addr,
-                         PTE_PRESENT | PTE_WRITE)) {
+    if (!paging_map(kernel_page_dir, addr, addr, PAGE_WRITABLE)) {
       debugf("FAIL: Could not identity map 0x%x\n", addr);
       return;
     }
