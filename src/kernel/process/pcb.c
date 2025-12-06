@@ -4,34 +4,14 @@
 #include "include/string.h"
 #include "kmalloc.h"
 
-// DO NOT initialize - let it go in BSS (will be zeroed)
-static uint32_t next_pid;
-static bool pcb_initialized;
+static uint32_t next_pid = 1;
 
-// Initialize PCB subsystem - call this before using PCBs
-void pcb_init(void) {
-  if (pcb_initialized) {
-    return;
-  }
-  next_pid = 1; // PIDs start at 1 (PID 0 reserved for kernel)
-  pcb_initialized = true;
-}
-
-// Create a new PCB
 Pcb *pcb_create(uint32_t pid, const char *name, ProcessPriority priority) {
-  // Auto-initialize if forgot to call pcb_init()
-  if (!pcb_initialized) {
-    pcb_init();
-  }
-
-  // Allocate memory for PCB
   Pcb *pcb = (Pcb *)kmalloc(sizeof(Pcb));
   if (!pcb) {
     return NULL;
   }
 
-  // Initialize PCB fields
-  // Zero out all fields for safety
   memset(pcb, 0, sizeof(Pcb));
 
   pcb->pid = (pid == 0) ? next_pid++ : pid;
@@ -49,7 +29,6 @@ Pcb *pcb_create(uint32_t pid, const char *name, ProcessPriority priority) {
   pcb->time_slice = 10; // Default time slice
   pcb->time_used = 0;
 
-  // Removed next/prev initialization - not in struct anymore
   pcb->wait_object = NULL;
   pcb->wait_timeout = 0;
   pcb->parent_pid = 0;
@@ -58,22 +37,6 @@ Pcb *pcb_create(uint32_t pid, const char *name, ProcessPriority priority) {
   return pcb;
 }
 
-// Destroy a PCB and free its resources
-void pcb_destroy(Pcb *pcb) {
-  if (!pcb) {
-    return;
-  }
-
-  // Free stack if allocated
-  if (pcb->stack_top) {
-    kfree(pcb->stack_top);
-  }
-
-  // Free the PCB itself
-  kfree(pcb);
-}
-
-// Initialize CPU context for a new process
 void pcb_context_init(Pcb *pcb, uint32_t entry_point, uint32_t stack_top) {
   if (!pcb) {
     return;
@@ -81,20 +44,37 @@ void pcb_context_init(Pcb *pcb, uint32_t entry_point, uint32_t stack_top) {
 
   memset(&pcb->cpu_context, 0, sizeof(CpuContext));
 
-  pcb->cpu_context.eip = entry_point; // Where to start executing
-  pcb->cpu_context.esp = stack_top;   // Top of stack
-  pcb->cpu_context.ebp = stack_top;   // Base pointer = top (empty stack)
-  pcb->cpu_context.eflags = 0x202;    // Enable interrupts flag
+  pcb->cpu_context.eip = entry_point;
+  pcb->cpu_context.esp = stack_top;
+  pcb->cpu_context.ebp = stack_top;
+  pcb->cpu_context.eflags = 0x202; // Enable interrupts
 }
 
-// Set process state
+void pcb_destroy(Pcb *pcb) {
+  if (!pcb) {
+    return;
+  }
+
+  if (pcb->stack_top) {
+    kfree((void *)pcb->stack_top);
+  }
+
+  kfree(pcb);
+}
+
 void pcb_state_set(Pcb *pcb, ProcessState state) {
   if (pcb) {
     pcb->state = state;
   }
 }
 
-// Convert state to string for debugging
+void pcb_priority_set(Pcb *pcb, ProcessPriority priority) {
+  if (pcb) {
+    pcb->priority = priority;
+  }
+}
+
+// Debug helpers
 const char *pcb_state_string_get(ProcessState state) {
   switch (state) {
   case PROCESS_STATE_NEW:
@@ -112,7 +92,6 @@ const char *pcb_state_string_get(ProcessState state) {
   }
 }
 
-// Convert priority to string for debugging
 const char *pcb_priority_string_get(ProcessPriority priority) {
   switch (priority) {
   case PROCESS_PRIORITY_LOW:

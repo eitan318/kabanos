@@ -143,6 +143,7 @@ int ut_pcb_string_conversions(void) {
 
 int ut_pcb_with_queue(void) {
   debugf("  Testing PCB with existing queue implementation...\n");
+
   Queue queue;
   queue_init(&queue);
 

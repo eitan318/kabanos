@@ -1,8 +1,9 @@
 #pragma once
-
 #include <stdbool.h>
-#include <stddef.h>
 #include <stdint.h>
+
+// Forward declaration
+typedef struct Pcb Pcb;
 
 // Process states
 typedef enum {
@@ -13,64 +14,68 @@ typedef enum {
   PROCESS_STATE_TERMINATED
 } ProcessState;
 
-// Process priority levels
+// Process priorities
 typedef enum {
-  PROCESS_PRIORITY_LOW = 0,
-  PROCESS_PRIORITY_NORMAL = 1,
-  PROCESS_PRIORITY_HIGH = 2
+  PROCESS_PRIORITY_LOW,
+  PROCESS_PRIORITY_NORMAL,
+  PROCESS_PRIORITY_HIGH
 } ProcessPriority;
 
 // CPU context structure (i686 specific)
 typedef struct {
-  uint32_t eax;    // General purpose registers
-  uint32_t ebx;    // General purpose registers
-  uint32_t ecx;    // General purpose registers
-  uint32_t edx;    // General purpose registers
-  uint32_t esi;    // Index registers
-  uint32_t edi;    // Index registers
-  uint32_t ebp;    // Base pointer (stack frame)
-  uint32_t esp;    // Stack pointer (top of stack)
-  uint32_t eip;    // Instruction pointer (where to resume)
-  uint32_t eflags; // CPU flags (interrupts, etc.)
-  uint32_t cr3;    // Page directory base
+  uint32_t eax;
+  uint32_t ebx;
+  uint32_t ecx;
+  uint32_t edx;
+  uint32_t esi;
+  uint32_t edi;
+  uint32_t ebp;
+  uint32_t esp;
+  uint32_t eip;
+  uint32_t eflags;
+  uint32_t cr3;
 } CpuContext;
 
 // Process Control Block structure
-typedef struct Pcb {
-  uint32_t pid;             // Unique process identifier
-  char name[32];            // Human-readable name
-  ProcessState state;       // Current lifecycle state
-  ProcessPriority priority; // Scheduling priority
+struct Pcb {
+  uint32_t pid;
+  char name[32];
+  ProcessState state;
+  ProcessPriority priority;
 
   CpuContext cpu_context;
 
-  uint32_t stack_base; // bottom of the stack (lowest address)
-  uint32_t stack_size; // stack size in bytes
-  uint32_t stack_top;  // current top of stack (ESP)
+  uint32_t stack_base;
+  uint32_t stack_size;
+  uint32_t stack_top;
 
-  uint32_t heap_start; // start of the heap
-  uint32_t heap_end;   // current mapped end of heap
-  uint32_t brk;        // current top of allocated heap (like UNIX brk)
+  uint32_t heap_start;
+  uint32_t heap_end;
+  uint32_t brk;
 
-  uint32_t *page_directory; // Virtual memory mapping
+  uint32_t *page_directory;
 
-  uint32_t time_slice; // How long it can run (milliseconds)
-  uint32_t time_used;  // Time used in current turn
+  uint32_t time_slice;
+  uint32_t time_used;
 
-  void *wait_object;     // What it's waiting for (file, mutex, etc.)
-  uint32_t wait_timeout; // Max time to wait
+  void *wait_object;
+  uint32_t wait_timeout;
 
-  uint32_t parent_pid; // Who created this process
-  int exit_code;       // Return value when done
-} Pcb;
+  uint32_t parent_pid;
+  int exit_code;
+};
 
-// PCB subsystem initialization
-void pcb_init(void);
-
-// PCB management functions
+// PCB lifecycle management
 Pcb *pcb_create(uint32_t pid, const char *name, ProcessPriority priority);
 void pcb_destroy(Pcb *pcb);
+
+// Context management
 void pcb_context_init(Pcb *pcb, uint32_t entry_point, uint32_t stack_top);
+
+// Setters
 void pcb_state_set(Pcb *pcb, ProcessState state);
+void pcb_priority_set(Pcb *pcb, ProcessPriority priority);
+
+// Debug helpers
 const char *pcb_state_string_get(ProcessState state);
 const char *pcb_priority_string_get(ProcessPriority priority);

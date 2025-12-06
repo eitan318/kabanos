@@ -13,7 +13,7 @@
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
 #include "ut/keyboard_driver.h"
 #include "ut/paging/paging_ut_main.h"
-#include "ut/pcb/pcb_ut_main.h"
+#include "ut/process/process_ut_main.h"
 #include <stdbool.h>
 #include <stdint.h>
 
