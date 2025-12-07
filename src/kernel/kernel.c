@@ -67,6 +67,33 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   paging_enable(kernel_page_dir);
   kmalloc_init(kernel_page_dir);
 
+  // Initialize FAT filesystem and load calc.elf
+  debugf("Initializing FAT filesystem...\n");
+  if (fat_initialize(34, 0)) {
+    debugf("FAT initialized\n");
+  
+    void *entry_point = elf_load(kernel_page_dir, "/calc.elf");
+  
+    if (entry_point) {
+      debugf("calc.elf loaded at 0x%x\n", (uint32_t)entry_point);
+      /*debuf("Executing calc.elf...\n\n");
+      debugf("========================================\n");
+    
+      // Execute the program
+      typedef int (*program_entry_t)(void);
+      program_entry_t program = (program_entry_t)entry_point;
+      int ret = program();
+    
+      debugf("========================================\n");
+      debugf("calc.elf returned: %d\n", ret);*/
+	  
+    } else {
+      debugf("Failed to load calc.elf\n");
+    }
+  } else {
+    debugf("Failed to initialize FAT\n");
+  }
+
   prompt_for_keyboard();
 
   for (;;) {
