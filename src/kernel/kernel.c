@@ -68,6 +68,26 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   paging_enable(kernel_page_dir);
   kmalloc_init(kernel_page_dir);
 
+  // Initialize FAT filesystem
+  // Assuming first partition starts at LBA 2048 (common for FAT partitions)
+  // You'll need to adjust this based on your disk layout
+  // Initialize FAT filesystem at the CORRECT partition offset
+if (fat_initialize(34, 0)) {  // Partition starts at sector 34!
+  debugf("FAT filesystem initialized\n");
+  
+  // Load calc.elf from root (files are copied to root by your script)
+  void *entry_point = load_elf(kernel_page_dir, "/calc.elf");
+  
+  if (entry_point) {
+    debugf("calc.elf loaded successfully at entry point: 0x%x\n", 
+           (uint32_t)entry_point);
+  } else {
+    debugf("Failed to load calc.elf\n");
+  }
+} else {
+  debugf("Failed to initialize FAT filesystem\n");
+}
+
   prompt_for_keyboard();
 
   for (;;) {
