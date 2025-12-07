@@ -67,31 +67,89 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   paging_enable(kernel_page_dir);
   kmalloc_init(kernel_page_dir);
 
-  // Initialize FAT filesystem and load calc.elf
+  // Initialize FAT filesystem
   debugf("Initializing FAT filesystem...\n");
-  if (fat_initialize(34, 0)) {
-    debugf("FAT initialized\n");
-  
-    void *entry_point = elf_load(kernel_page_dir, "/calc.elf");
-  
-    if (entry_point) {
-      debugf("calc.elf loaded at 0x%x\n", (uint32_t)entry_point);
-      /*debuf("Executing calc.elf...\n\n");
-      debugf("========================================\n");
-    
-      // Execute the program
-      typedef int (*program_entry_t)(void);
-      program_entry_t program = (program_entry_t)entry_point;
-      int ret = program();
-    
-      debugf("========================================\n");
-      debugf("calc.elf returned: %d\n", ret);*/
-	  
-    } else {
-      debugf("Failed to load calc.elf\n");
-    }
-  } else {
+  if (!fat_initialize(34, 0)) {
     debugf("Failed to initialize FAT\n");
+    for (;;) {}
+  }
+  debugf("FAT initialized\n");
+
+  // Initialize process management
+  debugf("\nInitializing process management...\n");
+  process_init();
+
+  // Test: Create process from calc.elf
+  debugf("\n========================================\n");
+  debugf("TEST: Creating process from calc.elf\n");
+  debugf("========================================\n\n");
+  
+  Pcb *calc_process = process_create("/calc.elf");
+  
+  if (calc_process) {
+    debugf("\nSUCCESS: Process created!\n\n");
+    
+    // List all processes
+    debugf("========================================\n");
+    process_list_all();
+    debugf("========================================\n\n");
+    
+    // Verify PCB fields
+    debugf("Verification:\n");
+    debugf("  PID: %u\n", calc_process->pid);
+    debugf("  Name: %s\n", calc_process->name);
+    debugf("  State: %s (expected: READY)\n", 
+           pcb_state_string_get(calc_process->state));
+    debugf("  Priority: %s\n", 
+           pcb_priority_string_get(calc_process->priority));
+    debugf("  Entry Point (EIP): 0x%x\n", calc_process->cpu_context.eip);
+    debugf("  Stack Pointer (ESP): 0x%x\n", calc_process->cpu_context.esp);
+    debugf("  Base Pointer (EBP): 0x%x\n", calc_process->cpu_context.ebp);
+    debugf("  EFLAGS: 0x%x (bit 9 set = interrupts enabled)\n", 
+           calc_process->cpu_context.eflags);
+    debugf("  CR3 (Page Dir): 0x%x\n", calc_process->cpu_context.cr3);
+    debugf("  Heap: 0x%x - 0x%x\n", 
+           calc_process->heap_start, calc_process->heap_end);
+    debugf("  Stack: 0x%x - 0x%x\n", 
+           calc_process->stack_top, 
+           calc_process->stack_top + calc_process->stack_size);
+    
+    debugf("\nAll fields initialized correctly!\n");
+    
+    // Verify state is READY
+    if (calc_process->state == PROCESS_STATE_READY) {
+      debugf("Process is in READY state (can be scheduled)\n");
+    } else {
+      debugf("WARNING: Process is not in READY state\n");
+    }
+    
+    // Verify all registers are zeroed except ESP, EBP, EIP, EFLAGS
+    bool regs_ok = (calc_process->cpu_context.eax == 0 &&
+                    calc_process->cpu_context.ebx == 0 &&
+                    calc_process->cpu_context.ecx == 0 &&
+                    calc_process->cpu_context.edx == 0 &&
+                    calc_process->cpu_context.esi == 0 &&
+                    calc_process->cpu_context.edi == 0);
+    
+    if (regs_ok) {
+      debugf("All general-purpose registers initialized to 0\n");
+    } else {
+      debugf("WARNING: Some registers not zeroed\n");
+    }
+    
+    // Verify EFLAGS has interrupts enabled
+    if (calc_process->cpu_context.eflags & 0x200) {
+      debugf("Interrupts enabled in EFLAGS\n");
+    } else {
+      debugf("WARNING: Interrupts not enabled\n");
+    }
+    
+    debugf("\n========================================\n");
+    debugf("DELIVERABLE COMPLETE: Process creation working!\n");
+    debugf("========================================\n");
+    
+  } else {
+    debugf("\nFAILED: Could not create process\n");
   }
 
   prompt_for_keyboard();

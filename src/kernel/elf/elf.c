@@ -1,10 +1,10 @@
 #include "elf.h"
-#include "../fat/fat.h"
-#include "../include/stdio.h"
-#include "../include/string.h"
-#include "../kmalloc.h"
-#include "../memory_management/frame_allocator.h"
-#include "../memory_management/paging.h"
+#include "fat/fat.h"
+#include "include/stdio.h"
+#include "include/string.h"
+#include "kmalloc.h"
+#include "memory_management/frame_allocator.h"
+#include "memory_management/paging.h"
 
 void *elf_load(PageDirectory *page_dir, const char *filepath) {
   // Read entire ELF file into memory
@@ -87,7 +87,7 @@ void *elf_load(PageDirectory *page_dir, const char *filepath) {
       }
 
       // Map the page
-      if (!paging_page_map(page_dir, virt_addr, phys_addr, page_flags)) {
+      if (!paging_map(page_dir, virt_addr, phys_addr, page_flags)) {
         debugf("ELF: Failed to map page at 0x%x\n", virt_addr);
         frame_free(phys_addr);
         kfree(elf_data);
@@ -104,7 +104,7 @@ void *elf_load(PageDirectory *page_dir, const char *filepath) {
 
       for (uint32_t offset = 0; offset < prog_hdr->FileSize; offset += PAGE_SIZE) {
         uint32_t virt_addr = prog_hdr->VirtualAddress + offset;
-        uint32_t phys_addr = paging_physical_address_get(page_dir, virt_addr);
+        uint32_t phys_addr = paging_get_physical(page_dir, virt_addr);
 
         if (phys_addr == 0) {
           debugf("ELF: Failed to get physical address\n");

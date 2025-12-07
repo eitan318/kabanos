@@ -1,5 +1,5 @@
 #pragma once
-#include "../memory_management/paging.h"
+#include "memory_management/paging.h"
 #include <stdbool.h>
 #include <stdint.h>
 

@@ -1,40 +1,7 @@
 #include "paging.h"
-#include "../include/stdio.h"
+#include "include/stdio.h"
 #include "memory_management/frame_allocator.h"
 #include <stddef.h>
-
-// Internal constants
-#define PAGE_SIZE 4096
-#define PAGE_DIRECTORY_ENTRIES 1024
-#define PAGE_TABLE_ENTRIES 1024
-
-// Internal PTE flags
-#define PTE_PRESENT (1 << 0)
-#define PTE_WRITE (1 << 1)
-#define PTE_USER (1 << 2)
-#define PTE_WRITETHROUGH (1 << 3)
-#define PTE_CACHEDISABLE (1 << 4)
-#define PTE_ACCESSED (1 << 5)
-#define PTE_DIRTY (1 << 6)
-#define PTE_PAT (1 << 7)
-#define PTE_GLOBAL (1 << 8)
-
-// Internal PDE flags
-#define PDE_PRESENT PTE_PRESENT
-#define PDE_WRITE PTE_WRITE
-#define PDE_USER PTE_USER
-#define PDE_WRITETHROUGH PTE_WRITETHROUGH
-#define PDE_CACHEDISABLE PTE_CACHEDISABLE
-#define PDE_ACCESSED PTE_ACCESSED
-#define PDE_SIZE (1 << 7)
-#define PDE_GLOBAL PTE_GLOBAL
-
-// Address manipulation
-#define PAGE_FRAME_MASK 0xFFFFF000
-#define PAGE_FLAGS_MASK 0x00000FFF
-#define PAGE_DIRECTORY_INDEX(virt) (((uint32_t)(virt) >> 22) & 0x3FF)
-#define PAGE_TABLE_INDEX(virt) (((uint32_t)(virt) >> 12) & 0x3FF)
-#define PAGE_OFFSET(virt) ((uint32_t)(virt)&0xFFF)
 
 // Internal structures
 typedef struct {
