@@ -145,7 +145,7 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
     }
     
     debugf("\n========================================\n");
-    debugf("DELIVERABLE COMPLETE: Process creation working!\n");
+    debugf("COMPLETE: Process creation working!\n");
     debugf("========================================\n");
     
   } else {

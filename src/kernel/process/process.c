@@ -59,18 +59,22 @@ bool process_unregister(uint32_t pid) {
 }
 
 void process_list_all(void) {
-  printf("Process List (%u processes):\n", process_count);
-  printf("PID\tName\t\t\tState\t\tPriority\n");
-  printf("---\t----\t\t\t-----\t\t--------\n");
+  debugf("========================================\n");
+  debugf("Process List (%u processes):\n", process_count);
+  debugf("PID\tName\t\tState\t\tPriority\n");
+  debugf("---\t----\t\t-----\t\t--------\n");
 
   for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
     Pcb *pcb = process_table[i];
     if (pcb != NULL) {
-      printf("%u\t%-20s\t%-10s\t%s\n", pcb->pid, pcb->name,
+      debugf("%u\t%s\t\t%s\t\t%s\n", 
+             pcb->pid, 
+             pcb->name,
              pcb_state_string_get(pcb->state),
              pcb_priority_string_get(pcb->priority));
     }
   }
+  debugf("========================================\n");
 }
 
 void free_heap(Pcb *pcb, PageDirectory *page_dir) {
