@@ -79,7 +79,6 @@ static uint32_t min_uint32(uint32_t a, uint32_t b) { return a < b ? a : b; }
 static bool fat_read_boot_sector(void) {
   uint8_t *boot_sector_buf = kmalloc(SECTOR_SIZE);
   if (!boot_sector_buf) {
-    debugf("FAT: Failed to allocate boot sector buffer\n");
     return false;
   }
 
@@ -96,7 +95,6 @@ static bool fat_read_fat_table(void) {
 
   g_fat_data.fat_table = kmalloc(fat_size);
   if (!g_fat_data.fat_table) {
-    debugf("FAT: Failed to allocate FAT table (%u bytes)\n", fat_size);
     return false;
   }
 
@@ -112,22 +110,14 @@ static bool fat_read_fat_table(void) {
 }
 
 bool fat_initialize(uint32_t partition_lba, uint32_t partition_size) {
-  debugf("FAT: Initializing filesystem at LBA %u...\n", partition_lba);
-
   memset(&g_fat_data, 0, sizeof(FAT_Data));
   g_fat_data.partition_lba = partition_lba;
 
   if (!fat_read_boot_sector()) {
-    debugf("FAT: Failed to read boot sector\n");
     return false;
   }
 
-  debugf("FAT: Bytes/Sector: %u\n", g_fat_data.boot_sector.bytes_per_sector);
-  debugf("FAT: Sectors/Cluster: %u\n", g_fat_data.boot_sector.sectors_per_cluster);
-  debugf("FAT: Root entries: %u\n", g_fat_data.boot_sector.dir_entry_count);
-
   if (!fat_read_fat_table()) {
-    debugf("FAT: Failed to read FAT table\n");
     return false;
   }
 
@@ -140,7 +130,6 @@ bool fat_initialize(uint32_t partition_lba, uint32_t partition_size) {
 
   g_fat_data.root_directory.buffer = kmalloc(SECTOR_SIZE);
   if (!g_fat_data.root_directory.buffer) {
-    debugf("FAT: Failed to allocate root directory buffer\n");
     kfree(g_fat_data.fat_table);
     return false;
   }
@@ -168,7 +157,6 @@ bool fat_initialize(uint32_t partition_lba, uint32_t partition_size) {
   }
 
   g_fat_data.initialized = true;
-  debugf("FAT: Filesystem initialized successfully\n");
   return true;
 }
 
@@ -186,7 +174,6 @@ static FAT_File *fat_open_entry(FAT_DirectoryEntry *entry) {
   }
 
   if (handle < 0) {
-    debugf("FAT: out of file handles\n");
     return NULL;
   }
 
@@ -194,7 +181,6 @@ static FAT_File *fat_open_entry(FAT_DirectoryEntry *entry) {
 
   fd->buffer = kmalloc(SECTOR_SIZE);
   if (!fd->buffer) {
-    debugf("FAT: Failed to allocate file buffer\n");
     return NULL;
   }
 
@@ -345,7 +331,6 @@ static bool fat_find_file(FAT_File *file, const char *name,
 
 FAT_File *fat_open(const char *path) {
   if (!g_fat_data.initialized) {
-    debugf("FAT: Not initialized\n");
     return NULL;
   }
 
@@ -378,14 +363,12 @@ FAT_File *fat_open(const char *path) {
       fat_close(current);
 
       if (!is_last && (entry.attributes & FAT_ATTRIBUTE_DIRECTORY) == 0) {
-        debugf("FAT: %s not a directory\n", name);
         return NULL;
       }
 
       current = fat_open_entry(&entry);
     } else {
       fat_close(current);
-      debugf("FAT: %s not found\n", name);
       return NULL;
     }
   }
@@ -395,7 +378,6 @@ FAT_File *fat_open(const char *path) {
 
 int fat_read_file(const char *path, void **buffer, uint32_t *size) {
   if (!g_fat_data.initialized) {
-    debugf("FAT: Not initialized\n");
     return -1;
   }
 
@@ -411,7 +393,6 @@ int fat_read_file(const char *path, void **buffer, uint32_t *size) {
 
   *buffer = kmalloc(file->size);
   if (!*buffer) {
-    debugf("FAT: Failed to allocate buffer for file\n");
     fat_close(file);
     return -3;
   }
@@ -422,7 +403,6 @@ int fat_read_file(const char *path, void **buffer, uint32_t *size) {
   fat_close(file);
 
   if (read != file->size) {
-    debugf("FAT: Read %u bytes, expected %u\n", read, file->size);
     kfree(*buffer);
     *buffer = NULL;
     return -4;
@@ -432,20 +412,10 @@ int fat_read_file(const char *path, void **buffer, uint32_t *size) {
   return 0;
 }
 
-// Add this function to fat.c
-
-// Replace the fat_list_root_directory function in fat.c with this safer version:
-
 void fat_list_root_directory(void) {
   if (!g_fat_data.initialized) {
-    debugf("FAT: Not initialized\n");
     return;
   }
-
-  debugf("FAT: Listing root directory:\n");
-  debugf("FAT: Root directory LBA: %u\n", g_fat_data.root_directory.first_cluster);
-  debugf("FAT: Root directory size: %u bytes\n", g_fat_data.root_directory.public.size);
-  debugf("=====================================\n");
 
   // Read root directory manually, sector by sector
   uint32_t root_dir_size = sizeof(FAT_DirectoryEntry) * g_fat_data.boot_sector.dir_entry_count;
@@ -454,7 +424,6 @@ void fat_list_root_directory(void) {
   
   uint8_t *sector_buf = kmalloc(SECTOR_SIZE);
   if (!sector_buf) {
-    debugf("FAT: Failed to allocate sector buffer\n");
     return;
   }
 
@@ -512,26 +481,12 @@ void fat_list_root_directory(void) {
       
       filename[pos] = '\0';
       
-      // Only print if we have a valid filename
+      // Only count valid files
       if (pos > 0) {
-        debugf("  [%d] %s", total_count, filename);
-        
-        if (entry->attributes & FAT_ATTRIBUTE_DIRECTORY) {
-          debugf(" <DIR>");
-        } else {
-          debugf(" (%u bytes)", entry->size);
-        }
-        
-        uint32_t cluster = entry->first_cluster_low | ((uint32_t)entry->first_cluster_high << 16);
-        debugf(" [cluster: %u]\n", cluster);
-        
         total_count++;
       }
     }
   }
 
   kfree(sector_buf);
-  
-  debugf("=====================================\n");
-  debugf("Total entries: %d\n", total_count);
 }

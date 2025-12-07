@@ -7,8 +7,6 @@
 #include "../memory_management/paging.h"
 
 void *load_elf(PageDirectory *page_dir, const char *filepath) {
-  debugf("ELF: Loading '%s'...\n", filepath);
-
   // Read entire ELF file into memory
   void *elf_data = NULL;
   uint32_t elf_size = 0;
@@ -52,7 +50,6 @@ void *load_elf(PageDirectory *page_dir, const char *filepath) {
   }
 
   void *entry_point = (void *)header->ProgramEntryPosition;
-  debugf("ELF: Entry point: 0x%x\n", (uint32_t)entry_point);
 
   // Process program headers
   uint8_t *prog_headers = (uint8_t *)elf_data + header->ProgramHeaderTablePosition;
@@ -66,18 +63,10 @@ void *load_elf(PageDirectory *page_dir, const char *filepath) {
       continue;
     }
 
-    debugf("ELF: Loading segment %u:\n", i);
-    debugf("  Virtual: 0x%x\n", prog_hdr->VirtualAddress);
-    debugf("  FileSize: %u\n", prog_hdr->FileSize);
-    debugf("  MemSize: %u\n", prog_hdr->MemorySize);
-    debugf("  Flags: 0x%x\n", prog_hdr->Flags);
-
     // Calculate number of pages needed
     uint32_t virt_start = prog_hdr->VirtualAddress & PAGE_FRAME_MASK;
     uint32_t virt_end = (prog_hdr->VirtualAddress + prog_hdr->MemorySize + PAGE_SIZE - 1) & PAGE_FRAME_MASK;
     uint32_t num_pages = (virt_end - virt_start) / PAGE_SIZE;
-
-    debugf("  Mapping %u pages from 0x%x to 0x%x\n", num_pages, virt_start, virt_end);
 
     // Determine page flags
     uint32_t page_flags = PTE_PRESENT | PTE_USER;
@@ -92,7 +81,7 @@ void *load_elf(PageDirectory *page_dir, const char *filepath) {
       // Allocate physical frame
       uint32_t phys_addr = frame_alloc();
       if (phys_addr == 0) {
-        debugf("ELF: Failed to allocate frame for page %u\n", page);
+        debugf("ELF: Failed to allocate frame\n");
         kfree(elf_data);
         return NULL;
       }
@@ -112,16 +101,13 @@ void *load_elf(PageDirectory *page_dir, const char *filepath) {
     // Copy file data to memory
     if (prog_hdr->FileSize > 0) {
       uint8_t *src = (uint8_t *)elf_data + prog_hdr->Offset;
-      uint8_t *dst = (uint8_t *)prog_hdr->VirtualAddress;
 
-      // We need to copy through physical addresses since paging might not be active yet
-      // or the virtual address might not be identity mapped
       for (uint32_t offset = 0; offset < prog_hdr->FileSize; offset += PAGE_SIZE) {
         uint32_t virt_addr = prog_hdr->VirtualAddress + offset;
         uint32_t phys_addr = paging_physical_address_get(page_dir, virt_addr);
 
         if (phys_addr == 0) {
-          debugf("ELF: Failed to get physical address for 0x%x\n", virt_addr);
+          debugf("ELF: Failed to get physical address\n");
           kfree(elf_data);
           return NULL;
         }
@@ -135,18 +121,9 @@ void *load_elf(PageDirectory *page_dir, const char *filepath) {
         uint32_t page_offset = virt_addr & (PAGE_SIZE - 1);
         memcpy((void *)(phys_addr + page_offset), src + offset, copy_size);
       }
-
-      debugf("  Copied %u bytes from file\n", prog_hdr->FileSize);
-    }
-
-    // BSS section (MemorySize > FileSize) is already zeroed
-    if (prog_hdr->MemorySize > prog_hdr->FileSize) {
-      debugf("  BSS: %u bytes (already zeroed)\n", 
-             prog_hdr->MemorySize - prog_hdr->FileSize);
     }
   }
 
   kfree(elf_data);
-  debugf("ELF: Successfully loaded\n");
   return entry_point;
 }
