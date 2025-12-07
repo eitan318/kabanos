@@ -4,7 +4,7 @@ void _start(void)
     int a = 1 + 2;
     int b = 5 - 3;
     int c = a * b;
-    // int z = c / 0;
+    int z = c / 0;
     
     // Halt when done (prevent returning to nowhere)
     while(1) {
