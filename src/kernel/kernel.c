@@ -73,7 +73,7 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   if (fat_initialize(34, 0)) {
     debugf("FAT initialized\n");
   
-    void *entry_point = load_elf(kernel_page_dir, "/calc.elf");
+    void *entry_point = elf_load(kernel_page_dir, "/calc.elf");
   
     if (entry_point) {
       debugf("calc.elf loaded at 0x%x\n", (uint32_t)entry_point);

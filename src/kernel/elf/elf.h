@@ -88,4 +88,4 @@ enum ELFProgramFlags {
  * @param filepath Path to ELF file on FAT filesystem
  * @return Entry point address, or NULL on failure
  */
-void *load_elf(PageDirectory *page_dir, const char *filepath);
+void *elf_load(PageDirectory *page_dir, const char *filepath);

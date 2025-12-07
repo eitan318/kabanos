@@ -6,7 +6,7 @@
 #include "../memory_management/frame_allocator.h"
 #include "../memory_management/paging.h"
 
-void *load_elf(PageDirectory *page_dir, const char *filepath) {
+void *elf_load(PageDirectory *page_dir, const char *filepath) {
   // Read entire ELF file into memory
   void *elf_data = NULL;
   uint32_t elf_size = 0;
