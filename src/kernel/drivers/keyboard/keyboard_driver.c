@@ -4,6 +4,19 @@
 #include "hal/io.h"
 #include "utils/queue.h"
 
+// Keyboard is IRQ1, which maps to interrupt 0x21 after PIC remap
+#define KBD_IRQ 1
+#define KBD_INT 0x21
+
+// Modifier keys
+#define KBD_SHIFT 0x2A
+#define KBD_SHIFT_R 0x36
+#define KBD_CTRL 0x1D
+#define KBD_BACKSPACE 0x8
+
+#define MAX_PRESS_SCANCODE 0x80
+#define KEYBOARD_PORT 0x60
+
 Queue keyboard_queue;
 
 // Modifier key states
@@ -26,24 +39,20 @@ static char scancode_to_ascii_shift[128] = {
     'J', 'K', 'L',  ':',  '"',  '~', 0,   '|', 'Z', 'X', 'C', 'V',
     'B', 'N', 'M',  '<',  '>',  '?', 0,   '*', 0,   ' ', 0};
 
-#define MAX_PRESS_SCANCODE 0x80
-#define KEYBOARD_PORT 0x60
-
 static void keyboard_isr_handler(Registers *regs) {
   uint8_t scancode = io_read8(KEYBOARD_PORT);
 
-  // Handle key release (scancode >= 0x80)
-  int key_released = scancode & 0x80;
+  // Handle key release
+  int key_released = scancode & MAX_PRESS_SCANCODE;
   uint8_t keycode = scancode & 0x7F;
 
-  // Update modifier states
   if (keycode == KBD_SHIFT || keycode == KBD_SHIFT_R) {
     shift_pressed = !key_released;
-    goto eoi; // do not enqueue shift itself
+    goto eoi;
   }
   if (keycode == KBD_CTRL) {
     ctrl_pressed = !key_released;
-    goto eoi; // do not enqueue ctrl itself
+    goto eoi;
   }
 
   // Only handle key press events
@@ -62,7 +71,6 @@ static void keyboard_isr_handler(Registers *regs) {
   }
 
 eoi:
-  // Send EOI to PIC
   pic_send_eoi(KBD_IRQ);
 }
 

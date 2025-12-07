@@ -1,4 +1,6 @@
 #include "kmalloc.h"
+#include "memory_management/frame_allocator.h"
+#include "memory_management/paging.h"
 #include <string.h>
 
 // Size classes for slab allocator (in bytes)
@@ -53,8 +55,7 @@ static void *heap_page_alloc(void) {
 
   // Map it to virtual address
   uint32_t virtual = next_heap_addr;
-  if (!paging_page_map(kernel_page_directory, virtual, physical,
-                       PTE_PRESENT | PTE_WRITE)) {
+  if (!paging_map(kernel_page_directory, virtual, physical, PAGE_WRITABLE)) {
     frame_free(physical);
     return NULL;
   }
@@ -68,11 +69,10 @@ static void *heap_page_alloc(void) {
  */
 static void heap_page_free(void *ptr) {
   uint32_t virtual = (uint32_t)ptr;
-  uint32_t physical =
-      paging_physical_address_get(kernel_page_directory, virtual);
+  uint32_t physical = paging_get_physical(kernel_page_directory, virtual);
 
   if (physical) {
-    paging_page_unmap(kernel_page_directory, virtual);
+    paging_unmap(kernel_page_directory, virtual);
     frame_free(physical);
   }
 }
