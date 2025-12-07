@@ -19,62 +19,8 @@
 
 extern uint8_t _kernel_start[], _kernel_end[], _bss_start[];
 
-void __attribute__((section(".entry"))) start(BootParams boot_params) {
-  memset(_bss_start, 0, _kernel_end - _bss_start);
-  vga_clrscr();
-  vga_setcursor(0, 0);
-
-  debugf("[Kernel starting...]\n");
-
-  // Initialize initrd
-  if (boot_params.initrd_start && boot_params.initrd_size > 0) {
-    initrd_init(boot_params.initrd_start, boot_params.initrd_size);
-    initrd_list_files();
-  } else {
-    debugf("No initrd provided\n");
-  }
-
-  // Initialize modules
-  if (boot_params.module_count > 0) {
-    modules_init(&boot_params);
-  } else {
-    debugf("No modules provided\n");
-  }
-
-  hal_init();
-
-  __asm__ volatile("sti");
-
-  // Initialize frame allocator ONCE before tests
-  frame_allocator_init(&boot_params);
-
-  PageDirectory *kernel_page_dir = paging_create();
-
-  if (kernel_page_dir == NULL) {
-    debugf("FAIL: Could not create page directory\n");
-    return;
-  }
-
-  // Identity map the first 128MB so all frame allocations are accessible
-  debugf("Identity mapping kernel memory (0-128MB)...\n");
-  for (uint32_t addr = 0; addr < 0x8000000; addr += PAGE_SIZE) {
-    if (!paging_map(kernel_page_dir, addr, addr, PAGE_WRITABLE)) {
-      debugf("FAIL: Could not identity map 0x%x\n", addr);
-      return;
-    }
-  }
-
-  paging_enable(kernel_page_dir);
-  kmalloc_init(kernel_page_dir);
-
-  // Initialize FAT filesystem
-  debugf("Initializing FAT filesystem...\n");
-  if (!fat_initialize(34, 0)) {
-    debugf("Failed to initialize FAT\n");
-    for (;;) {}
-  }
-  debugf("FAT initialized\n");
-
+/* New helper: initialize process management and run the process-creation tests */
+static void init_processes_and_tests(void) {
   // Initialize process management
   debugf("\nInitializing process management...\n");
   process_init();
@@ -151,6 +97,65 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   } else {
     debugf("\nFAILED: Could not create process\n");
   }
+}
+
+void __attribute__((section(".entry"))) start(BootParams boot_params) {
+  memset(_bss_start, 0, _kernel_end - _bss_start);
+  vga_clrscr();
+  vga_setcursor(0, 0);
+
+  debugf("[Kernel starting...]\n");
+
+  // Initialize initrd
+  if (boot_params.initrd_start && boot_params.initrd_size > 0) {
+    initrd_init(boot_params.initrd_start, boot_params.initrd_size);
+    initrd_list_files();
+  } else {
+    debugf("No initrd provided\n");
+  }
+
+  // Initialize modules
+  if (boot_params.module_count > 0) {
+    modules_init(&boot_params);
+  } else {
+    debugf("No modules provided\n");
+  }
+
+  hal_init();
+
+  __asm__ volatile("sti");
+
+  // Initialize frame allocator ONCE before tests
+  frame_allocator_init(&boot_params);
+
+  PageDirectory *kernel_page_dir = paging_create();
+
+  if (kernel_page_dir == NULL) {
+    debugf("FAIL: Could not create page directory\n");
+    return;
+  }
+
+  // Identity map the first 128MB so all frame allocations are accessible
+  debugf("Identity mapping kernel memory (0-128MB)...\n");
+  for (uint32_t addr = 0; addr < 0x8000000; addr += PAGE_SIZE) {
+    if (!paging_map(kernel_page_dir, addr, addr, PAGE_WRITABLE)) {
+      debugf("FAIL: Could not identity map 0x%x\n", addr);
+      return;
+    }
+  }
+
+  paging_enable(kernel_page_dir);
+  kmalloc_init(kernel_page_dir);
+
+  // Initialize FAT filesystem
+  debugf("Initializing FAT filesystem...\n");
+  if (!fat_initialize(34, 0)) {
+    debugf("Failed to initialize FAT\n");
+    for (;;) {}
+  }
+  debugf("FAT initialized\n");
+
+  init_processes_and_tests();
 
   prompt_for_keyboard();
 
