@@ -111,7 +111,7 @@ static bool fat_read_fat_table(void) {
   return true;
 }
 
-bool fat_initialize(uint32_t partition_lba, uint32_t partition_size) {
+bool fat_initialize(uint32_t partition_lba) {
   memset(&g_fat_data, 0, sizeof(FAT_Data));
   g_fat_data.partition_lba = partition_lba;
 
