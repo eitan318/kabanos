@@ -61,11 +61,25 @@ void __attribute__((cdecl)) i686_isr_handler(Registers *regs) {
     printf("  eax=%x  ebx=%x  ecx=%x  edx=%x  esi=%x  edi=%x\n", regs->eax,
            regs->ebx, regs->ecx, regs->edx, regs->esi, regs->edi);
 
-    printf("  esp=%x  ebp=%x  eip=%x  eflags=%x  cs=%x  ds=%x  ss=%x\n",
-           regs->esp, regs->ebp, regs->eip, regs->eflags, regs->cs, regs->ds,
-           regs->ss);
+    printf(
+        " useless=%x esp=%x  ebp=%x  eip=%x  eflags=%x  cs=%x  ds=%x  ss=%x\n",
+        regs->useless, regs->esp, regs->ebp, regs->eip, regs->eflags, regs->cs,
+        regs->ds, regs->ss);
 
     printf("  interrupt=%x  errorcode=%x\n", regs->interrupt, regs->error);
+
+    debugf("Unhandled exception %d %s\n", regs->interrupt,
+           g_exceptions[regs->interrupt]);
+
+    debugf("  eax=%x  ebx=%x  ecx=%x  edx=%x  esi=%x  edi=%x\n", regs->eax,
+           regs->ebx, regs->ecx, regs->edx, regs->esi, regs->edi);
+
+    debugf(
+        "  useless=%x esp=%x  ebp=%x  eip=%x  eflags=%x  cs=%x  ds=%x  ss=%x\n",
+        regs->useless, regs->esp, regs->ebp, regs->eip, regs->eflags, regs->cs,
+        regs->ds, regs->ss);
+
+    debugf("  interrupt=%x  errorcode=%x\n", regs->interrupt, regs->error);
 
     kernel_panic(regs->eip);
   }

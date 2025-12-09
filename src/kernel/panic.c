@@ -8,6 +8,7 @@
 
 static void panic_ebp_backtrace(uintptr_t *ebp) {
   printf("Backtrace (EBP chain):\n");
+  debugf("Backtrace (EBP chain):\n");
 
   int depth = 0;
   uintptr_t *cur_ebp = ebp; // keep a copy for tool output
@@ -16,6 +17,7 @@ static void panic_ebp_backtrace(uintptr_t *ebp) {
     if (ret == 0)
       break;
     printf("  #%d: 0x%x <%s>\n", depth, (unsigned)ret, lookup_symbol(ret));
+    debugf("  #%d: 0x%x <%s>\n", depth, (unsigned)ret, lookup_symbol(ret));
     cur_ebp = (uintptr_t *)cur_ebp[0];
     depth++;
   }

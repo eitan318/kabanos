@@ -1,5 +1,6 @@
 #include "elf.h"
 #include "fat/fat.h"
+#include "include/memory.h"
 #include "include/stdio.h"
 #include "include/string.h"
 #include "kmalloc.h"
@@ -52,11 +53,13 @@ void *elf_load(PageDirectory *page_dir, const char *filepath) {
   void *entry_point = (void *)header->ProgramEntryPosition;
 
   // Process program headers
-  uint8_t *prog_headers = (uint8_t *)elf_data + header->ProgramHeaderTablePosition;
+  uint8_t *prog_headers =
+      (uint8_t *)elf_data + header->ProgramHeaderTablePosition;
 
   for (uint32_t i = 0; i < header->ProgramHeaderTableEntryCount; i++) {
     ELFProgramHeader *prog_hdr =
-        (ELFProgramHeader *)(prog_headers + i * header->ProgramHeaderTableEntrySize);
+        (ELFProgramHeader *)(prog_headers +
+                             i * header->ProgramHeaderTableEntrySize);
 
     // Only load LOAD segments
     if (prog_hdr->Type != ELF_PROGRAM_TYPE_LOAD) {
@@ -64,21 +67,21 @@ void *elf_load(PageDirectory *page_dir, const char *filepath) {
     }
 
     // Calculate number of pages needed
-    uint32_t virt_start = prog_hdr->VirtualAddress & PAGE_FRAME_MASK;
-    uint32_t virt_end = (prog_hdr->VirtualAddress + prog_hdr->MemorySize + PAGE_SIZE - 1) & PAGE_FRAME_MASK;
+    uint32_t virt_start = paging_virt_addr_align_down(prog_hdr->VirtualAddress);
+    uint32_t virt_end = paging_virt_addr_align_up(prog_hdr->VirtualAddress +
+                                                  prog_hdr->MemorySize);
     uint32_t num_pages = (virt_end - virt_start) / PAGE_SIZE;
 
     // Determine page flags
-    uint32_t page_flags = PTE_PRESENT | PTE_USER;
+    uint32_t page_flags = PAGE_USER;
     if (prog_hdr->Flags & ELF_PROGRAM_FLAG_WRITABLE) {
-      page_flags |= PTE_WRITE;
+      page_flags |= PAGE_WRITABLE;
     }
 
     // Allocate and map pages
     for (uint32_t page = 0; page < num_pages; page++) {
       uint32_t virt_addr = virt_start + (page * PAGE_SIZE);
 
-      // Allocate physical frame
       uint32_t phys_addr = frame_alloc();
       if (phys_addr == 0) {
         debugf("ELF: Failed to allocate frame\n");
@@ -86,7 +89,6 @@ void *elf_load(PageDirectory *page_dir, const char *filepath) {
         return NULL;
       }
 
-      // Map the page
       if (!paging_map(page_dir, virt_addr, phys_addr, page_flags)) {
         debugf("ELF: Failed to map page at 0x%x\n", virt_addr);
         frame_free(phys_addr);
@@ -102,7 +104,8 @@ void *elf_load(PageDirectory *page_dir, const char *filepath) {
     if (prog_hdr->FileSize > 0) {
       uint8_t *src = (uint8_t *)elf_data + prog_hdr->Offset;
 
-      for (uint32_t offset = 0; offset < prog_hdr->FileSize; offset += PAGE_SIZE) {
+      for (uint32_t offset = 0; offset < prog_hdr->FileSize;
+           offset += PAGE_SIZE) {
         uint32_t virt_addr = prog_hdr->VirtualAddress + offset;
         uint32_t phys_addr = paging_get_physical(page_dir, virt_addr);
 

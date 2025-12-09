@@ -3,6 +3,7 @@
 #include "../include/stdio.h"
 #include "../include/string.h"
 #include "../kmalloc.h"
+#include "include/memory.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -90,15 +91,16 @@ static bool fat_read_boot_sector(void) {
 }
 
 static bool fat_read_fat_table(void) {
-  uint32_t fat_size =
-      g_fat_data.boot_sector.bytes_per_sector * g_fat_data.boot_sector.sectors_per_fat;
+  uint32_t fat_size = g_fat_data.boot_sector.bytes_per_sector *
+                      g_fat_data.boot_sector.sectors_per_fat;
 
   g_fat_data.fat_table = kmalloc(fat_size);
   if (!g_fat_data.fat_table) {
     return false;
   }
 
-  uint32_t fat_lba = g_fat_data.partition_lba + g_fat_data.boot_sector.reserved_sectors;
+  uint32_t fat_lba =
+      g_fat_data.partition_lba + g_fat_data.boot_sector.reserved_sectors;
   uint32_t sectors = g_fat_data.boot_sector.sectors_per_fat;
 
   // Read FAT table sector by sector
@@ -237,24 +239,25 @@ uint32_t fat_read(FAT_File *file, uint32_t byte_count, void *out) {
     if (left_in_buffer == take) {
       if (fd->public.handle == ROOT_DIRECTORY_HANDLE) {
         // Root directory is at a fixed location, not cluster-based
-        ++fd->current_sector_in_cluster;  // Use as sector counter
-        
+        ++fd->current_sector_in_cluster; // Use as sector counter
+
         // Calculate next root directory sector
-        uint32_t root_sector = fd->first_cluster + fd->current_sector_in_cluster;
-        
+        uint32_t root_sector =
+            fd->first_cluster + fd->current_sector_in_cluster;
+
         // Check if we've read all root directory sectors
-        uint32_t root_size = sizeof(FAT_DirectoryEntry) * 
-                             g_fat_data.boot_sector.dir_entry_count;
+        uint32_t root_size =
+            sizeof(FAT_DirectoryEntry) * g_fat_data.boot_sector.dir_entry_count;
         uint32_t root_sectors = (root_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
-        
+
         if (fd->current_sector_in_cluster >= root_sectors) {
           // End of root directory
           break;
         }
-        
+
         // Read next root directory sector
         ata_read_sector(root_sector, 1, fd->buffer);
-        
+
       } else {
         // Regular file - use cluster chain
         if (++fd->current_sector_in_cluster >=
@@ -418,10 +421,11 @@ void fat_list_root_directory(void) {
   }
 
   // Read root directory manually, sector by sector
-  uint32_t root_dir_size = sizeof(FAT_DirectoryEntry) * g_fat_data.boot_sector.dir_entry_count;
+  uint32_t root_dir_size =
+      sizeof(FAT_DirectoryEntry) * g_fat_data.boot_sector.dir_entry_count;
   uint32_t root_sectors = (root_dir_size + SECTOR_SIZE - 1) / SECTOR_SIZE;
   uint32_t root_lba = g_fat_data.root_directory.first_cluster;
-  
+
   uint8_t *sector_buf = kmalloc(SECTOR_SIZE);
   if (!sector_buf) {
     return;
@@ -432,34 +436,34 @@ void fat_list_root_directory(void) {
 
   for (uint32_t sector = 0; sector < root_sectors && !found_end; sector++) {
     ata_read_sector(root_lba + sector, 1, sector_buf);
-    
+
     FAT_DirectoryEntry *entries = (FAT_DirectoryEntry *)sector_buf;
     uint32_t entries_per_sector = SECTOR_SIZE / sizeof(FAT_DirectoryEntry);
-    
+
     for (uint32_t i = 0; i < entries_per_sector && !found_end; i++) {
       FAT_DirectoryEntry *entry = &entries[i];
-      
+
       // Check for end of directory
       if (entry->name[0] == 0x00) {
         found_end = true;
         break;
       }
-      
+
       // Skip deleted entries
       if (entry->name[0] == 0xE5) {
         continue;
       }
-      
+
       // Skip volume labels and LFN entries
-      if (entry->attributes == FAT_ATTRIBUTE_VOLUME_ID || 
+      if (entry->attributes == FAT_ATTRIBUTE_VOLUME_ID ||
           entry->attributes == FAT_ATTRIBUTE_LFN) {
         continue;
       }
-      
+
       // Extract filename
       char filename[13];
       int pos = 0;
-      
+
       // Copy name part (8 chars)
       for (int j = 0; j < 8 && entry->name[j] != ' '; j++) {
         // Ensure printable character
@@ -467,7 +471,7 @@ void fat_list_root_directory(void) {
           filename[pos++] = entry->name[j];
         }
       }
-      
+
       // Add extension if present
       if (entry->name[8] != ' ') {
         filename[pos++] = '.';
@@ -478,9 +482,9 @@ void fat_list_root_directory(void) {
           }
         }
       }
-      
+
       filename[pos] = '\0';
-      
+
       // Only count valid files
       if (pos > 0) {
         total_count++;

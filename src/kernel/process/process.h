@@ -1,14 +1,14 @@
 #pragma once
-#include "pcb.h"
 #include "memory_management/paging.h"
+#include "pcb.h"
 #include <stdbool.h>
 #include <stdint.h>
 
 // Default memory layout for processes
-#define PROCESS_HEAP_START   0x08000000  // 128MB
-#define PROCESS_HEAP_SIZE    0x00100000  // 1MB
-#define PROCESS_STACK_TOP    0xBFFFF000  // Just below 3GB
-#define PROCESS_STACK_SIZE   0x00002000  // 8KB
+#define PROCESS_HEAP_START 0x08000000 // 128MB
+#define PROCESS_HEAP_SIZE 0x00100000  // 1MB
+#define PROCESS_STACK_TOP 0xBFFFF000  // Just below 3GB
+#define PROCESS_STACK_SIZE 0x00002000 // 8KB
 
 // Process management
 void process_init(void);
@@ -27,3 +27,5 @@ bool allocate_stack(Pcb *pcb, uint32_t stack_top, uint32_t stack_size,
                     PageDirectory *page_dir);
 void free_heap(Pcb *pcb, PageDirectory *page_dir);
 void free_stack(Pcb *pcb, PageDirectory *page_dir);
+
+void process_context_switch(Pcb *curr_pcb, Pcb *next_pcb);

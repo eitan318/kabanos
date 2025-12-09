@@ -1,5 +1,6 @@
 #include "arch/i686/vga_text.h"
 #include "boot/bootparams.h"
+#include "fat/fat.h"
 #include "hal/hal.h"
 #include "include/memory.h"
 #include "include/stdio.h"
@@ -9,11 +10,10 @@
 #include "memory_management/paging.h"
 #include "modules/modules.h"
 #include "process/pcb.h"
+#include "process/process.h"
 #include "ut/ata/ata_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
 #include "ut/keyboard_driver.h"
-#include "ut/paging/paging_ut_main.h"
-#include "ut/process/process_ut_main.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -71,15 +71,21 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   debugf("Initializing FAT filesystem...\n");
   if (!fat_initialize(34, 0)) {
     debugf("Failed to initialize FAT\n");
-    for (;;) {}
+    for (;;) {
+    }
   }
   debugf("FAT initialized\n");
 
   process_init();
-  
-  Pcb *calc_process = process_create("/calc.elf");
 
+  Pcb *calc_process = process_create("/calc.elf");
+  Pcb kernel_process = {
+      .page_directory = (uint32_t *)kernel_page_dir,
+
+  };
   prompt_for_keyboard();
+
+  process_context_switch(&kernel_process, calc_process);
 
   for (;;) {
   }

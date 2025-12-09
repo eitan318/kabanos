@@ -3,6 +3,37 @@
 #include "memory_management/frame_allocator.h"
 #include <stddef.h>
 
+#define PAGE_DIRECTORY_ENTRIES 1024
+#define PAGE_TABLE_ENTRIES 1024
+
+// Internal PTE flags
+#define PTE_PRESENT (1 << 0)
+#define PTE_WRITE (1 << 1)
+#define PTE_USER (1 << 2)
+#define PTE_WRITETHROUGH (1 << 3)
+#define PTE_CACHEDISABLE (1 << 4)
+#define PTE_ACCESSED (1 << 5)
+#define PTE_DIRTY (1 << 6)
+#define PTE_PAT (1 << 7)
+#define PTE_GLOBAL (1 << 8)
+
+// Internal PDE flags
+#define PDE_PRESENT PTE_PRESENT
+#define PDE_WRITE PTE_WRITE
+#define PDE_USER PTE_USER
+#define PDE_WRITETHROUGH PTE_WRITETHROUGH
+#define PDE_CACHEDISABLE PTE_CACHEDISABLE
+#define PDE_ACCESSED PTE_ACCESSED
+#define PDE_SIZE (1 << 7)
+#define PDE_GLOBAL PTE_GLOBAL
+
+// Address manipulation
+#define PAGE_FRAME_MASK 0xFFFFF000
+#define PAGE_FLAGS_MASK 0x00000FFF
+#define PAGE_DIRECTORY_INDEX(virt) (((uint32_t)(virt) >> 22) & 0x3FF)
+#define PAGE_TABLE_INDEX(virt) (((uint32_t)(virt) >> 12) & 0x3FF)
+#define PAGE_OFFSET(virt) ((uint32_t)(virt)&0xFFF)
+
 // Internal structures
 typedef struct {
   uint32_t present : 1;
@@ -42,10 +73,6 @@ struct PageDirectory {
 } __attribute__((aligned(PAGE_SIZE)));
 
 static bool g_paging_enabled = false;
-
-// ============================================================================
-// Internal helper functions
-// ============================================================================
 
 /**
  * Convert simple user flags to internal PTE flags
@@ -467,6 +494,10 @@ bool paging_map_range(PageDirectory *page_dir, uint32_t virtual_start,
   return true;
 }
 
+void page_dir_load(uint32_t page_dir_phys_addr) {
+  asm volatile("mov %0, %%cr3" ::"r"(page_dir_phys_addr));
+}
+
 void paging_enable(PageDirectory *page_dir) {
   if (page_dir == NULL) {
     debugf("ERROR: NULL page directory\n");
@@ -476,7 +507,7 @@ void paging_enable(PageDirectory *page_dir) {
   uint32_t pd_physical = virtual_to_physical(page_dir);
 
   // Load CR3 with page directory address
-  asm volatile("mov %0, %%cr3" ::"r"(pd_physical));
+  page_dir_load(pd_physical);
 
   // Enable paging by setting bit 31 of CR0
   uint32_t cr0;
@@ -494,6 +525,14 @@ void paging_disable(void) {
   asm volatile("mov %0, %%cr0" ::"r"(cr0));
 
   g_paging_enabled = false;
+}
+
+uint32_t paging_virt_addr_align_down(uint32_t addr) {
+  return addr & PAGE_FRAME_MASK; // private
+}
+
+uint32_t paging_virt_addr_align_up(uint32_t addr) {
+  return (addr + PAGE_SIZE - 1) & PAGE_FRAME_MASK;
 }
 
 bool paging_is_enabled(void) { return g_paging_enabled; }

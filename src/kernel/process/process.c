@@ -1,15 +1,17 @@
 #include "process/process.h"
+#include "elf/elf.h"
+#include "fat/fat.h"
 #include "include/stdio.h"
+#include "include/string.h"
 #include "memory_management/frame_allocator.h"
 #include "memory_management/paging.h"
 #include "process/pcb.h"
-#include "elf/elf.h"
-#include "fat/fat.h"
-#include "include/string.h"
 #include <stddef.h>
 
-#define MAX_PROCESSES 256
+extern void context_switch(CpuContext *current_cpu_context,
+                           CpuContext *next_cpu_context);
 
+#define MAX_PROCESSES 256
 static Pcb *process_table[MAX_PROCESSES];
 static uint32_t process_count = 0;
 
@@ -67,9 +69,7 @@ void process_list_all(void) {
   for (uint32_t i = 0; i < MAX_PROCESSES; i++) {
     Pcb *pcb = process_table[i];
     if (pcb != NULL) {
-      debugf("%u\t%s\t\t%s\t\t%s\n", 
-             pcb->pid, 
-             pcb->name,
+      debugf("%u\t%s\t\t%s\t\t%s\n", pcb->pid, pcb->name,
              pcb_state_string_get(pcb->state),
              pcb_priority_string_get(pcb->priority));
     }
@@ -236,7 +236,7 @@ void process_kill(Pcb *pcb) {
 
 /**
  * Create a new process from an ELF file
- * 
+ *
  * @param elf_path Path to ELF executable (e.g., "/calc.elf")
  * @return Pointer to created PCB, or NULL on failure
  */
@@ -249,7 +249,7 @@ Pcb *process_create(const char *elf_path) {
   // Extract process name from path (e.g., "/calc.elf" -> "calc")
   const char *name_start = strrchr(elf_path, '/');
   if (name_start) {
-    name_start++; 
+    name_start++;
   } else {
     name_start = elf_path;
   }
@@ -258,7 +258,7 @@ Pcb *process_create(const char *elf_path) {
   char process_name[32];
   strncpy(process_name, name_start, sizeof(process_name) - 1);
   process_name[sizeof(process_name) - 1] = '\0';
-  
+
   char *dot = strchr(process_name, '.');
   if (dot) {
     *dot = '\0';
@@ -302,7 +302,8 @@ Pcb *process_create(const char *elf_path) {
   }
 
   // Allocate heap (1MB at 0x08000000)
-  if (!allocate_heap(pcb, (void *)PROCESS_HEAP_START, PROCESS_HEAP_SIZE, page_dir)) {
+  if (!allocate_heap(pcb, (void *)PROCESS_HEAP_START, PROCESS_HEAP_SIZE,
+                     page_dir)) {
     debugf("ERROR: Failed to allocate heap\n");
     paging_destroy(page_dir);
     pcb_destroy(pcb);
@@ -320,7 +321,7 @@ Pcb *process_create(const char *elf_path) {
 
   // Initialize CPU context
   pcb_context_init(pcb, (uint32_t)entry_point, PROCESS_STACK_TOP);
-  
+
   // Initialize all general-purpose registers to 0
   pcb->cpu_context.eax = 0;
   pcb->cpu_context.ebx = 0;
@@ -328,10 +329,10 @@ Pcb *process_create(const char *elf_path) {
   pcb->cpu_context.edx = 0;
   pcb->cpu_context.esi = 0;
   pcb->cpu_context.edi = 0;
-  
+
   // EFLAGS: 0x200 = interrupts enabled (bit 9)
   pcb->cpu_context.eflags = 0x200;
-  
+
   // CR3: page directory physical address
   pcb->cpu_context.cr3 = (uint32_t)page_dir;
 
@@ -340,7 +341,8 @@ Pcb *process_create(const char *elf_path) {
 
   // Register process and transition to READY
   if (!process_register(pcb)) {
-    debugf("ERROR: Failed to register process (PID %u already exists?)\n", pcb->pid);
+    debugf("ERROR: Failed to register process (PID %u already exists?)\n",
+           pcb->pid);
     free_stack(pcb, page_dir);
     free_heap(pcb, page_dir);
     paging_destroy(page_dir);
@@ -352,4 +354,11 @@ Pcb *process_create(const char *elf_path) {
   pcb_state_set(pcb, PROCESS_STATE_READY);
 
   return pcb;
+}
+
+void process_context_switch(Pcb *curr_pcb, Pcb *next_pcb) {
+  curr_pcb->state = PROCESS_STATE_READY;
+  next_pcb->state = PROCESS_STATE_RUNNING;
+
+  context_switch(&curr_pcb->cpu_context, &next_pcb->cpu_context);
 }

@@ -66,23 +66,23 @@ for line in proc.stdout:
     smatch = stack_regex.search(line)
     if smatch:
         stack_addrs = smatch.group(1).split()
-
-    # If panic is fully detected, resolve symbols
-    if fault_addr and stack_addrs:
-        print("\n--- Panic detected! Resolving addresses ---\n")
-
-        if fault_addr:
-            print(f"FAULT @ {fault_addr}:")
-            subprocess.run(["addr2line", "-e", KERNEL_ELF, fault_addr])
-            print()
-
-        if stack_addrs:
-            print("STACK BACKTRACE:")
-            for addr in stack_addrs:
-                subprocess.run(["addr2line", "-e", KERNEL_ELF, addr])
-            print()
-
-        print("--- End of panic resolution ---")
-        break
-
+    #
+    # # If panic is fully detected, resolve symbols
+    # if fault_addr and stack_addrs:
+    #     print("\n--- Panic detected! Resolving addresses ---\n")
+    #
+    #     if fault_addr:
+    #         print(f"FAULT @ {fault_addr}:")
+    #         subprocess.run(["addr2line", "-e", KERNEL_ELF, fault_addr])
+    #         print()
+    #
+    #     if stack_addrs:
+    #         print("STACK BACKTRACE:")
+    #         for addr in stack_addrs:
+    #             subprocess.run(["addr2line", "-e", KERNEL_ELF, addr])
+    #         print()
+    #
+    #     print("--- End of panic resolution ---")
+    #     # break
+    #
 proc.wait()
