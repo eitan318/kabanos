@@ -246,12 +246,10 @@ Pcb *process_create(const char *elf_path) {
     return NULL;
   }
 
-  debugf("Creating process from '%s'...\n", elf_path);
-
-  // Step 1: Extract process name from path (e.g., "/calc.elf" -> "calc")
+  // Extract process name from path (e.g., "/calc.elf" -> "calc")
   const char *name_start = strrchr(elf_path, '/');
   if (name_start) {
-    name_start++; // Skip the '/'
+    name_start++; 
   } else {
     name_start = elf_path;
   }
@@ -266,16 +264,14 @@ Pcb *process_create(const char *elf_path) {
     *dot = '\0';
   }
 
-  // Step 2: Allocate PCB (auto-assigns PID)
+  // Allocate PCB (auto-assigns PID)
   Pcb *pcb = pcb_create(0, process_name, PROCESS_PRIORITY_NORMAL);
   if (!pcb) {
     debugf("ERROR: Failed to allocate PCB\n");
     return NULL;
   }
 
-  debugf("  Allocated PCB (PID %u)\n", pcb->pid);
-
-  // Step 3: Create page directory for this process
+  // Create page directory for this process
   PageDirectory *page_dir = paging_create();
   if (!page_dir) {
     debugf("ERROR: Failed to create page directory\n");
@@ -284,11 +280,9 @@ Pcb *process_create(const char *elf_path) {
   }
 
   pcb->page_directory = (uint32_t *)page_dir;
-  debugf("  Created page directory\n");
 
-  // Step 4: Identity map kernel space (0-128MB) so kernel code is accessible
+  // Identity map kernel space (0-128MB) so kernel code is accessible
   // This allows the process to execute kernel code (interrupts, syscalls, etc.)
-  debugf("  Identity mapping kernel space...\n");
   for (uint32_t addr = 0; addr < 0x8000000; addr += PAGE_SIZE) {
     if (!paging_map(page_dir, addr, addr, PAGE_WRITABLE)) {
       debugf("ERROR: Failed to identity map kernel at 0x%x\n", addr);
@@ -298,8 +292,7 @@ Pcb *process_create(const char *elf_path) {
     }
   }
 
-  // Step 5: Load ELF file → get entry point
-  debugf("  Loading ELF file...\n");
+  // Load ELF file → get entry point
   void *entry_point = elf_load(page_dir, elf_path);
   if (!entry_point) {
     debugf("ERROR: Failed to load ELF file '%s'\n", elf_path);
@@ -308,12 +301,7 @@ Pcb *process_create(const char *elf_path) {
     return NULL;
   }
 
-  debugf("  Entry point: 0x%x\n", (uint32_t)entry_point);
-
-  // Step 6: Allocate heap (1MB at 0x08000000)
-  debugf("  Allocating heap (%u KB at 0x%x)...\n", 
-         PROCESS_HEAP_SIZE / 1024, PROCESS_HEAP_START);
-  
+  // Allocate heap (1MB at 0x08000000)
   if (!allocate_heap(pcb, (void *)PROCESS_HEAP_START, PROCESS_HEAP_SIZE, page_dir)) {
     debugf("ERROR: Failed to allocate heap\n");
     paging_destroy(page_dir);
@@ -321,10 +309,7 @@ Pcb *process_create(const char *elf_path) {
     return NULL;
   }
 
-  // Step 7: Allocate stack (8KB at 0xBFFFF000)
-  debugf("  Allocating stack (%u KB at 0x%x)...\n", 
-         PROCESS_STACK_SIZE / 1024, PROCESS_STACK_TOP);
-  
+  // Allocate stack (8KB at 0xBFFFF000)
   if (!allocate_stack(pcb, PROCESS_STACK_TOP, PROCESS_STACK_SIZE, page_dir)) {
     debugf("ERROR: Failed to allocate stack\n");
     free_heap(pcb, page_dir);
@@ -333,7 +318,7 @@ Pcb *process_create(const char *elf_path) {
     return NULL;
   }
 
-  // Step 8: Initialize CPU context
+  // Initialize CPU context
   pcb_context_init(pcb, (uint32_t)entry_point, PROCESS_STACK_TOP);
   
   // Initialize all general-purpose registers to 0
@@ -350,14 +335,10 @@ Pcb *process_create(const char *elf_path) {
   // CR3: page directory physical address
   pcb->cpu_context.cr3 = (uint32_t)page_dir;
 
-  debugf("  Initialized CPU context:\n");
-  debugf("    EIP=0x%x, ESP=0x%x, EFLAGS=0x%x\n", 
-         pcb->cpu_context.eip, pcb->cpu_context.esp, pcb->cpu_context.eflags);
-
-  // Step 9: Set state to NEW
+  // Set state to NEW
   pcb_state_set(pcb, PROCESS_STATE_NEW);
 
-  // Step 10: Register process and transition to READY
+  // Register process and transition to READY
   if (!process_register(pcb)) {
     debugf("ERROR: Failed to register process (PID %u already exists?)\n", pcb->pid);
     free_stack(pcb, page_dir);
@@ -369,14 +350,6 @@ Pcb *process_create(const char *elf_path) {
 
   // Transition to READY state (ready to be scheduled)
   pcb_state_set(pcb, PROCESS_STATE_READY);
-
-  debugf("Process '%s' (PID %u) created successfully!\n", pcb->name, pcb->pid);
-  debugf("  State: %s\n", pcb_state_string_get(pcb->state));
-  debugf("  Priority: %s\n", pcb_priority_string_get(pcb->priority));
-  debugf("  Heap: 0x%x - 0x%x (%u KB)\n", 
-         pcb->heap_start, pcb->heap_end, (pcb->heap_end - pcb->heap_start) / 1024);
-  debugf("  Stack: 0x%x - 0x%x (%u KB)\n", 
-         pcb->stack_top, pcb->stack_top + pcb->stack_size, pcb->stack_size / 1024);
 
   return pcb;
 }
