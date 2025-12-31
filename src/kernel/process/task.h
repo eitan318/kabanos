@@ -1,10 +1,13 @@
 #pragma once
 #include <stdint.h>
 
-typedef struct {
+typedef struct __attribute__((packed)) {
   uint32_t esp;
 } Task;
 
-void setup_task(Task *t, void (*entry)(void), uint8_t *stack);
+typedef struct __attribute__((packed)) {
+  uint32_t esp;
+} PCB;
 
-void switch_to(Task *current, Task *next);
+void setup_task(Task *t, void (*entry)(void), uint8_t *stack);
+__attribute__((naked)) void switch_to(Task *current, Task *next);

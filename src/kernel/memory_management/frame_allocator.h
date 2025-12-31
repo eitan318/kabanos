@@ -7,10 +7,10 @@
 #define PAGE_SIZE 4096
 
 // Each free frame stores a pointer to the next free frame
-typedef struct FreeFrame {
-  struct FreeFrame *next;
-} FreeFrame;
-
+// typedef struct FreeFrame {
+//   struct FreeFrame *next;
+// } FreeFrame;
+//
 // Initialize the frame allocator
 void frame_allocator_init(BootParams *boot_params);
 

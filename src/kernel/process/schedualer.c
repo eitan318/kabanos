@@ -1,6 +1,14 @@
 #include "schedualer.h"
+#include "arch/i686/isr/isr.h"
 #include "include/stdio.h"
+#include "process/task.h"
 #include <stddef.h>
+//
+// #define PREEMPTIVE_INT 3
+//
+// void isr_handler(Registers *regs) {}
+//
+// i686_isr_handler_register(PREEMPTIVE_INT, isr_handler);
 
 static Task *tasks[2];
 static int task_count = 0;
@@ -9,14 +17,14 @@ Task *current = NULL;
 
 void taskA(void) {
   while (1) {
-    debugf("A");
+    debugf_and_printf("A");
     yield();
   }
 }
 
 void taskB(void) {
   while (1) {
-    debugf("B");
+    debugf_and_printf("B");
     yield();
   }
 }
@@ -39,6 +47,7 @@ void test_tasks(void) {
 
   // Start first task
   asm volatile("mov %0, %%esp\n"
+               "popa\n\t"
                "ret\n"
                :
                : "r"(a.esp)
@@ -52,9 +61,13 @@ Task *scheduler_pick_next(void) {
   return tasks[current_index];
 }
 
+extern void __attribute__((naked)) switch_to(Task *current, Task *next);
+
 void yield(void) {
   Task *next = scheduler_pick_next();
   if (next != current) {
-    switch_to(current, next);
+    Task *prev = current;
+    current = next;
+    switch_to(prev, next);
   }
 }
