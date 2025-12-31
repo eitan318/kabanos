@@ -7,9 +7,9 @@
 #include "memory_management/paging.h"
 #include "process/pcb.h"
 #include <stddef.h>
-
-extern void context_switch(CpuContext *current_cpu_context,
-                           CpuContext *next_cpu_context);
+//
+// extern void context_switch(CpuContext *current_cpu_context,
+//                            CpuContext *next_cpu_context);
 
 #define MAX_PROCESSES 256
 static Pcb *process_table[MAX_PROCESSES];
@@ -281,17 +281,6 @@ Pcb *process_create(const char *elf_path) {
 
   pcb->page_directory = (uint32_t *)page_dir;
 
-  // Identity map kernel space (0-128MB) so kernel code is accessible
-  // This allows the process to execute kernel code (interrupts, syscalls, etc.)
-  for (uint32_t addr = 0; addr < 0x8000000; addr += PAGE_SIZE) {
-    if (!paging_map(page_dir, addr, addr, PAGE_WRITABLE)) {
-      debugf("ERROR: Failed to identity map kernel at 0x%x\n", addr);
-      paging_destroy(page_dir);
-      pcb_destroy(pcb);
-      return NULL;
-    }
-  }
-
   // Load ELF file → get entry point
   void *entry_point = elf_load(page_dir, elf_path);
   if (!entry_point) {
@@ -356,6 +345,79 @@ Pcb *process_create(const char *elf_path) {
   return pcb;
 }
 
+void context_switch(CpuContext *current, CpuContext *next) {
+  // Save general purpose registers
+  __asm__ volatile("mov %%eax, %0\n"
+                   "mov %%ebx, %1\n"
+                   "mov %%ecx, %2\n"
+                   "mov %%edx, %3\n"
+                   : "=m"(current->eax), "=m"(current->ebx), "=m"(current->ecx),
+                     "=m"(current->edx));
+
+  __asm__ volatile("mov %%esi, %0\n"
+                   "mov %%edi, %1\n"
+                   "mov %%ebp, %2\n"
+                   "mov %%esp, %3\n"
+                   : "=m"(current->esi), "=m"(current->edi), "=m"(current->ebp),
+                     "=m"(current->esp));
+
+  // Save eip (return address)
+  __asm__ volatile("mov (%%esp), %%eax\n"
+                   "mov %%eax, %0\n"
+                   : "=m"(current->eip)
+                   :
+                   : "eax");
+
+  // Save eflags
+  __asm__ volatile("pushf\n"
+                   "pop %%eax\n"
+                   "mov %%eax, %0\n"
+                   : "=m"(current->eflags)
+                   :
+                   : "eax");
+
+  // Save cr3
+  __asm__ volatile("mov %%cr3, %%eax\n"
+                   "mov %%eax, %0\n"
+                   : "=m"(current->cr3)
+                   :
+                   : "eax");
+
+  // Disable interrupts
+  __asm__ volatile("cli");
+
+  // Switch page directory
+  page_dir_load(next->cr3);
+
+  // HERE  Restore stack pointer
+  __asm__ volatile("mov %0, %%esp\n" : : "r"(next->esp) : "memory");
+
+  // Push return context onto new stack
+  __asm__ volatile("pushl %0\n"
+                   "pushl %1\n"
+                   :
+                   : "m"(next->eflags), "m"(next->eip));
+
+  // Restore general registers (part 1)
+  __asm__ volatile("mov %0, %%eax\n"
+                   "mov %1, %%ebx\n"
+                   "mov %2, %%ecx\n"
+                   "mov %3, %%edx\n"
+                   :
+                   : "m"(next->eax), "m"(next->ebx), "m"(next->ecx),
+                     "m"(next->edx));
+
+  // Restore general registers (part 2)
+  __asm__ volatile("mov %0, %%esi\n"
+                   "mov %1, %%edi\n"
+                   "mov %2, %%ebp\n"
+                   :
+                   : "m"(next->esi), "m"(next->edi), "m"(next->ebp));
+
+  // Return to new context
+  __asm__ volatile("popf\n"
+                   "ret\n");
+}
 void process_context_switch(Pcb *curr_pcb, Pcb *next_pcb) {
   curr_pcb->state = PROCESS_STATE_READY;
   next_pcb->state = PROCESS_STATE_RUNNING;

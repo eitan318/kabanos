@@ -346,6 +346,16 @@ PageDirectory *paging_create(void) {
   PageDirectory *page_dir = (PageDirectory *)pd_physical;
   clear_page(page_dir);
 
+  // Identity map kernel space (0-128MB) so kernel code is accessible
+  // This allows the process to execute kernel code (interrupts, syscalls, etc.)
+  for (uint32_t addr = 0; addr < 0x8000000; addr += PAGE_SIZE) {
+    if (!paging_map(page_dir, addr, addr, PAGE_WRITABLE)) {
+      debugf("ERROR: Failed to identity map kernel at 0x%x\n", addr);
+      paging_destroy(page_dir);
+      return NULL;
+    }
+  }
+
   return page_dir;
 }
 

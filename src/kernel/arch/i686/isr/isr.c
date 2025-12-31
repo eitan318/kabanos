@@ -1,8 +1,11 @@
 #include "isr.h"
 #include "arch/i686/idt.h"
-#include "panic.h"
-#include <include/stdio.h>
+#include "arch/i686/panic.h"
+#include "include/stdio.h" // kernel printf implementation
+#include "kernel_symbols.h"
+#include <stdarg.h>
 #include <stddef.h>
+#include <stdint.h>
 
 ISRHandler g_isr_handlers[IDT_SIZE];
 
@@ -47,41 +50,67 @@ void i686_isr_init() {
     i686_idt_gate_enable(i);
 }
 
-void __attribute__((cdecl)) i686_isr_handler(Registers *regs) {
+static void panic_ebp_backtrace(uintptr_t *ebp) {
+  debugf_and_printf("Backtrace (EBP chain):\n");
+
+  int depth = 0;
+  uintptr_t *cur_ebp = ebp; // keep a copy for tool output
+  while (cur_ebp && depth < 20) {
+    uintptr_t ret = cur_ebp[1];
+    if (ret == 0)
+      break;
+    debugf_and_printf("  #%d: 0x%x <%s>\n", depth, (unsigned)ret,
+                      lookup_symbol(ret));
+    cur_ebp = (uintptr_t *)cur_ebp[0];
+    depth++;
+  }
+}
+
+// for than the run.py to use with addr2line tool
+void debugf_stacktrace_line(uintptr_t *ebp) {
+  debugf("STACK_OF_PANIC[123]:");
+  int depth = 0;
+  uintptr_t *cur_ebp = ebp; // keep a copy for tool output
+  while (cur_ebp && depth < 20) {
+    uintptr_t ret = cur_ebp[1];
+    if (ret == 0)
+      break;
+    debugf(" 0x%x", (unsigned)ret);
+    cur_ebp = (uintptr_t *)cur_ebp[0];
+    depth++;
+  }
+  debugf("\n");
+}
+
+void i686_isr_handler(Registers *regs) {
   if (g_isr_handlers[regs->interrupt] != NULL)
     g_isr_handlers[regs->interrupt](regs);
-
   else if (regs->interrupt >= 32)
-    printf("Unhandled interrupt %d!\n", regs->interrupt);
-
+    debugf_and_printf("Unhandled interrupt %d!\n", regs->interrupt);
   else {
-    printf("Unhandled exception %d %s\n", regs->interrupt,
-           g_exceptions[regs->interrupt]);
+    debugf_and_printf("Unhandled exception %d %s\n", regs->interrupt,
+                      g_exceptions[regs->interrupt]);
+    debugf_and_printf("  eax=%x  ebx=%x  ecx=%x  edx=%x  esi=%x  edi=%x\n",
+                      regs->eax, regs->ebx, regs->ecx, regs->edx, regs->esi,
+                      regs->edi);
 
-    printf("  eax=%x  ebx=%x  ecx=%x  edx=%x  esi=%x  edi=%x\n", regs->eax,
-           regs->ebx, regs->ecx, regs->edx, regs->esi, regs->edi);
+    debugf_and_printf(
+        "  esp=%x  ebp=%x  eip=%x  eflags=%x  cs=%x  ds=%x  ss=%x\n", regs->esp,
+        regs->ebp, regs->eip, regs->eflags, regs->cs, regs->ds, regs->ss);
+    debugf_and_printf("  interrupt=%x  errorcode=%x\n", regs->interrupt,
+                      regs->error);
 
-    printf(
-        " useless=%x esp=%x  ebp=%x  eip=%x  eflags=%x  cs=%x  ds=%x  ss=%x\n",
-        regs->useless, regs->esp, regs->ebp, regs->eip, regs->eflags, regs->cs,
-        regs->ds, regs->ss);
+    if ((regs->cs & 0x3) == 0) {
+      debugf("FAULTING_INSTRUCTION_OF_PANIC[123]: 0x%x\n", (unsigned)regs->eip);
 
-    printf("  interrupt=%x  errorcode=%x\n", regs->interrupt, regs->error);
+      debugf_stacktrace_line((uintptr_t *)regs->ebp);
+      panic_ebp_backtrace((uintptr_t *)regs->ebp);
 
-    debugf("Unhandled exception %d %s\n", regs->interrupt,
-           g_exceptions[regs->interrupt]);
-
-    debugf("  eax=%x  ebx=%x  ecx=%x  edx=%x  esi=%x  edi=%x\n", regs->eax,
-           regs->ebx, regs->ecx, regs->edx, regs->esi, regs->edi);
-
-    debugf(
-        "  useless=%x esp=%x  ebp=%x  eip=%x  eflags=%x  cs=%x  ds=%x  ss=%x\n",
-        regs->useless, regs->esp, regs->ebp, regs->eip, regs->eflags, regs->cs,
-        regs->ds, regs->ss);
-
-    debugf("  interrupt=%x  errorcode=%x\n", regs->interrupt, regs->error);
-
-    kernel_panic(regs->eip);
+    } else {
+      debugf("User space exception at eip=0x%x\n", regs->eip);
+      debugf("Cannot trace user stack from kernel\n");
+    }
+    arch_panic_halt();
   }
 }
 

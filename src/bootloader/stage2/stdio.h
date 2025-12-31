@@ -30,6 +30,8 @@ void printf(const char *fmt, ...);
 // Debug formatted output
 void debugf(const char *fmt, ...);
 
+void debugf_and_printf(const char *fmt, ...);
+
 // String-based formatted output
 int sprintf(char *buffer, const char *fmt, ...);
 int vsprintf(char *buffer, const char *format, va_list args);

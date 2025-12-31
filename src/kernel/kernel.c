@@ -11,11 +11,15 @@
 #include "modules/modules.h"
 #include "process/pcb.h"
 #include "process/process.h"
+#include "process/schedualer.h"
+#include "process/task.h"
 #include "ut/ata/ata_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
 #include "ut/keyboard_driver.h"
 #include <stdbool.h>
 #include <stdint.h>
+
+void test_tasks(void);
 
 extern uint8_t _kernel_start[], _kernel_end[], _bss_start[];
 
@@ -55,15 +59,6 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
     return;
   }
 
-  // Identity map the first 128MB so all frame allocations are accessible
-  debugf("Identity mapping kernel memory (0-128MB)...\n");
-  for (uint32_t addr = 0; addr < 0x8000000; addr += PAGE_SIZE) {
-    if (!paging_map(kernel_page_dir, addr, addr, PAGE_WRITABLE)) {
-      debugf("FAIL: Could not identity map 0x%x\n", addr);
-      return;
-    }
-  }
-
   paging_enable(kernel_page_dir);
   kmalloc_init(kernel_page_dir);
 
@@ -77,16 +72,36 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   debugf("FAT initialized\n");
 
   process_init();
-
-  Pcb *calc_process = process_create("/calc.elf");
-  Pcb kernel_process = {
-      .page_directory = (uint32_t *)kernel_page_dir,
-
-  };
-  prompt_for_keyboard();
-
-  process_context_switch(&kernel_process, calc_process);
+  test_tasks();
 
   for (;;) {
   }
+}
+
+void test_proccess(PageDirectory *kernel_page_dir) {
+
+  Pcb *calc_process = process_create("/calc.elf");
+
+  Pcb kernel_process = {
+      .page_directory = (uint32_t *)kernel_page_dir,
+      .cpu_context = {0}, // Initialize to zero
+      .state = PROCESS_STATE_RUNNING,
+  };
+
+  // Manually set the return point
+  kernel_process.cpu_context.eip = (uint32_t) && return_here;
+  kernel_process.cpu_context.cr3 = (uint32_t)kernel_page_dir;
+
+  // Save current stack state
+  __asm__ volatile("mov %%esp, %0\n"
+                   "mov %%ebp, %1\n"
+                   : "=r"(kernel_process.cpu_context.esp),
+                     "=r"(kernel_process.cpu_context.ebp));
+
+  // prompt_for_keyboard();
+
+  process_context_switch(&kernel_process, calc_process);
+
+return_here:
+  debugf("KERNEL SUCCESSFULLY RETURNED!");
 }

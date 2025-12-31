@@ -4,6 +4,7 @@ set architecture i386
 b start
 c
 lay src
+b isr.c:58
 
 # to use:
 #  gdb -x scripts/gdb_kernel.gdb 
