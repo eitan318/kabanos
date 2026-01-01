@@ -1,11 +1,10 @@
 #include "frame_allocator.h"
 #include "boot/bootparams.h"
-#include "include/string.h"
-#include "utils/range.h"
-#include <stdlib.h>
+#include "include/stdio.h"
+#include "utils/bitmap.h"
+#include "utils/math.h"
+#include <locale.h>
 
-// Maximum memory we can track (e.g., 4GB = 1M frames = 128KB bitmap)
-// Adjust this based on your expected maximum RAM
 #define MAX_FRAMES (1024 * 1024)               // 4GB worth of 4KB frames
 #define MAX_BITMAP_SIZE ((MAX_FRAMES + 7) / 8) // 128KB
 
@@ -15,48 +14,52 @@ static uint64_t total_frames = 0;
 static uint64_t used_frames = 0;
 static uint64_t bitmap_size_bytes = 0;
 
-// Memory region tracking
-static Range memory_range = {
-    .start = 0,
-    .end = 0,
-};
+static Range memory_range;
 
-// Helper: convert physical address to frame index
-static inline uint64_t aligned_addr_to_frame(uint64_t addr) {
-  return (addr - memory_range.start) / PAGE_SIZE;
+static Range find_range(MemoryMap *memory_map) {
+  uint64_t max_addr = 0;          // Initialize to 0
+  uint64_t min_addr = UINT64_MAX; // Initialize to max value
+
+  for (int i = 0; i < memory_map->region_count; i++) {
+    MemoryRegion *region = &memory_map->regions[i];
+
+    if (region->type != E820_USABLE)
+      continue;
+
+    uint64_t region_start = region->base;
+    uint64_t region_end = region->base + region->length;
+
+    if (region_start < min_addr)
+      min_addr = region_start;
+    if (region_end > max_addr)
+      max_addr = region_end;
+  }
+
+  Range range = {
+      .start = min_addr,
+      .end = max_addr,
+  };
+
+  return range;
 }
 
-// Helper: convert frame index to physical address
-static inline uint64_t frame_to_addr(uint64_t frame) {
-  return memory_range.start + (frame * PAGE_SIZE);
-}
+static void mark_non_usable_ranges_as_used(MemoryMap *memory_map) {
+  for (int i = 0; i < memory_map->region_count; i++) {
+    MemoryRegion *region = &memory_map->regions[i];
+    if (region->type == E820_USABLE)
+      continue;
 
-// Helper: check if frame is used
-static inline bool is_frame_used(uint64_t frame) {
-  uint64_t byte_idx = frame / 8;
-  uint8_t bit_idx = frame % 8;
-  return (bitmap[byte_idx] & (1 << bit_idx)) != 0;
-}
+    Range region_range = {
+        .start = region->base,
+        .end = region->base + region->length,
+    };
+    region_range = range_align_outward(region_range, PAGE_SIZE);
+    region_range = range_clamp(region_range, memory_range);
 
-// Helper: mark frame as used
-static inline void mark_frame_used(uint64_t frame) {
-  uint64_t byte_idx = frame / 8;
-  uint8_t bit_idx = frame % 8;
-  if (!is_frame_used(frame)) {
-    bitmap[byte_idx] |= (1 << bit_idx);
-    used_frames++;
+    frame_mark_range_used(region_range);
   }
 }
 
-// Helper: mark frame as free
-static inline void mark_frame_free(uint64_t frame) {
-  uint64_t byte_idx = frame / 8;
-  uint8_t bit_idx = frame % 8;
-  if (is_frame_used(frame)) {
-    bitmap[byte_idx] &= ~(1 << bit_idx);
-    used_frames--;
-  }
-}
 static void mark_kernel_as_used() {
   extern uint8_t _kernel_start, _kernel_end;
 
@@ -95,99 +98,38 @@ static void mark_cmdline_buffer_as_used(BootParams *boot_params) {
   }
 }
 
-void frame_allocator_init(BootParams *boot_params) {
-  // Find the total usable memory range
-  memory_range.start = UINT64_MAX;
-  memory_range.end = 0;
-  MemoryMap *mmap = &boot_params->memory_map;
+// Changed return type to uint64_t to match total_frames type
+static inline uint64_t aligned_addr_to_frame(uint64_t addr) {
+  return (addr - memory_range.start) / PAGE_SIZE;
+}
 
-  for (uint32_t i = 0; i < mmap->region_count; i++) {
-    MemoryRegion *region = &mmap->regions[i];
-    if (region->type != E820_USABLE) {
-      continue;
-    }
+static inline uint64_t frame_to_aligned_addr(uint64_t frame) {
+  return memory_range.start + (frame * PAGE_SIZE);
+}
 
-    uint64_t region_start = region->base;
-    uint64_t region_end = region->base + region->length;
-
-    if (region_start < memory_range.start) {
-      memory_range.start = region_start;
-    }
-    if (region_end > memory_range.end) {
-      memory_range.end = region_end;
-    }
+static inline void mark_frame_used(uint64_t frame) {
+  if (!bitmap_test(bitmap, frame)) {
+    bitmap_set(bitmap, frame);
+    used_frames++;
   }
+}
 
-  // Align to page boundaries
-  memory_range.start = (memory_range.start + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-  memory_range.end = memory_range.end & ~(PAGE_SIZE - 1);
-
-  // Calculate total frames
-  total_frames = (memory_range.end - memory_range.start) / PAGE_SIZE;
-
-  // Check if we can track this much memory
-  if (total_frames > MAX_FRAMES) {
-    // Handle error or reduce tracking
-    total_frames = MAX_FRAMES;
-    memory_range.end = memory_range.start + (MAX_FRAMES * PAGE_SIZE);
+static void mark_frame_free(uint64_t frame) {
+  if (bitmap_test(bitmap, frame)) {
+    bitmap_clear(bitmap, frame);
+    used_frames--;
   }
-
-  // Calculate actual bitmap size needed
-  bitmap_size_bytes = (total_frames + 7) / 8;
-
-  // Bitmap is already zeroed (it's in BSS)
-  used_frames = 0;
-
-  // Mark non-usable regions as used
-  for (uint32_t i = 0; i < mmap->region_count; i++) {
-    MemoryRegion *region = &mmap->regions[i];
-    if (region->type != E820_USABLE) {
-      uint64_t start = region->base;
-      uint64_t end = region->base + region->length;
-
-      // Align to page boundaries
-      start = start & ~(PAGE_SIZE - 1);
-      end = (end + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-
-      // Clamp to our tracked range
-      if (start < memory_range.start)
-        start = memory_range.start;
-      if (end > memory_range.end)
-        end = memory_range.end;
-
-      if (start < end) {
-        uint64_t start_frame = aligned_addr_to_frame(start);
-        uint64_t end_frame = aligned_addr_to_frame(end);
-
-        for (uint64_t f = start_frame; f < end_frame && f < total_frames; f++) {
-          mark_frame_used(f);
-        }
-      }
-    }
-  }
-
-  // Mark kernel as used
-  mark_kernel_as_used();
-  mark_initrd_as_used(boot_params);
-  mark_modules_as_used(boot_params);
-  mark_cmdline_buffer_as_used(boot_params);
 }
 
 void frame_mark_range_used(Range range) {
-  // Align to page boundaries
-  range.start = range.start & ~(PAGE_SIZE - 1);
-  range.end = (range.end + PAGE_SIZE - 1) & ~(PAGE_SIZE - 1);
-
-  // Clamp to our tracked range
-  if (range.start < memory_range.start)
-    range.start = memory_range.start;
-  if (range.end > memory_range.end)
-    range.end = memory_range.end;
+  range = range_align_outward(range, PAGE_SIZE);
+  range = range_clamp(range, memory_range);
 
   if (range.start >= range.end) {
     return;
   }
 
+  // FIXED: start_frame should use range.start, not range.end
   uint64_t start_frame = aligned_addr_to_frame(range.start);
   uint64_t end_frame = aligned_addr_to_frame(range.end);
 
@@ -200,12 +142,11 @@ void frame_mark_range_used(Range range) {
 uint64_t frame_alloc() {
   // Scan bitmap for a free frame
   for (uint64_t frame = 1; frame < total_frames; frame++) {
-    if (!is_frame_used(frame)) {
+    if (!bitmap_test(bitmap, frame)) {
       mark_frame_used(frame);
-      return frame_to_addr(frame);
+      return frame_to_aligned_addr(frame);
     }
   }
-
   // Out of memory
   return 0;
 }
@@ -216,8 +157,7 @@ void frame_free(uint64_t frame_addr) {
     return;
   }
 
-  // Reject out-of-range addresses
-  if (frame_addr < memory_range.start || frame_addr >= memory_range.end) {
+  if (!in_range(frame_addr, memory_range)) {
     return;
   }
 
@@ -229,8 +169,32 @@ void frame_free(uint64_t frame_addr) {
   mark_frame_free(frame);
 }
 
-uint64_t frame_get_free_count() { return total_frames - used_frames; }
+void frame_allocator_init(BootParams *boot_params) {
+  memory_range = find_range(&boot_params->memory_map);
+  memory_range = range_align_outward(memory_range, PAGE_SIZE);
 
+  total_frames = (memory_range.end - memory_range.start) / PAGE_SIZE;
+  if (total_frames > MAX_FRAMES) {
+    debugf("Memory range greater than max frames!");
+    total_frames = MAX_FRAMES;
+    memory_range.end = memory_range.start + (MAX_FRAMES * PAGE_SIZE);
+  }
+
+  bitmap_size_bytes = (total_frames + 7) / 8;
+
+  used_frames = 0;
+  mark_frame_used(0); // for alloc to return 0 on err, frame 0 must be used
+
+  mark_non_usable_ranges_as_used(&boot_params->memory_map);
+  mark_kernel_as_used();
+  mark_initrd_as_used(boot_params);
+  mark_modules_as_used(boot_params);
+  mark_cmdline_buffer_as_used(boot_params);
+}
+
+// -1 because the real count of usable frames does not include first frame
+uint64_t frame_get_free_count() { return total_frames - 1 - used_frames; }
 uint64_t frame_get_used_count() { return used_frames; }
 
-uint64_t frame_get_total_count() { return total_frames; }
+// -1 because the real count of usable frames does not include first frame
+uint64_t frame_get_total_count() { return total_frames - 1; }
