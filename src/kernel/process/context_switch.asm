@@ -1,14 +1,13 @@
 bits 32
 
+;
+; This should match the isr.asm common_isr for preeamptive switching
+;
 global switch_to
 switch_to:
-      pusha                 ; save registers to curr stack
+    mov esp, [esp + 4]
 
-      mov eax, [esp + 32 + 4]   ; eax = current
-      mov edx, [esp + 32 + 8]   ; edx = next
-      mov [eax], esp        ; save ESP in current->esp
-
-      mov esp, [edx]        ; load ESP of next
-      popa                  ; restore registers of next stack
-      ret
-
+    pop ds
+    popa
+    add esp, 8
+    iret
