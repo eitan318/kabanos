@@ -201,7 +201,11 @@ int ut_mark_range_used(void) {
   debugf("  Marking 0x%lx-0x%lx as used (%lu frames)\n", kernel_start,
          kernel_end, frames_to_mark);
 
-  frame_mark_range_used(kernel_start, kernel_end);
+  Range range = {
+      kernel_start,
+      kernel_end,
+  };
+  frame_mark_range_used(range);
 
   uint64_t after_mark = frame_get_free_count();
   debugf("  Free frames: %lu -> %lu\n", initial_free, after_mark);

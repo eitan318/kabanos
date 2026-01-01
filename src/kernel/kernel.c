@@ -51,6 +51,7 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
 
   // Initialize frame allocator ONCE before tests
   frame_allocator_init(&boot_params);
+  ut_frame_allocator_main(&boot_params);
 
   PageDirectory *kernel_page_dir = paging_create();
 
