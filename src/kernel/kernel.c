@@ -16,8 +16,10 @@
 #include "ut/ata/ata_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
 #include "ut/keyboard_driver.h"
+#include "ut/paging/paging_ut_main.h"
 #include <stdbool.h>
 #include <stdint.h>
+#include <stdlib.h>
 
 PageDirectory *g_kernel_page_dir;
 
@@ -51,17 +53,15 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
 
   // Initialize frame allocator ONCE before tests
   frame_allocator_init(&boot_params);
-  ut_frame_allocator_main(&boot_params);
 
-  PageDirectory *kernel_page_dir = paging_create();
-
-  if (kernel_page_dir == NULL) {
+  g_kernel_page_dir = paging_create();
+  if (g_kernel_page_dir == NULL) {
     debugf("FAIL: Could not create page directory\n");
     return;
   }
+  paging_enable(g_kernel_page_dir);
 
-  paging_enable(kernel_page_dir);
-  kmalloc_init(kernel_page_dir);
+  kmalloc_init(g_kernel_page_dir);
 
   // Initialize FAT filesystem
   debugf("Initializing FAT filesystem...\n");
@@ -73,8 +73,8 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   debugf("FAT initialized\n");
 
   process_init();
-  test_tasks((uint32_t)kernel_page_dir);
 
+  // test_tasks();
   for (;;) {
   }
 }

@@ -95,8 +95,9 @@ void i686_isr_handler(Registers *regs) {
                       regs->edi);
 
     debugf_and_printf(
-        "  esp=%x  ebp=%x  eip=%x  eflags=%x  cs=%x  ds=%x  ss=%x\n", regs->esp,
-        regs->ebp, regs->eip, regs->eflags, regs->cs, regs->ds, regs->ss);
+        "  esp=%x  ebp=%x  eip=%x  eflags=%x  cs=%x  ds=%x  ss=%x\n",
+        regs->esp_user, regs->ebp, regs->eip, regs->eflags, regs->cs, regs->ds,
+        regs->ss_user);
     debugf_and_printf("  interrupt=%x  errorcode=%x\n", regs->interrupt,
                       regs->error);
 
