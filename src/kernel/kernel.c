@@ -19,7 +19,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-void test_tasks(void);
+PageDirectory *g_kernel_page_dir;
 
 extern uint8_t _kernel_start[], _kernel_end[], _bss_start[];
 
@@ -72,7 +72,7 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   debugf("FAT initialized\n");
 
   process_init();
-  test_tasks();
+  test_tasks((uint32_t)kernel_page_dir);
 
   for (;;) {
   }

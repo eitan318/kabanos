@@ -4,7 +4,7 @@
 #define STACK_SIZE 10000
 
 // this shouild match isr.asm isr_common for preeamptive schedualing
-void setup_task(Task *t, void (*entry)(void), uint8_t *stack) {
+void setup_task(PCB *t, void (*entry)(void), uint8_t *stack) {
   uint32_t *stk = (uint32_t *)(stack + STACK_SIZE);
 
   // ---- iret frame ----

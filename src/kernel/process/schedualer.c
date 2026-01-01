@@ -4,20 +4,37 @@
 #include "process/task.h"
 #include <stddef.h>
 
-static Task *tasks[2];
+static PCB *tasks[2];
 static int task_count = 0;
 static int current_index = 0;
-static Task kernel_task;
-Task *current = NULL;
+static PCB kernel_task;
+PCB *current = NULL;
+static int next_pid = 1;
 
-void scheduler_add(Task *t) { tasks[task_count++] = t; }
+static uint32_t kernel_cr3; // physical address of kernel page directory
+                            //
+// uint32_t *create_page_directory(void) {
+//   uint32_t *pd = kmalloc_aligned(4096, 4096); // 4KB aligned
+//   memset(pd, 0, 4096);
+//   // Map kernel space (e.g., higher half) identically
+//   for (int i = KERNEL_START / PAGE_SIZE; i < 1024; i++) {
+//     pd[i] = kernel_page_directory[i];
+//   }
+//   return pd;
+// }
 
-Task *scheduler_pick_next(void) {
+void scheduler_add(PCB *p) {
+  p->pid = next_pid++;
+  p->cr3 = (uint32_t)create_page_directory();
+  tasks[task_count++] = p;
+}
+
+PCB *scheduler_pick_next(void) {
   current_index = (current_index + 1) % task_count;
   return tasks[current_index];
 }
 
-extern void __attribute__((naked)) switch_to(Registers *regs);
+extern void __attribute__((naked)) switch_to(PCB *p);
 
 static void preemptie_switch_isr_handler(Registers *regs) {
   if (current == NULL) {
@@ -29,25 +46,25 @@ static void preemptie_switch_isr_handler(Registers *regs) {
     current->kernel_esp = (uint32_t *)regs;
   }
 
-  Task *next = scheduler_pick_next();
+  PCB *next = scheduler_pick_next();
   if (!next) {
     next = &kernel_task;
   }
   current = next;
 
-  switch_to(next->kernel_esp);
+  switch_to(next);
 }
 
 void taskA(void) {
   while (1) {
-    debugf_and_printf("A");
+    debugf_and_printf("Task A PID: %d\n", current->pid);
     asm volatile("int $45");
   }
 }
 
 void taskB(void) {
   while (1) {
-    debugf_and_printf("B");
+    debugf_and_printf("Task B PID: %d\n", current->pid);
     asm volatile("int $45");
   }
 }
@@ -57,9 +74,10 @@ void taskB(void) {
 uint8_t stackA[STACK_SIZE];
 uint8_t stackB[STACK_SIZE];
 
-void test_tasks(void) {
+void test_tasks(uint32_t kernel_cr3_param) {
+  kernel_cr3 = kernel_cr3_param;
   i686_isr_handler_register(PREEMPTIVE_INT, preemptie_switch_isr_handler);
-  static Task a, b;
+  static PCB a, b;
 
   setup_task(&a, taskA, stackA);
   setup_task(&b, taskB, stackB);

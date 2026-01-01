@@ -5,9 +5,13 @@ bits 32
 ;
 global switch_to
 switch_to:
-    mov esp, [esp + 4]
+    mov eax, [esp + 4]      ; load PCB pointer into EAX
+    mov ebx, [eax + 12]     ; load PCB->cr3 into EBX
+    mov cr3, ebx             ; switch page directory
 
+    mov esp, [eax + 4]      ; ESP = PCB->kernel_esp
     pop ds
     popa
-    add esp, 8
+    add esp, 8              ; skip error code + int number
     iret
+

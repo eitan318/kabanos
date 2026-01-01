@@ -6,12 +6,11 @@
 #define KERNEL_DS 0x10
 #define PREEMPTIVE_INT 45
 
-typedef struct Task {
+typedef struct PCB {
+  uint32_t pid;         // Process ID
   uint32_t *kernel_esp; // pointer to saved ISR stack
-} Task;
-
-typedef struct __attribute__((packed)) {
-  uint32_t esp;
+  uint32_t *user_esp;   // Saved user stack pointer (we'll use soon)
+  uint32_t cr3;         // Page directory for this process (future)
 } PCB;
 
-void setup_task(Task *t, void (*entry)(void), uint8_t *stack);
+void setup_task(PCB *t, void (*entry)(void), uint8_t *stack);
