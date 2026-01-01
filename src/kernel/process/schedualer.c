@@ -25,7 +25,7 @@ static uint32_t kernel_cr3; // physical address of kernel page directory
 
 void scheduler_add(PCB *p) {
   p->pid = next_pid++;
-  p->cr3 = (uint32_t)create_page_directory();
+  p->cr3 = (uint32_t)kernel_cr3;
   tasks[task_count++] = p;
 }
 
