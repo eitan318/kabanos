@@ -12,16 +12,6 @@ PCB *current = NULL;
 static int next_pid = 1;
 
 static uint32_t kernel_cr3; // physical address of kernel page directory
-                            //
-// uint32_t *create_page_directory(void) {
-//   uint32_t *pd = kmalloc_aligned(4096, 4096); // 4KB aligned
-//   memset(pd, 0, 4096);
-//   // Map kernel space (e.g., higher half) identically
-//   for (int i = KERNEL_START / PAGE_SIZE; i < 1024; i++) {
-//     pd[i] = kernel_page_directory[i];
-//   }
-//   return pd;
-// }
 
 void scheduler_add(PCB *p) {
   p->pid = next_pid++;
