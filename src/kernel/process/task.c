@@ -41,11 +41,13 @@ void task_kill(TCB *t) {
   kfree(t);
 }
 
-TCB *task_setup(void (*entry)(void), TaskMode mode) {
-  TCB *t = kmalloc(sizeof(*t));
+// TCB *task_setup(void (*entry)(void), TaskMode mode) {
+
+void task_setup(TCB *t, void (*entry)(void)) {
+  // TCB *t = kmalloc(sizeof(*t));
   t->pid = next_pid++;
   t->state = TASK_STATE_NEW;
-  t->mode = mode;
+  // t->mode = mode;
   PageDirectory *page_dir = paging_create();
   t->cr3 = (uint32_t)page_dir;
   t->user_esp = (uint32_t *)(PROCESS_STACK_TOP + PROCESS_STACK_SIZE);
@@ -54,7 +56,9 @@ TCB *task_setup(void (*entry)(void), TaskMode mode) {
   if (!va_alloc_region(page_dir, PROCESS_STACK_TOP, PROCESS_STACK_SIZE,
                        PAGE_USER | PAGE_WRITABLE, true)) {
     paging_destroy(page_dir);
-    return NULL;
+
+    // return NULL;
+    return;
   }
 
   // Allocate user heap
@@ -62,7 +66,8 @@ TCB *task_setup(void (*entry)(void), TaskMode mode) {
                        PAGE_USER | PAGE_WRITABLE, false)) {
     va_free_region(page_dir, PROCESS_STACK_TOP, PROCESS_STACK_SIZE, true);
     paging_destroy(page_dir);
-    return NULL;
+    // return NULL;
+    return;
   }
 
   // --- Allocate kernel stack for process ---
@@ -74,7 +79,8 @@ TCB *task_setup(void (*entry)(void), TaskMode mode) {
     va_free_region(page_dir, PROCESS_STACK_TOP, PROCESS_STACK_SIZE, true);
     va_free_region(page_dir, PROCESS_HEAP_START, PROCESS_HEAP_SIZE, false);
     paging_destroy(page_dir);
-    return NULL;
+    // return NULL;
+    return;
   }
 
   t->kernel_stack_top =
@@ -90,7 +96,7 @@ TCB *task_setup(void (*entry)(void), TaskMode mode) {
   // ---- iret frame ----
   uint32_t *stk = t->kernel_stack_top;
 
-  if (mode == TASK_MODE_USER) {
+  if (t->mode == TASK_MODE_USER) {
     *(--stk) = i686_GDT_USER_DS_SEL;
     *(--stk) = (uint32_t)t->user_esp;
     *(--stk) = 0x202;
@@ -121,5 +127,5 @@ TCB *task_setup(void (*entry)(void), TaskMode mode) {
 
   t->kernel_esp = stk;
 
-  return t;
+  // return t;
 }

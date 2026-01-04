@@ -3,6 +3,7 @@
 #include "arch/i686/isr/isr.h"
 #include "include/memory.h"
 #include "include/stdio.h"
+#include "kmalloc.h"
 #include "memory_management/frame_allocator.h"
 #include "memory_management/paging.h"
 #include "memory_management/va_allocation.h"
@@ -71,13 +72,23 @@ void taskB(void) {
 void test_tasks() {
   i686_isr_handler_register(PREEMPTIVE_INT, preemptive_switch_isr_handler);
 
-  TCB *a = task_setup(taskA, TASK_MODE_USER);
-  TCB *b = task_setup(taskB, TASK_MODE_KERNEL);
-  if (a == NULL || a == NULL) {
-    debugf("TASK Were null!!! ERR");
-    return;
-  }
-
+  // TCB *a = task_setup(taskA, TASK_MODE_USER);
+  // TCB *b = task_setup(taskB, TASK_MODE_KERNEL);
+  // if (a == NULL || a == NULL) {
+  //   debugf("TASK Were null!!! ERR");
+  //   return;
+  // }
+  //
+  TCB *a = kmalloc(sizeof(*a));
+  TCB *b = kmalloc(sizeof(*b));
+  task_setup(a, taskA);
+  task_setup(b, taskB);
+  //
+  // TCB *c = task_setup(taskA, TASK_MODE_USER);
+  // TCB *d = task_setup(taskB, TASK_MODE_KERNEL);
+  //
+  a->mode = TASK_MODE_USER;
+  a->mode = TASK_MODE_KERNEL;
   scheduler_add(a);
   scheduler_add(b);
 

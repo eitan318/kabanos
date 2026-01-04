@@ -25,4 +25,6 @@ typedef struct TCB {
   TaskState state;
 } __attribute__((packed)) TCB;
 
-TCB *task_setup(void (*entry)(void), TaskMode mode);
+// TCB *task_setup(void (*entry)(void), TaskMode mode);
+
+void task_setup(TCB *t, void (*entry)(void));
