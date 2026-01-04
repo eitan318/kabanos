@@ -1,5 +1,8 @@
 #include "task.h"
 #include "arch/i686/gdt.h"
+#include "elf/elf.h"
+#include "include/stdio.h"
+#include "include/string.h"
 #include "kmalloc.h"
 #include "memory_management/memdefs.h"
 #include "memory_management/paging.h"
@@ -36,12 +39,11 @@ void task_kill(TCB *t) {
 
 // TCB *task_setup(void (*entry)(void), TaskMode mode) {
 
-void task_setup(TCB *t, void (*entry)(void)) {
+void task_setup(TCB *t, void (*entry)(void), PageDirectory *page_dir) {
   // TCB *t = kmalloc(sizeof(*t));
   t->pid = next_pid++;
   t->state = TASK_STATE_NEW;
   // t->mode = mode;
-  PageDirectory *page_dir = paging_create_kernel();
   t->cr3 = (uint32_t)page_dir;
   t->user_esp = (uint32_t *)(PROCESS_STACK_TOP + PROCESS_STACK_SIZE);
 
@@ -121,4 +123,42 @@ void task_setup(TCB *t, void (*entry)(void)) {
   t->kernel_esp = stk;
 
   // return t;
+}
+
+TCB *process_create(const char *elf_path) {
+  // Extract process name from path (e.g., "/calc.elf" -> "calc")
+  const char *name_start = strrchr(elf_path, '/');
+  if (name_start) {
+    name_start++;
+  } else {
+    name_start = elf_path;
+  }
+
+  // Remove .elf extension if present
+  char process_name[32];
+  strncpy(process_name, name_start, sizeof(process_name) - 1);
+  process_name[sizeof(process_name) - 1] = '\0';
+
+  char *dot = strchr(process_name, '.');
+  if (dot) {
+    *dot = '\0';
+  }
+
+  PageDirectory *page_dir = paging_create_kernel();
+
+  // Load ELF file → get entry point
+  void *entry_point = (void *)elf_load(page_dir, elf_path);
+  if (!entry_point) {
+    debugf("ERROR: Failed to load ELF file '%s'\n", elf_path);
+    paging_destroy(page_dir);
+    return NULL;
+  }
+
+  static TCB tcb; // TODO: change to recieve from malloc or to be malloc (there
+                  // is problem with mapping of kernel heap or smth)
+  task_setup(&tcb, entry_point, page_dir);
+
+  tcb.state = TASK_STATE_NEW;
+
+  return &tcb;
 }

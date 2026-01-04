@@ -78,10 +78,13 @@ void test_tasks() {
   //   return;
   // }
   //
-  static TCB a, b;
+  TCB a, b;
   task_setup(&a, taskA);
   task_setup(&b, taskB);
-
+  //
+  // TCB *c = task_setup(taskA, TASK_MODE_USER);
+  // TCB *d = task_setup(taskB, TASK_MODE_KERNEL);
+  //
   a.mode = TASK_MODE_USER;
   a.mode = TASK_MODE_KERNEL;
   scheduler_add(&a);

@@ -339,23 +339,23 @@ static PageTable *page_table_get_or_create(PageDirectory *page_dir,
 // Public API implementation
 // ============================================================================
 
-PageDirectory *paging_create_user(void) {
-  uint32_t pd_phys = frame_alloc();
-  if (!pd_phys)
-    return NULL;
-
-  // Map it to kernel virtual memory so we can initialize it
-  PageDirectory *pd = (PageDirectory *)(pd_phys + KERNEL_BASE);
-  clear_page(pd);
-
-  // Copy kernel mappings
-  for (uint32_t i = KERNEL_PD_START_IDX; i < PAGE_DIRECTORY_ENTRIES; i++) {
-    pd->entries[i] = g_kernel_page_dir->entries[i];
-  }
-
-  return pd;
-}
-
+// PageDirectory *paging_create_user(void) {
+//   uint32_t pd_phys = frame_alloc();
+//   if (!pd_phys)
+//     return NULL;
+//
+//   // Map it to kernel virtual memory so we can initialize it
+//   PageDirectory *pd = (PageDirectory *)(pd_phys + KERNEL_BASE);
+//   clear_page(pd);
+//
+//   // Copy kernel mappings
+//   for (uint32_t i = KERNEL_PD_START_IDX; i < PAGE_DIRECTORY_ENTRIES; i++) {
+//     pd->entries[i] = g_kernel_page_dir->entries[i];
+//   }
+//
+//   return pd;
+// }
+//
 PageDirectory *paging_create_kernel(void) {
   uint32_t pd_physical = frame_alloc();
   if (pd_physical == 0) {

@@ -1,5 +1,6 @@
 #pragma once
 #include "arch/i686/isr/isr.h"
+#include "memory_management/paging.h"
 #include <stdint.h>
 
 #define PREEMPTIVE_INT 45
@@ -27,4 +28,4 @@ typedef struct TCB {
 
 // TCB *task_setup(void (*entry)(void), TaskMode mode);
 
-void task_setup(TCB *t, void (*entry)(void));
+void task_setup(TCB *t, void (*entry)(void), PageDirectory *page_dir);
