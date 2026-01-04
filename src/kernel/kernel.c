@@ -54,11 +54,12 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   // Initialize frame allocator ONCE before tests
   frame_allocator_init(&boot_params);
 
-  g_kernel_page_dir = paging_create();
+  g_kernel_page_dir = paging_create_kernel();
   if (g_kernel_page_dir == NULL) {
     debugf("FAIL: Could not create page directory\n");
     return;
   }
+
   paging_enable(g_kernel_page_dir);
 
   kmalloc_init(g_kernel_page_dir);

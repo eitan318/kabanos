@@ -1,5 +1,6 @@
 #include "kmalloc.h"
 #include "memory_management/frame_allocator.h"
+#include "memory_management/memdefs.h"
 #include "memory_management/paging.h"
 #include <string.h>
 
@@ -32,9 +33,6 @@ static kmem_cache_t caches[NUM_SIZE_CLASSES];
 // Statistics
 static kmalloc_stats_t stats = {0};
 
-// Virtual memory region for kernel heap
-#define KERNEL_HEAP_START 0xC0400000
-#define KERNEL_HEAP_END 0xC8000000
 static uint32_t next_heap_addr = KERNEL_HEAP_START;
 
 PageDirectory *kernel_page_directory;

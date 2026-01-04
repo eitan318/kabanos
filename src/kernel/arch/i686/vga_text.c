@@ -3,12 +3,13 @@
 // ============================================================================
 #include "vga_text.h"
 #include "hal/io.h"
+#include "memory_management/memdefs.h"
 
 const unsigned SCREEN_WIDTH = 80;
 const unsigned SCREEN_HEIGHT = 25;
 
 // Hardware state
-static uint8_t *g_ScreenBuffer = (uint8_t *)0xB8000;
+static uint8_t *g_ScreenBuffer = (uint8_t *)VGA_SCREEN_BUF_PHYS;
 static int g_ScreenX = 0;
 static int g_ScreenY = 0;
 static uint8_t g_CurrentColor = VGA_DEFAULT_COLOR; // Current color state

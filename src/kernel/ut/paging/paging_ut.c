@@ -269,7 +269,7 @@ int ut_different_page_tables(void) {
  *===========================================================================*/
 
 int suite_setup() {
-  g_test_page_dir = paging_create();
+  g_test_page_dir = paging_create_kernel();
   if (g_test_page_dir == NULL) {
     debugf("FAIL: Could not create page directory\n");
     return UT_FAIL;

@@ -1,6 +1,7 @@
 #include "task.h"
 #include "arch/i686/gdt.h"
 #include "kmalloc.h"
+#include "memory_management/memdefs.h"
 #include "memory_management/paging.h"
 #include "memory_management/va_allocation.h"
 #include <stdbool.h>
@@ -9,14 +10,6 @@
 extern PageDirectory *g_kernel_page_dir;
 
 // Default memory layout for processes
-#define PROCESS_STACK_TOP 0xBFFFF000 // Just below 3GB
-#define PROCESS_STACK_SIZE 0x2000    // 8KB
-#define PROCESS_HEAP_START 0x8000000 // Just below 3GB
-#define PROCESS_HEAP_SIZE 0x2000     // 8KB
-
-#define PROCESS_KERNEL_STACKS_START 0x9000000
-#define PROCESS_KERNEL_STACKS_SIZE 0x2000
-
 static int next_pid = 1;
 
 void task_kill(TCB *t) {
@@ -48,7 +41,7 @@ void task_setup(TCB *t, void (*entry)(void)) {
   t->pid = next_pid++;
   t->state = TASK_STATE_NEW;
   // t->mode = mode;
-  PageDirectory *page_dir = paging_create();
+  PageDirectory *page_dir = paging_create_kernel();
   t->cr3 = (uint32_t)page_dir;
   t->user_esp = (uint32_t *)(PROCESS_STACK_TOP + PROCESS_STACK_SIZE);
 

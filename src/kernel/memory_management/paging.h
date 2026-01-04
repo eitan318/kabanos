@@ -13,7 +13,8 @@ typedef struct PageDirectory PageDirectory;
 #define PAGE_NOCACHE (1 << 2)  // Disable caching (for MMIO)
 
 // Core API
-PageDirectory *paging_create(void);
+PageDirectory *paging_create_user(void);
+PageDirectory *paging_create_kernel(void);
 void paging_destroy(PageDirectory *page_dir);
 void page_dir_load(uint32_t page_dir_phys_addr);
 

@@ -272,7 +272,7 @@ Pcb *process_create(const char *elf_path) {
   }
 
   // Create page directory for this process
-  PageDirectory *page_dir = paging_create();
+  PageDirectory *page_dir = paging_create_kernel();
   if (!page_dir) {
     debugf("ERROR: Failed to create page directory\n");
     pcb_destroy(pcb);
