@@ -12,39 +12,39 @@
 
 extern PageDirectory *g_kernel_page_dir; // global
 
-static PCB *tasks[2];
+static TCB *tasks[2];
 static int task_count = 0;
 static int current_index = 0;
-static PCB kernel_task;
-PCB *current = NULL;
+static TCB kernel_task;
+TCB *current = NULL;
 static int next_pid = 1;
 
 static uint32_t kernel_cr3; // physical address of kernel page directory
 
-void scheduler_add(PCB *p) {
+void scheduler_add(TCB *p) {
   p->pid = next_pid++;
   tasks[task_count++] = p;
 }
 
-PCB *scheduler_pick_next(void) {
+TCB *scheduler_pick_next(void) {
   current_index = (current_index + 1) % task_count;
   return tasks[current_index];
 }
 
-extern void __attribute__((naked)) switch_to(PCB *p);
+extern void __attribute__((naked)) switch_to(TCB *p);
 
 static void preemptive_switch_isr_handler(Registers *regs) {
   if (current == NULL) {
     // First time: kernel interrupted
-    kernel_task.kernel_esp = (uint32_t *)regs;
-    current = &kernel_task;
+    // kernel_task.kernel_esp = (uint32_t *)regs;
+    // current = &kernel_task;
     debugf("First ISR: kernel task active\n");
   } else {
     // Save current task context
-    current->kernel_esp = (uint32_t *)regs;
+    // current->kernel_esp = (uint32_t *)regs;
   }
 
-  PCB *next = scheduler_pick_next();
+  TCB *next = scheduler_pick_next();
   if (!next) {
     next = &kernel_task;
   }
@@ -71,7 +71,7 @@ void test_tasks() {
   i686_isr_handler_register(PREEMPTIVE_INT, preemptive_switch_isr_handler);
 
   va_allocator_init(KERNEL_VA_START, KERNEL_VA_END, g_kernel_page_dir);
-  static PCB a, b;
+  static TCB a, b;
 
   setup_pcb(&a, taskA);
   setup_pcb(&b, taskB);

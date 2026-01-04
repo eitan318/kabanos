@@ -74,7 +74,7 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
 
   process_init();
 
-  // test_tasks();
+  test_tasks();
   for (;;) {
   }
 }

@@ -47,16 +47,29 @@ typedef struct {
 GDTEntry gdt[] = {
     // NULL Descriptor
     GDT_ENTRY(0, 0, 0, 0),
-    // Code segment
+    // Code segment (kernel)
     GDT_ENTRY(0xfffff, 0,
               GDT_ACCESS_SEG_CODE | GDT_ACCESS_CODE_WRITABLE |
                   GDT_ACCESS_SEG_USER | GDT_ACCESS_PRESENT | GDT_ACCESS_RING0,
               GDT_FLAGS_32b | GDT_FLAGS_GRAN_4KB),
-    // Data segment
+    // Data segment (kernel)
     GDT_ENTRY(0xfffff, 0,
               GDT_ACCESS_SEG_DATA | GDT_ACCESS_DATA_DIRECTION_NORMAL |
                   GDT_ACCESS_DATA_READABLE | GDT_ACCESS_SEG_USER |
                   GDT_ACCESS_PRESENT | GDT_ACCESS_RING0,
+              GDT_FLAGS_32b | GDT_FLAGS_GRAN_4KB),
+
+    // Code segment(user)
+    GDT_ENTRY(0xfffff, 0,
+              GDT_ACCESS_SEG_CODE | GDT_ACCESS_CODE_WRITABLE |
+                  GDT_ACCESS_PRESENT | GDT_ACCESS_RING3,
+              GDT_FLAGS_32b | GDT_FLAGS_GRAN_4KB),
+
+    // Data segment(user)
+    GDT_ENTRY(0xfffff, 0,
+              GDT_ACCESS_SEG_DATA | GDT_ACCESS_DATA_DIRECTION_NORMAL |
+                  GDT_ACCESS_DATA_READABLE | GDT_ACCESS_PRESENT |
+                  GDT_ACCESS_RING3,
               GDT_FLAGS_32b | GDT_FLAGS_GRAN_4KB),
 };
 

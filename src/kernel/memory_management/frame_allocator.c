@@ -64,6 +64,7 @@ static void mark_kernel_as_used() {
   extern uint8_t _kernel_start, _kernel_end;
 
   Range kernel_range = {.start = (uint64_t)&_kernel_start,
+
                         .end = (uint64_t)&_kernel_end};
 
   frame_mark_range_used(kernel_range);

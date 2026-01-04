@@ -8,7 +8,7 @@
 
 extern PageDirectory *g_kernel_page_dir; // global
 
-bool allocate_user_stack(PCB *pcb, uint32_t stack_top, uint32_t stack_size,
+bool allocate_user_stack(TCB *pcb, uint32_t stack_top, uint32_t stack_size,
                          PageDirectory *page_dir) {
   if (!pcb || !page_dir || stack_size == 0) {
     return false;
@@ -56,7 +56,7 @@ cleanup_on_error:
 #define KERNEL_STACK_SIZE PAGE_SIZE
 
 // this shouild match isr.asm isr_common for preeamptive schedualing
-void setup_pcb(PCB *p, void (*entry)(void)) {
+void setup_pcb(TCB *p, void (*entry)(void)) {
   PageDirectory *page_dir = paging_create();
   p->cr3 = (uint32_t)page_dir;
 
@@ -69,15 +69,16 @@ void setup_pcb(PCB *p, void (*entry)(void)) {
       paging_get_physical(g_kernel_page_dir, (uint32_t)p->kernel_stack);
   paging_map(page_dir, (uint32_t)p->kernel_stack, phys, PAGE_WRITABLE);
 
-  // build iret frame on kernel stack, NOT user stack
+  p->cs = i686_GDT_USER_CODE_SEGMENT;
+  p->eip = (uint32_t)entry;
+  p->ss = i686_GDT_USER_DATA_SEGMENT;
+  p->user_esp = (uint32_t *)PROCESS_STACK_TOP; // user ESP
+  p->eflags = 0x202;
+
   uint32_t *stk = p->kernel_esp;
 
-  // ---- user mode frame ----
-  *(--stk) = i686_GDT_USER_DATA_SEGMENT; // user SS
-  *(--stk) = PROCESS_STACK_TOP;          // user ESP
-  *(--stk) = 0x202;                      // EFLAGS
-  *(--stk) = i686_GDT_USER_CODE_SEGMENT; // CS
-  *(--stk) = (uint32_t)entry;            // EIP
+  *(--stk) = 0; // dummy err
+  *(--stk) = 0; // dummy interrupt
 
   // for popa before iret
   *(--stk) = 1; // eax

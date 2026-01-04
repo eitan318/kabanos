@@ -61,18 +61,18 @@ GDTEntry g_gdt[] = {
                   GDT_ACCESS_PRESENT | GDT_ACCESS_RING0,
               GDT_FLAGS_32b | GDT_FLAGS_GRAN_4KB),
 
-    // 32-bit User Code Segment (0x18)
+    // 16-bit Code Segment (0x18)
     GDT_ENTRY(0xFFFFF, 0,
-              GDT_ACCESS_PRESENT | GDT_ACCESS_SEG_CODE |
-                  GDT_ACCESS_CODE_READABLE | GDT_ACCESS_RING3,
-              GDT_FLAGS_32b | GDT_FLAGS_GRAN_4KB),
+              GDT_ACCESS_SEG_CODE | GDT_ACCESS_CODE_READABLE |
+                  GDT_ACCESS_SEG_USER | GDT_ACCESS_PRESENT | GDT_ACCESS_RING0,
+              GDT_FLAGS_16b | GDT_FLAGS_GRAN_1B),
 
-    // 32-bit User Data Segment (0x20)
+    // 16-bit Data Segment (0x20)
     GDT_ENTRY(0xFFFFF, 0,
-              GDT_ACCESS_PRESENT | GDT_ACCESS_SEG_DATA |
-                  GDT_ACCESS_DATA_WRITEABLE | GDT_ACCESS_RING3,
-              GDT_FLAGS_32b | GDT_FLAGS_GRAN_4KB),
-
+              GDT_ACCESS_SEG_DATA | GDT_ACCESS_DATA_DIRECTION_NORMAL |
+                  GDT_ACCESS_DATA_WRITEABLE | GDT_ACCESS_SEG_USER |
+                  GDT_ACCESS_PRESENT | GDT_ACCESS_RING0,
+              GDT_FLAGS_16b | GDT_FLAGS_GRAN_1B),
 };
 
 typedef struct {

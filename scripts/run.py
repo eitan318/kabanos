@@ -19,6 +19,8 @@ qemu_run_cmd = [
     "qemu-system-i386",
     "-debugcon",
     "stdio",
+    #    "-d",
+    #    "int",
     "-drive",
     f"format=raw,file={OS_IMG}",
 ]
@@ -57,7 +59,7 @@ stack_addrs = []
 for line in proc.stdout:
     print(line, end="")
 
-    detect_panic = True
+    detect_panic = False
     if not detect_panic:
         continue
 
