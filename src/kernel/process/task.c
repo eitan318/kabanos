@@ -8,9 +8,9 @@
 
 extern PageDirectory *g_kernel_page_dir; // global
 
-bool allocate_user_stack(TCB *pcb, uint32_t stack_top, uint32_t stack_size,
+bool allocate_user_stack(uint32_t stack_top, uint32_t stack_size,
                          PageDirectory *page_dir) {
-  if (!pcb || !page_dir || stack_size == 0) {
+  if (!page_dir || stack_size == 0) {
     return false;
   }
 
@@ -35,9 +35,7 @@ bool allocate_user_stack(TCB *pcb, uint32_t stack_top, uint32_t stack_size,
     virt_addr -= PAGE_SIZE;
   }
 
-  pcb->user_esp = (uint32_t *)stack_top;
-
-  return true;
+  return (uint32_t *)stack_top;
 
 cleanup_on_error:
   // Roll back partial allocation
@@ -50,48 +48,45 @@ cleanup_on_error:
     }
     virt_addr -= PAGE_SIZE;
   }
-  return false;
+  return NULL;
 }
 
-#define KERNEL_STACK_SIZE PAGE_SIZE
-
-// this shouild match isr.asm isr_common for preeamptive schedualing
-void setup_pcb(TCB *p, void (*entry)(void)) {
+void setup_task(TCB *t, void (*entry)(void)) {
   PageDirectory *page_dir = paging_create();
-  p->cr3 = (uint32_t)page_dir;
 
-  allocate_user_stack(p, PROCESS_STACK_TOP, PROCESS_STACK_SIZE, page_dir);
-  p->kernel_stack = va_alloc(KERNEL_STACK_SIZE, true);
-  p->kernel_esp = (uint32_t *)(p->kernel_stack + KERNEL_STACK_SIZE);
+  allocate_user_stack(PROCESS_STACK_TOP, PROCESS_STACK_SIZE, page_dir);
+  uint32_t *kernel_stack = va_alloc(KERNEL_STACK_SIZE, true);
 
   // Map same physical frame into the process page table
   uint32_t phys =
-      paging_get_physical(g_kernel_page_dir, (uint32_t)p->kernel_stack);
-  paging_map(page_dir, (uint32_t)p->kernel_stack, phys, PAGE_WRITABLE);
+      paging_get_physical(g_kernel_page_dir, (uint32_t)kernel_stack);
+  paging_map(page_dir, (uint32_t)kernel_stack, phys, PAGE_WRITABLE);
 
-  p->cs = i686_GDT_USER_CODE_SEGMENT;
-  p->eip = (uint32_t)entry;
-  p->ss = i686_GDT_USER_DATA_SEGMENT;
-  p->user_esp = (uint32_t *)PROCESS_STACK_TOP; // user ESP
-  p->eflags = 0x202;
+  // TODO: understand why doesnt work without (uint8_t*)
+  uint32_t *stk = (uint32_t *)((uint8_t *)kernel_stack + KERNEL_STACK_SIZE);
 
-  uint32_t *stk = p->kernel_esp;
+  // ---- iret frame ----
+  *(--stk) = 0x202;                        // EFLAGS
+  *(--stk) = i686_GDT_KERNEL_CODE_SEGMENT; // CS
+  *(--stk) = (uint32_t)entry;              // EIP
 
-  *(--stk) = 0; // dummy err
-  *(--stk) = 0; // dummy interrupt
+  // ---- interrupt frame ----
+  *(--stk) = 0;              // error
+  *(--stk) = PREEMPTIVE_INT; // int number
 
-  // for popa before iret
-  *(--stk) = 1; // eax
-  *(--stk) = 2; // ecx
-  *(--stk) = 3; // edx
-  *(--stk) = 4; // ebx
-  *(--stk) = 5; // esp dummy
-  *(--stk) = 6; // ebp
-  *(--stk) = 7; // esi
-  *(--stk) = 8; // edi
+  // ---- saved DS ----
+  *(--stk) = i686_GDT_KERNEL_DATA_SEGMENT;
 
-  *(--stk) = i686_GDT_KERNEL_DATA_SEGMENT; // ds
+  // ---- pusha frame ----
+  *(--stk) = 0; // edi
+  *(--stk) = 0; // esi
+  *(--stk) = 0; // ebp
+  *(--stk) = 0; // esp dummy
+  *(--stk) = 0; // ebx
+  *(--stk) = 0; // edx
+  *(--stk) = 0; // ecx
+  *(--stk) = 0; // eax
 
-  // finally set PCB
-  p->kernel_esp = stk;
+  t->kernel_esp = stk;
+  t->cr3 = (uint32_t)page_dir;
 }

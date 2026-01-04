@@ -19,11 +19,11 @@ static TCB kernel_task;
 TCB *current = NULL;
 static int next_pid = 1;
 
-static uint32_t kernel_cr3; // physical address of kernel page directory
+void scheduler_add(TCB *t) {
+  t->pid = next_pid++;
 
-void scheduler_add(TCB *p) {
-  p->pid = next_pid++;
-  tasks[task_count++] = p;
+  t->cr3 = (uint32_t)g_kernel_page_dir;
+  tasks[task_count++] = t;
 }
 
 TCB *scheduler_pick_next(void) {
@@ -36,12 +36,12 @@ extern void __attribute__((naked)) switch_to(TCB *p);
 static void preemptive_switch_isr_handler(Registers *regs) {
   if (current == NULL) {
     // First time: kernel interrupted
-    // kernel_task.kernel_esp = (uint32_t *)regs;
-    // current = &kernel_task;
+    kernel_task.kernel_esp = (uint32_t *)regs;
+    current = &kernel_task;
     debugf("First ISR: kernel task active\n");
   } else {
     // Save current task context
-    // current->kernel_esp = (uint32_t *)regs;
+    current->kernel_esp = (uint32_t *)regs;
   }
 
   TCB *next = scheduler_pick_next();
@@ -66,15 +66,18 @@ void taskB(void) {
     asm volatile("int $45");
   }
 }
+
+uint8_t stackA[KERNEL_STACK_SIZE];
+uint8_t stackB[KERNEL_STACK_SIZE];
+
 void test_tasks() {
-  kernel_cr3 = (uint32_t)g_kernel_page_dir;
   i686_isr_handler_register(PREEMPTIVE_INT, preemptive_switch_isr_handler);
 
   va_allocator_init(KERNEL_VA_START, KERNEL_VA_END, g_kernel_page_dir);
   static TCB a, b;
 
-  setup_pcb(&a, taskA);
-  setup_pcb(&b, taskB);
+  setup_task(&a, taskA);
+  setup_task(&b, taskB);
 
   scheduler_add(&a);
   scheduler_add(&b);

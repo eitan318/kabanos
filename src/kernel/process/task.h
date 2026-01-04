@@ -6,16 +6,17 @@
 
 // Default memory layout for processes
 
-#define PROCESS_STACK_TOP 0xBFFFF000  // Just below 3GB
-#define PROCESS_STACK_SIZE 0x00002000 // 8KB
+#define PROCESS_STACK_TOP 0xBFFFF000 // Just below 3GB
+#define PROCESS_STACK_SIZE                                                     \
+  0x00002000 // 8KB
+             //
+#define KERNEL_STACK_SIZE PAGE_SIZE
 
 typedef struct TCB {
-  uint32_t *kernel_esp;  // pointer to saved ISR stack
-  uint32_t pid;          // Process ID
-  uint8_t *kernel_stack; // base
-  uint32_t cr3;          // Page directory for this process (future)
-
-  uint32_t *user_esp; // Saved user stack pointer (we'll use soon)
-
+  uint32_t pid;         // Process ID
+  uint32_t *kernel_esp; // pointer to saved ISR stack
+  uint32_t *user_esp;   // Saved user stack pointer (we'll use soon)
+  uint32_t cr3;         // Page directory for this process (future)
 } __attribute__((packed)) TCB;
-void setup_pcb(TCB *t, void (*entry)(void));
+
+void setup_task(TCB *t, void (*entry)(void));
