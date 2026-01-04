@@ -70,15 +70,15 @@ void setup_task(TCB *t, void (*entry)(void)) {
   // ---- iret frame ----
   //
   if (t->mode == TASK_MODE_USER) {
-    *(--stk) = i686_GDT_USER_DATA_SEGMENT;
+    *(--stk) = i686_GDT_USER_DS_SEL;
     *(--stk) = (uint32_t)t->user_esp;
     *(--stk) = 0x202;
-    *(--stk) = i686_GDT_USER_CODE_SEGMENT;
+    *(--stk) = i686_GDT_USER_CS_SEL;
     *(--stk) = (uint32_t)entry;
   } else {
-    *(--stk) = 0x202;                        // EFLAGS
-    *(--stk) = i686_GDT_KERNEL_CODE_SEGMENT; // CS
-    *(--stk) = (uint32_t)entry;              // EIP
+    *(--stk) = 0x202;                  // EFLAGS
+    *(--stk) = i686_GDT_KERNEL_CS_SEL; // CS
+    *(--stk) = (uint32_t)entry;        // EIP
   }
 
   // ---- interrupt frame ----
@@ -86,7 +86,7 @@ void setup_task(TCB *t, void (*entry)(void)) {
   *(--stk) = PREEMPTIVE_INT; // int number
 
   // ---- saved DS ----
-  *(--stk) = i686_GDT_KERNEL_DATA_SEGMENT;
+  *(--stk) = i686_GDT_KERNEL_DS_SEL;
 
   // ---- pusha frame ----
   *(--stk) = 0; // edi

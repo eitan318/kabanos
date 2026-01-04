@@ -13,7 +13,6 @@
 #define KERNEL_VA_END 0xC0800000
 
 extern PageDirectory *g_kernel_page_dir; // global
-extern TSS g_tss;                        // global
 
 static TCB *tasks[2];
 static int task_count = 0;
@@ -36,6 +35,9 @@ TCB *scheduler_pick_next(void) {
 extern void __attribute__((naked)) switch_to(TCB *p);
 
 static void preemptive_switch_isr_handler(Registers *regs) {
+  uint32_t cpu_id = 0;
+  TSSEntry *curr_tss = tss_entry_get(cpu_id);
+
   if (current == NULL) {
     // First time: kernel interrupted
     kernel_task.kernel_esp = (uint32_t *)regs;
@@ -52,8 +54,7 @@ static void preemptive_switch_isr_handler(Registers *regs) {
   }
   current = next;
 
-  // Next or curr?
-  g_tss.esp0 = (uint32_t)(next->kernel_esp);
+  curr_tss->esp0 = (uint32_t)(next->kernel_esp);
 
   switch_to(next);
 }
@@ -74,11 +75,6 @@ void taskB(void) {
 
 uint8_t stackA[KERNEL_STACK_SIZE];
 uint8_t stackB[KERNEL_STACK_SIZE];
-
-void tss_init(void) {
-  memset(&g_tss, 0, sizeof(TSS));
-  g_tss.ss0 = i686_GDT_KERNEL_DATA_SEGMENT;
-}
 
 void test_tasks() {
   i686_isr_handler_register(PREEMPTIVE_INT, preemptive_switch_isr_handler);

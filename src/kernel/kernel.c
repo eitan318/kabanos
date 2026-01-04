@@ -22,7 +22,6 @@
 #include <stdlib.h>
 
 PageDirectory *g_kernel_page_dir;
-TSS g_tss;
 
 extern uint8_t _kernel_start[], _kernel_end[], _bss_start[];
 
@@ -71,6 +70,7 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
     for (;;) {
     }
   }
+
   debugf("FAT initialized\n");
 
   process_init();

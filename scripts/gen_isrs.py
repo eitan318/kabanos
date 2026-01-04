@@ -30,7 +30,7 @@ def main() -> None:
         c_gate_sets_file.write("\n// C ISR gates sets\n")
         for i in range(256):
             c_gate_sets_file.write(
-                f"i686_idt_gate_set({i}, i686_isr{i}, i686_GDT_KERNEL_CODE_SEGMENT, IDT_FLAGS_RING0 | IDT_FLAGS_GATE_TRAP_32b);\n"
+                f"i686_idt_gate_set({i}, i686_isr{i}, i686_GDT_KERNEL_CS_SEL, IDT_FLAGS_RING0 | IDT_FLAGS_GATE_TRAP_32b);\n"
             )
 
     # Write to the ASM file
