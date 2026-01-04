@@ -5,6 +5,5 @@
 
 #include "memory_management/paging.h"
 
-void va_allocator_init(uint32_t start, uint32_t end, PageDirectory *page_dir);
-void *va_alloc(size_t size, bool zero);
-void va_free(void *ptr, size_t size); // optional stub for now
+bool va_alloc_region(PageDirectory *pd, uint32_t virt_start, size_t size,
+                     uint32_t flags, bool map_down);

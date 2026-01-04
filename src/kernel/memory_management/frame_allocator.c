@@ -53,7 +53,7 @@ static void mark_non_usable_ranges_as_used(MemoryMap *memory_map) {
         .start = region->base,
         .end = region->base + region->length,
     };
-    region_range = range_align_outward(region_range, PAGE_SIZE);
+    region_range = range_align_outward(region_range, FRAME_SIZE);
     region_range = range_clamp(region_range, memory_range);
 
     frame_mark_range_used(region_range);
@@ -101,11 +101,11 @@ static void mark_cmdline_buffer_as_used(BootParams *boot_params) {
 
 // Changed return type to uint64_t to match total_frames type
 static inline uint64_t aligned_addr_to_frame(uint64_t addr) {
-  return (addr - memory_range.start) / PAGE_SIZE;
+  return (addr - memory_range.start) / FRAME_SIZE;
 }
 
 static inline uint64_t frame_to_aligned_addr(uint64_t frame) {
-  return memory_range.start + (frame * PAGE_SIZE);
+  return memory_range.start + (frame * FRAME_SIZE);
 }
 
 static inline void mark_frame_used(uint64_t frame) {
@@ -123,7 +123,7 @@ static void mark_frame_free(uint64_t frame) {
 }
 
 void frame_mark_range_used(Range range) {
-  range = range_align_outward(range, PAGE_SIZE);
+  range = range_align_outward(range, FRAME_SIZE);
   range = range_clamp(range, memory_range);
 
   if (range.start >= range.end) {
@@ -154,7 +154,7 @@ uint64_t frame_alloc() {
 
 void frame_free(uint64_t frame_addr) {
   // Reject NULL or unaligned addresses
-  if (frame_addr == 0 || (frame_addr & (PAGE_SIZE - 1)) != 0) {
+  if (frame_addr == 0 || (frame_addr & (FRAME_SIZE - 1)) != 0) {
     return;
   }
 
@@ -172,13 +172,13 @@ void frame_free(uint64_t frame_addr) {
 
 void frame_allocator_init(BootParams *boot_params) {
   memory_range = find_range(&boot_params->memory_map);
-  memory_range = range_align_outward(memory_range, PAGE_SIZE);
+  memory_range = range_align_outward(memory_range, FRAME_SIZE);
 
-  total_frames = (memory_range.end - memory_range.start) / PAGE_SIZE;
+  total_frames = (memory_range.end - memory_range.start) / FRAME_SIZE;
   if (total_frames > MAX_FRAMES) {
     debugf("Memory range greater than max frames!");
     total_frames = MAX_FRAMES;
-    memory_range.end = memory_range.start + (MAX_FRAMES * PAGE_SIZE);
+    memory_range.end = memory_range.start + (MAX_FRAMES * FRAME_SIZE);
   }
 
   bitmap_size_bytes = (total_frames + 7) / 8;

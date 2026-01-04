@@ -4,12 +4,6 @@
 
 #define PREEMPTIVE_INT 45
 
-// Default memory layout for processes
-
-#define PROCESS_STACK_TOP 0xBFFFF000 // Just below 3GB
-#define PROCESS_STACK_SIZE                                                     \
-  0x00002000 // 8KB
-             //
 #define KERNEL_STACK_SIZE PAGE_SIZE
 
 typedef enum { TASK_MODE_KERNEL, TASK_MODE_USER } TaskMode;
@@ -23,4 +17,4 @@ typedef struct TCB {
   TaskMode mode;
 } __attribute__((packed)) TCB;
 
-void setup_task(TCB *t, void (*entry)(void));
+void task_setup(TCB *t, void (*entry)(void));

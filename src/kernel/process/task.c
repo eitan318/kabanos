@@ -1,74 +1,50 @@
 #include "task.h"
 #include "arch/i686/gdt.h"
-#include "arch/i686/isr/isr.h"
-#include "include/stdio.h"
-#include "memory_management/frame_allocator.h"
 #include "memory_management/paging.h"
 #include "memory_management/va_allocation.h"
 
-extern PageDirectory *g_kernel_page_dir; // global
+extern PageDirectory *g_kernel_page_dir;
 
-bool allocate_user_stack(uint32_t stack_top, uint32_t stack_size,
-                         PageDirectory *page_dir) {
-  if (!page_dir || stack_size == 0) {
-    return false;
-  }
+// Default memory layout for processes
+#define PROCESS_STACK_TOP 0xBFFFF000 // Just below 3GB
+#define PROCESS_STACK_SIZE 0x2000    // 8KB
+#define PROCESS_HEAP_START 0x8000000 // Just below 3GB
+#define PROCESS_HEAP_SIZE 0x2000     // 8KB
 
-  uint32_t pages_needed = (stack_size + PAGE_SIZE - 1) / PAGE_SIZE;
-  uint32_t virt_addr = stack_top - PAGE_SIZE; // Start at top - one page
-  uint32_t pages_allocated = 0;
+#define PROCESS_KERNEL_STACKS_START 0x9000000
+#define PROCESS_KERNEL_STACKS_SIZE 0x2000
 
-  for (uint32_t i = 0; i < pages_needed; i++) {
-    uint32_t phys = frame_alloc();
-    if (phys == 0) {
-      debugf("Frame allocation failed in allocate_stack at page %u\n", i);
-      goto cleanup_on_error;
-    }
-
-    if (!paging_map(page_dir, virt_addr, phys, PAGE_USER | PAGE_WRITABLE)) {
-      debugf("Mapping failure in allocate_stack at virt=0x%x\n", virt_addr);
-      frame_free(phys); // Free the frame we just allocated
-      goto cleanup_on_error;
-    }
-
-    pages_allocated++;
-    virt_addr -= PAGE_SIZE;
-  }
-
-  return (uint32_t *)stack_top;
-
-cleanup_on_error:
-  // Roll back partial allocation
-  virt_addr = stack_top - PAGE_SIZE;
-  for (uint32_t i = 0; i < pages_allocated; i++) {
-    uint32_t phys = paging_get_physical(page_dir, virt_addr);
-    if (phys != 0) {
-      paging_unmap(page_dir, virt_addr);
-      frame_free(phys);
-    }
-    virt_addr -= PAGE_SIZE;
-  }
-  return NULL;
-}
-
-void setup_task(TCB *t, void (*entry)(void)) {
+void task_setup(TCB *t, void (*entry)(void)) {
   PageDirectory *page_dir = paging_create();
 
-  allocate_user_stack(PROCESS_STACK_TOP, PROCESS_STACK_SIZE, page_dir);
-  uint32_t *kernel_stack = va_alloc(KERNEL_STACK_SIZE, true);
+  // Allocate user stack
+  va_alloc_region(page_dir, PROCESS_STACK_TOP, PROCESS_STACK_SIZE,
+                  PAGE_USER | PAGE_WRITABLE, true);
+
+  // Allocate user heap
+  va_alloc_region(page_dir, PROCESS_HEAP_START, PROCESS_HEAP_SIZE,
+                  PAGE_USER | PAGE_WRITABLE, false);
+
+  // --- Allocate kernel stack for process ---
+  uint32_t kernel_stack_bottom =
+      PROCESS_KERNEL_STACKS_START + t->pid * PROCESS_KERNEL_STACKS_SIZE;
+
+  va_alloc_region(g_kernel_page_dir, kernel_stack_bottom,
+                  PROCESS_KERNEL_STACKS_SIZE, PAGE_WRITABLE, false);
+
+  t->kernel_stack_top =
+      (uint32_t *)(kernel_stack_bottom + PROCESS_KERNEL_STACKS_SIZE);
 
   // Map same physical frame into the process page table
-  uint32_t phys =
-      paging_get_physical(g_kernel_page_dir, (uint32_t)kernel_stack);
-  paging_map(page_dir, (uint32_t)kernel_stack, phys, PAGE_WRITABLE);
-
-  uint32_t *kernel_stack_top =
-      (uint32_t *)((uint8_t *)kernel_stack + KERNEL_STACK_SIZE);
-  t->kernel_stack_top = kernel_stack_top;
-  uint32_t *stk = kernel_stack_top;
+  for (uint32_t off = 0; off < PROCESS_KERNEL_STACKS_SIZE; off += PAGE_SIZE) {
+    uint32_t va = kernel_stack_bottom + off;
+    uint32_t phys = paging_get_physical(g_kernel_page_dir, va);
+    paging_map(page_dir, va, phys, PAGE_WRITABLE);
+  }
 
   // ---- iret frame ----
-  //
+  uint32_t *stk = t->kernel_stack_top;
+
   if (t->mode == TASK_MODE_USER) {
     *(--stk) = i686_GDT_USER_DS_SEL;
     *(--stk) = (uint32_t)t->user_esp;

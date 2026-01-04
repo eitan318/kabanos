@@ -1,71 +1,52 @@
 #include "va_allocation.h"
 #include "include/stdio.h"
 #include "memory_management/frame_allocator.h"
+#include "memory_management/paging.h"
 
-static uint32_t va_start = 0;
-static uint32_t va_end = 0;
-static uint32_t va_next = 0;
-static PageDirectory *va_page_dir = NULL;
+bool va_alloc_region(PageDirectory *pd, uint32_t virt_start, size_t size,
+                     uint32_t flags, bool map_down) {
+  uint32_t pages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+  uint32_t mapped = 0;
 
-void va_allocator_init(uint32_t start, uint32_t end, PageDirectory *page_dir) {
-  va_start = start;
-  va_end = end;
-  va_next = start;
-  va_page_dir = page_dir;
-}
+  for (uint32_t i = 0; i < pages; i++) {
+    uint32_t va;
 
-// Allocate `size` bytes, rounded up to page boundary, mapped to physical frames
-void *va_alloc(size_t size, bool to_zero) {
-  if (!va_page_dir || size == 0)
-    return NULL;
-
-  size_t pages_needed = (size + PAGE_SIZE - 1) / PAGE_SIZE;
-  uint32_t alloc_start = va_next;
-
-  if (alloc_start + pages_needed * PAGE_SIZE > va_end) {
-    return NULL; // out of reserved VA
-  }
-
-  uint32_t virt = alloc_start;
-  for (size_t i = 0; i < pages_needed; i++) {
-    uint64_t phys = frame_alloc();
-    if (!phys) {
-      // Rollback
-      for (size_t j = 0; j < i; j++) {
-        uint32_t p = alloc_start + j * PAGE_SIZE;
-        paging_unmap(va_page_dir, p);
-      }
-      return NULL;
+    if (map_down) {
+      va = virt_start - (i + 1) * PAGE_SIZE;
+    } else {
+      va = virt_start + i * PAGE_SIZE;
     }
 
-    if (!paging_map(va_page_dir, virt, (uint32_t)phys, PAGE_WRITABLE)) {
-      // Rollback
+    uint32_t phys = frame_alloc();
+    if (!phys)
+      goto rollback;
+
+    if (!paging_map(pd, va, phys, flags)) {
       frame_free(phys);
-      for (size_t j = 0; j < i; j++) {
-        uint32_t p = alloc_start + j * PAGE_SIZE;
-        uint32_t phys_prev = paging_get_physical(va_page_dir, p);
-        paging_unmap(va_page_dir, p);
-        frame_free(phys_prev);
-      }
-      return NULL;
+      goto rollback;
     }
 
-    if (to_zero) {
-      uint8_t *ptr = (uint8_t *)virt;
-      for (size_t k = 0; k < PAGE_SIZE; k++)
-        ptr[k] = 0;
-    }
-
-    virt += PAGE_SIZE;
+    mapped++;
   }
 
-  va_next += pages_needed * PAGE_SIZE;
-  return (void *)alloc_start;
-}
+  return true;
 
-// Optional: simple stub, real implementation needs free list
-void va_free(void *ptr, size_t size) {
-  (void)ptr;
-  (void)size;
-  // Could implement later with a free list
+rollback:
+  for (uint32_t i = 0; i < mapped; i++) {
+    uint32_t va;
+
+    if (map_down) {
+      va = virt_start - (i + 1) * PAGE_SIZE;
+    } else {
+      va = virt_start + i * PAGE_SIZE;
+    }
+
+    uint32_t phys = paging_get_physical(pd, va);
+    if (phys) {
+      paging_unmap(pd, va);
+      frame_free(phys);
+    }
+  }
+
+  return false;
 }

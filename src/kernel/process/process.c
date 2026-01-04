@@ -345,82 +345,9 @@ Pcb *process_create(const char *elf_path) {
   return pcb;
 }
 
-void context_switch(CpuContext *current, CpuContext *next) {
-  // Save general purpose registers
-  __asm__ volatile("mov %%eax, %0\n"
-                   "mov %%ebx, %1\n"
-                   "mov %%ecx, %2\n"
-                   "mov %%edx, %3\n"
-                   : "=m"(current->eax), "=m"(current->ebx), "=m"(current->ecx),
-                     "=m"(current->edx));
-
-  __asm__ volatile("mov %%esi, %0\n"
-                   "mov %%edi, %1\n"
-                   "mov %%ebp, %2\n"
-                   "mov %%esp, %3\n"
-                   : "=m"(current->esi), "=m"(current->edi), "=m"(current->ebp),
-                     "=m"(current->esp));
-
-  // Save eip (return address)
-  __asm__ volatile("mov (%%esp), %%eax\n"
-                   "mov %%eax, %0\n"
-                   : "=m"(current->eip)
-                   :
-                   : "eax");
-
-  // Save eflags
-  __asm__ volatile("pushf\n"
-                   "pop %%eax\n"
-                   "mov %%eax, %0\n"
-                   : "=m"(current->eflags)
-                   :
-                   : "eax");
-
-  // Save cr3
-  __asm__ volatile("mov %%cr3, %%eax\n"
-                   "mov %%eax, %0\n"
-                   : "=m"(current->cr3)
-                   :
-                   : "eax");
-
-  // Disable interrupts
-  __asm__ volatile("cli");
-
-  // Switch page directory
-  page_dir_load(next->cr3);
-
-  // HERE  Restore stack pointer
-  __asm__ volatile("mov %0, %%esp\n" : : "r"(next->esp) : "memory");
-
-  // Push return context onto new stack
-  __asm__ volatile("pushl %0\n"
-                   "pushl %1\n"
-                   :
-                   : "m"(next->eflags), "m"(next->eip));
-
-  // Restore general registers (part 1)
-  __asm__ volatile("mov %0, %%eax\n"
-                   "mov %1, %%ebx\n"
-                   "mov %2, %%ecx\n"
-                   "mov %3, %%edx\n"
-                   :
-                   : "m"(next->eax), "m"(next->ebx), "m"(next->ecx),
-                     "m"(next->edx));
-
-  // Restore general registers (part 2)
-  __asm__ volatile("mov %0, %%esi\n"
-                   "mov %1, %%edi\n"
-                   "mov %2, %%ebp\n"
-                   :
-                   : "m"(next->esi), "m"(next->edi), "m"(next->ebp));
-
-  // Return to new context
-  __asm__ volatile("popf\n"
-                   "ret\n");
-}
 void process_context_switch(Pcb *curr_pcb, Pcb *next_pcb) {
   curr_pcb->state = PROCESS_STATE_READY;
   next_pcb->state = PROCESS_STATE_RUNNING;
 
-  context_switch(&curr_pcb->cpu_context, &next_pcb->cpu_context);
+  // context_switch(&curr_pcb->cpu_context, &next_pcb->cpu_context);
 }

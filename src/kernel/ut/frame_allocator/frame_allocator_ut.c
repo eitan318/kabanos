@@ -26,7 +26,7 @@ int ut_basic_allocation(void) {
     debugf("FAIL: Failed to allocate frame1\n");
     return UT_FAIL;
   }
-  if (frame1 % PAGE_SIZE != 0) {
+  if (frame1 % FRAME_SIZE != 0) {
     debugf("FAIL: Frame1 not page-aligned\n");
     return UT_FAIL;
   }
@@ -43,7 +43,7 @@ int ut_basic_allocation(void) {
     debugf("FAIL: Got duplicate frame\n");
     return UT_FAIL;
   }
-  if (frame2 % PAGE_SIZE != 0) {
+  if (frame2 % FRAME_SIZE != 0) {
     debugf("FAIL: Frame2 not page-aligned\n");
     return UT_FAIL;
   }
@@ -196,7 +196,7 @@ int ut_mark_range_used(void) {
   // Mark a range as used (e.g., kernel memory)
   uint64_t kernel_start = 0x100000; // 1MB
   uint64_t kernel_end = 0x200000;   // 2MB
-  uint64_t frames_to_mark = (kernel_end - kernel_start) / PAGE_SIZE;
+  uint64_t frames_to_mark = (kernel_end - kernel_start) / FRAME_SIZE;
 
   debugf("  Marking 0x%lx-0x%lx as used (%lu frames)\n", kernel_start,
          kernel_end, frames_to_mark);

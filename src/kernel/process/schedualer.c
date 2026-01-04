@@ -79,11 +79,10 @@ uint8_t stackB[KERNEL_STACK_SIZE];
 void test_tasks() {
   i686_isr_handler_register(PREEMPTIVE_INT, preemptive_switch_isr_handler);
 
-  va_allocator_init(KERNEL_VA_START, KERNEL_VA_END, g_kernel_page_dir);
   static TCB a, b;
 
-  setup_task(&a, taskA);
-  setup_task(&b, taskB);
+  task_setup(&a, taskA);
+  task_setup(&b, taskB);
 
   scheduler_add(&a);
   scheduler_add(&b);
