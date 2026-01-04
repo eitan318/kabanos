@@ -1,5 +1,7 @@
 #include "schedualer.h"
+#include "arch/i686/gdt.h"
 #include "arch/i686/isr/isr.h"
+#include "include/memory.h"
 #include "include/stdio.h"
 #include "memory_management/frame_allocator.h"
 #include "memory_management/paging.h"
@@ -11,6 +13,7 @@
 #define KERNEL_VA_END 0xC0800000
 
 extern PageDirectory *g_kernel_page_dir; // global
+extern TSS g_tss;                        // global
 
 static TCB *tasks[2];
 static int task_count = 0;
@@ -22,7 +25,6 @@ static int next_pid = 1;
 void scheduler_add(TCB *t) {
   t->pid = next_pid++;
 
-  t->cr3 = (uint32_t)g_kernel_page_dir;
   tasks[task_count++] = t;
 }
 
@@ -50,6 +52,9 @@ static void preemptive_switch_isr_handler(Registers *regs) {
   }
   current = next;
 
+  // Next or curr?
+  g_tss.esp0 = (uint32_t)(next->kernel_esp);
+
   switch_to(next);
 }
 
@@ -70,6 +75,11 @@ void taskB(void) {
 uint8_t stackA[KERNEL_STACK_SIZE];
 uint8_t stackB[KERNEL_STACK_SIZE];
 
+void tss_init(void) {
+  memset(&g_tss, 0, sizeof(TSS));
+  g_tss.ss0 = i686_GDT_KERNEL_DATA_SEGMENT;
+}
+
 void test_tasks() {
   i686_isr_handler_register(PREEMPTIVE_INT, preemptive_switch_isr_handler);
 
@@ -81,6 +91,9 @@ void test_tasks() {
 
   scheduler_add(&a);
   scheduler_add(&b);
+
+  a.mode = TASK_MODE_USER;
+  b.mode = TASK_MODE_KERNEL;
 
   current = NULL;
 

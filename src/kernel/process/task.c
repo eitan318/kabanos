@@ -62,13 +62,24 @@ void setup_task(TCB *t, void (*entry)(void)) {
       paging_get_physical(g_kernel_page_dir, (uint32_t)kernel_stack);
   paging_map(page_dir, (uint32_t)kernel_stack, phys, PAGE_WRITABLE);
 
-  // TODO: understand why doesnt work without (uint8_t*)
-  uint32_t *stk = (uint32_t *)((uint8_t *)kernel_stack + KERNEL_STACK_SIZE);
+  uint32_t *kernel_stack_top =
+      (uint32_t *)((uint8_t *)kernel_stack + KERNEL_STACK_SIZE);
+  t->kernel_stack_top = kernel_stack_top;
+  uint32_t *stk = kernel_stack_top;
 
   // ---- iret frame ----
-  *(--stk) = 0x202;                        // EFLAGS
-  *(--stk) = i686_GDT_KERNEL_CODE_SEGMENT; // CS
-  *(--stk) = (uint32_t)entry;              // EIP
+  //
+  if (t->mode == TASK_MODE_USER) {
+    *(--stk) = i686_GDT_USER_DATA_SEGMENT;
+    *(--stk) = (uint32_t)t->user_esp;
+    *(--stk) = 0x202;
+    *(--stk) = i686_GDT_USER_CODE_SEGMENT;
+    *(--stk) = (uint32_t)entry;
+  } else {
+    *(--stk) = 0x202;                        // EFLAGS
+    *(--stk) = i686_GDT_KERNEL_CODE_SEGMENT; // CS
+    *(--stk) = (uint32_t)entry;              // EIP
+  }
 
   // ---- interrupt frame ----
   *(--stk) = 0;              // error
