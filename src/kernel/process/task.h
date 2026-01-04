@@ -8,6 +8,13 @@
 
 typedef enum { TASK_MODE_KERNEL, TASK_MODE_USER } TaskMode;
 
+typedef enum {
+  TASK_STATE_NEW,
+  TASK_STATE_READY,
+  TASK_STATE_RUNNING,
+  TASK_STATE_KILLED,
+} TaskState;
+
 typedef struct TCB {
   uint32_t pid;         // Process ID
   uint32_t *kernel_esp; // pointer to saved ISR stack
@@ -15,6 +22,7 @@ typedef struct TCB {
   uint32_t cr3;         // Page directory for this process (future)
   uint32_t *kernel_stack_top;
   TaskMode mode;
+  TaskState state;
 } __attribute__((packed)) TCB;
 
-void task_setup(TCB *t, void (*entry)(void));
+TCB *task_setup(void (*entry)(void), TaskMode mode);

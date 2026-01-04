@@ -19,13 +19,8 @@ static int task_count = 0;
 static int current_index = 0;
 static TCB kernel_task;
 TCB *current = NULL;
-static int next_pid = 1;
 
-void scheduler_add(TCB *t) {
-  t->pid = next_pid++;
-
-  tasks[task_count++] = t;
-}
+void scheduler_add(TCB *t) { tasks[task_count++] = t; }
 
 TCB *scheduler_pick_next(void) {
   current_index = (current_index + 1) % task_count;
@@ -73,22 +68,18 @@ void taskB(void) {
   }
 }
 
-uint8_t stackA[KERNEL_STACK_SIZE];
-uint8_t stackB[KERNEL_STACK_SIZE];
-
 void test_tasks() {
   i686_isr_handler_register(PREEMPTIVE_INT, preemptive_switch_isr_handler);
 
-  static TCB a, b;
+  TCB *a = task_setup(taskA, TASK_MODE_USER);
+  TCB *b = task_setup(taskB, TASK_MODE_KERNEL);
+  if (a == NULL || a == NULL) {
+    debugf("TASK Were null!!! ERR");
+    return;
+  }
 
-  task_setup(&a, taskA);
-  task_setup(&b, taskB);
-
-  scheduler_add(&a);
-  scheduler_add(&b);
-
-  a.mode = TASK_MODE_USER;
-  b.mode = TASK_MODE_KERNEL;
+  scheduler_add(a);
+  scheduler_add(b);
 
   current = NULL;
 
