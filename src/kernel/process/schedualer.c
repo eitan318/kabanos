@@ -34,10 +34,7 @@ static void preemptive_switch_isr_handler(Registers *regs) {
   TSSEntry *curr_tss = tss_entry_get(cpu_id);
 
   if (current == NULL) {
-    // First time: kernel interrupted
-    kernel_task.kernel_esp = (uint32_t *)regs;
-    current = &kernel_task;
-    debugf("First ISR: kernel task active\n");
+    current = scheduler_pick_next();
   } else {
     // Save current task context
     current->kernel_esp = (uint32_t *)regs;
@@ -49,7 +46,7 @@ static void preemptive_switch_isr_handler(Registers *regs) {
   }
   current = next;
 
-  curr_tss->esp0 = (uint32_t)(next->kernel_esp);
+  curr_tss->esp0 = (uint32_t)(next->kernel_stack_top);
 
   switch_to(next);
 }
@@ -79,14 +76,12 @@ void test_tasks() {
   // }
   //
   TCB a, b;
-  task_setup(&a, taskA);
-  task_setup(&b, taskB);
+  task_setup(&a, taskA, TASK_MODE_USER);
+  task_setup(&b, taskB, TASK_MODE_USER);
   //
   // TCB *c = task_setup(taskA, TASK_MODE_USER);
   // TCB *d = task_setup(taskB, TASK_MODE_KERNEL);
   //
-  a.mode = TASK_MODE_USER;
-  a.mode = TASK_MODE_KERNEL;
   scheduler_add(&a);
   scheduler_add(&b);
 

@@ -73,9 +73,6 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
   }
 
   debugf("FAT initialized\n");
-
-  process_init();
-
   test_tasks();
   for (;;) {
   }

@@ -18,6 +18,7 @@ static uint32_t process_count = 0;
 static bool initialized = false;
 
 void process_init(void) {
+
   if (initialized) {
     return;
   }

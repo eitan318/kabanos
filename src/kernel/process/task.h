@@ -28,4 +28,4 @@ typedef struct TCB {
 
 // TCB *task_setup(void (*entry)(void), TaskMode mode);
 
-void task_setup(TCB *t, void (*entry)(void), PageDirectory *page_dir);
+void task_setup(TCB *t, void (*entry)(void), TaskMode mode);

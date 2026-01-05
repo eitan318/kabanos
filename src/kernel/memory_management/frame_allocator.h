@@ -13,3 +13,5 @@ uint64_t frame_alloc();
 void frame_free(uint64_t frame_addr);
 void frame_mark_range_used(Range range);
 uint64_t frame_get_free_count();
+uint64_t frame_get_used_count();
+uint64_t frame_get_total_count();
