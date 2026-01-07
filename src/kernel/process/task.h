@@ -1,6 +1,6 @@
 #pragma once
 #include "arch/i686/isr/isr.h"
-#include "memory_management/paging.h"
+#include "memory_management/vmm.h"
 #include <stdint.h>
 
 #define PREEMPTIVE_INT 45
@@ -24,6 +24,8 @@ typedef struct TCB {
   uint32_t *kernel_stack_top;
   TaskMode mode;
   TaskState state;
+
+  vmspace_t *vmspace;
 } __attribute__((packed)) TCB;
 
 // TCB *task_setup(void (*entry)(void), TaskMode mode);

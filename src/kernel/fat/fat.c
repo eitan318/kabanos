@@ -2,8 +2,8 @@
 #include "../drivers/block/ata.h"
 #include "../include/stdio.h"
 #include "../include/string.h"
-#include "../kmalloc.h"
 #include "include/memory.h"
+#include "memory_management/kmalloc.h"
 #include <stdbool.h>
 #include <stdint.h>
 

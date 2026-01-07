@@ -1,10 +1,10 @@
 #pragma once
-#include "memory_management/paging.h"
+#include "memory_management/vmm.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
-void kmalloc_init(PageDirectory *_kernel_page_directory);
+void kmalloc_init();
 void *kmalloc(size_t size);
 void *kzalloc(size_t size);
 void kfree(void *ptr);

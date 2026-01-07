@@ -1,9 +1,11 @@
 #pragma once
-#include "memory_management/paging.h"
+#include "memory_management/vmm.h"
 #include <stdbool.h>
 #include <stdint.h>
 
-#define ELF_MAGIC "\x7F" "ELF"
+#define ELF_MAGIC                                                              \
+  "\x7F"                                                                       \
+  "ELF"
 
 typedef struct {
   uint8_t Magic[4];
@@ -83,9 +85,9 @@ enum ELFProgramFlags {
 
 /**
  * Load an ELF file into memory with paging
- * 
+ *
  * @param page_dir Page directory to map pages into
  * @param filepath Path to ELF file on FAT filesystem
  * @return Entry point address, or NULL on failure
  */
-void *elf_load(PageDirectory *page_dir, const char *filepath);
+void *elf_load(page_dir_t *page_dir, const char *filepath);

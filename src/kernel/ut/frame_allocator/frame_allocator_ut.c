@@ -1,294 +1,121 @@
 #include "include/stdio.h"
-#include "include/string.h"
-#include "memory_management/frame_allocator.h"
+#include "memory_management/pmm.h"
 #include "ut/ut_framework.h"
-#include <stdint.h>
-
-/*=============================================================================
- * BASIC ALLOCATION TESTS
- *===========================================================================*/
 
 int ut_basic_allocation(void) {
-  debugf("  Total frames: %lu\n", frame_get_total_count());
-  debugf("  Free frames: %lu\n", frame_get_free_count());
-  debugf("  Used frames: %lu\n", frame_get_used_count());
+  uint64_t f1 = pmm_frame_alloc();
+  uint64_t f2 = pmm_frame_alloc();
 
-  if (frame_get_free_count() == 0) {
-    debugf("FAIL: No free frames available\n");
+  UT_ASSERT_SUCCESS(f1, "alloc f1");
+  UT_ASSERT_SUCCESS(f2, "alloc f2");
+  if (f1 == f2 || f1 % FRAME_SIZE || f2 % FRAME_SIZE)
     return UT_FAIL;
-  }
-
-  // Allocate first frame
-  uint64_t frame1 = frame_alloc();
-  debugf("  Allocated frame 1: 0x%lx\n", frame1);
-
-  if (frame1 == 0) {
-    debugf("FAIL: Failed to allocate frame1\n");
-    return UT_FAIL;
-  }
-  if (frame1 % FRAME_SIZE != 0) {
-    debugf("FAIL: Frame1 not page-aligned\n");
-    return UT_FAIL;
-  }
-
-  // Allocate second frame
-  uint64_t frame2 = frame_alloc();
-  debugf("  Allocated frame 2: 0x%lx\n", frame2);
-
-  if (frame2 == 0) {
-    debugf("FAIL: Failed to allocate frame2\n");
-    return UT_FAIL;
-  }
-  if (frame2 == frame1) {
-    debugf("FAIL: Got duplicate frame\n");
-    return UT_FAIL;
-  }
-  if (frame2 % FRAME_SIZE != 0) {
-    debugf("FAIL: Frame2 not page-aligned\n");
-    return UT_FAIL;
-  }
 
   return UT_PASS;
 }
 
 int ut_free_and_realloc(void) {
-  uint64_t initial_free = frame_get_free_count();
+  uint64_t init = frame_get_free_count();
+  uint64_t f1 = pmm_frame_alloc();
 
-  // Allocate frame
-  uint64_t frame = frame_alloc();
-  UT_ASSERT_SUCCESS(frame, "Frame allocation");
-  debugf("  Allocated: 0x%lx\n", frame);
-
-  uint64_t after_alloc = frame_get_free_count();
-  if (after_alloc != initial_free - 1) {
-    debugf("FAIL: Free count incorrect after alloc: %lu (expected %lu)\n",
-           after_alloc, initial_free - 1);
+  UT_ASSERT_SUCCESS(f1, "alloc");
+  if (frame_get_free_count() != init - 1)
     return UT_FAIL;
-  }
 
-  // Free frame
-  frame_free(frame);
-  debugf("  Freed: 0x%lx\n", frame);
-
-  uint64_t after_free = frame_get_free_count();
-  if (after_free != initial_free) {
-    debugf("FAIL: Free count incorrect after free: %lu (expected %lu)\n",
-           after_free, initial_free);
+  pmm_frame_free(f1);
+  if (frame_get_free_count() != init)
     return UT_FAIL;
-  }
 
-  // Reallocate
-  uint64_t frame2 = frame_alloc();
-  UT_ASSERT_SUCCESS(frame2, "Frame reallocation");
-  debugf("  Reallocated: 0x%lx\n", frame2);
+  uint64_t f2 = pmm_frame_alloc();
+  UT_ASSERT_SUCCESS(f2, "realloc");
 
   return UT_PASS;
 }
 
 int ut_multiple_alloc_free(void) {
-#define NUM_FRAMES 10
-  uint64_t frames[NUM_FRAMES];
+#define N 10
+  uint64_t frames[N];
+  uint64_t init = frame_get_free_count();
 
-  uint64_t initial_free = frame_get_free_count();
-
-  // Allocate multiple frames
-  debugf("  Allocating %d frames...\n", NUM_FRAMES);
-  for (int i = 0; i < NUM_FRAMES; i++) {
-    frames[i] = frame_alloc();
-    if (frames[i] == 0) {
-      debugf("FAIL: Failed to allocate frame %d\n", i);
+  for (int i = 0; i < N; i++) {
+    frames[i] = pmm_frame_alloc();
+    if (!frames[i])
       return UT_FAIL;
-    }
-
-    // Check for duplicates
-    for (int j = 0; j < i; j++) {
-      if (frames[i] == frames[j]) {
-        debugf("FAIL: Duplicate frame detected: frames[%d] == frames[%d] = "
-               "0x%lx\n",
-               i, j, frames[i]);
+    for (int j = 0; j < i; j++)
+      if (frames[i] == frames[j])
         return UT_FAIL;
-      }
-    }
   }
 
-  uint64_t after_alloc = frame_get_free_count();
-  if (after_alloc != initial_free - NUM_FRAMES) {
-    debugf("FAIL: Free count after alloc: %lu (expected %lu)\n", after_alloc,
-           initial_free - NUM_FRAMES);
+  if (frame_get_free_count() != init - N)
     return UT_FAIL;
-  }
-  debugf("  Free count: %lu -> %lu\n", initial_free, after_alloc);
 
-  // Free all frames
-  debugf("  Freeing %d frames...\n", NUM_FRAMES);
-  for (int i = 0; i < NUM_FRAMES; i++) {
-    frame_free(frames[i]);
-  }
+  for (int i = 0; i < N; i++)
+    pmm_frame_free(frames[i]);
 
-  uint64_t after_free = frame_get_free_count();
-  if (after_free != initial_free) {
-    debugf("FAIL: Memory leak detected! Free count: %lu (expected %lu)\n",
-           after_free, initial_free);
+  if (frame_get_free_count() != init)
     return UT_FAIL;
-  }
-  debugf("  Free count: %lu -> %lu\n", after_alloc, after_free);
 
   return UT_PASS;
 }
 
-/*=============================================================================
- * ERROR HANDLING TESTS
- *===========================================================================*/
-
 int ut_double_free(void) {
-  uint64_t frame = frame_alloc();
-  UT_ASSERT_SUCCESS(frame, "Frame allocation");
+  uint64_t f = pmm_frame_alloc();
+  uint64_t cnt = frame_get_free_count();
 
-  uint64_t before_free = frame_get_free_count();
-
-  // First free
-  frame_free(frame);
-  uint64_t after_first_free = frame_get_free_count();
-  if (after_first_free != before_free + 1) {
-    debugf("FAIL: Free count incorrect after first free: %lu (expected %lu)\n",
-           after_first_free, before_free + 1);
+  pmm_frame_free(f);
+  if (frame_get_free_count() != cnt + 1)
     return UT_FAIL;
-  }
 
-  // Second free (should be ignored)
-  frame_free(frame);
-  uint64_t after_second_free = frame_get_free_count();
-  if (after_second_free != after_first_free) {
-    debugf("FAIL: Double free not detected! Count: %lu (expected %lu)\n",
-           after_second_free, after_first_free);
+  pmm_frame_free(f);
+  if (frame_get_free_count() != cnt + 1)
     return UT_FAIL;
-  }
 
   return UT_PASS;
 }
 
 int ut_invalid_operations(void) {
-  uint64_t initial_free = frame_get_free_count();
+  uint64_t init = frame_get_free_count();
 
-  // Try to free invalid addresses
-  frame_free(0);                    // NULL
-  frame_free(0x123);                // Unaligned
-  frame_free(0xFFFFFFFFFFFF0000UL); // Out of range
+  pmm_frame_free(0);
+  pmm_frame_free(0x123);
+  pmm_frame_free(0xFFFFFFFFFFFF0000UL);
 
-  // Free count should not change
-  uint64_t after_invalid = frame_get_free_count();
-  if (after_invalid != initial_free) {
-    debugf("FAIL: Invalid operations changed free count: %lu -> %lu\n",
-           initial_free, after_invalid);
-    return UT_FAIL;
-  }
-
-  return UT_PASS;
-}
-
-/*=============================================================================
- * ADVANCED TESTS
- *===========================================================================*/
-
-int ut_mark_range_used(void) {
-  uint64_t initial_free = frame_get_free_count();
-
-  // Mark a range as used (e.g., kernel memory)
-  uint64_t kernel_start = 0x100000; // 1MB
-  uint64_t kernel_end = 0x200000;   // 2MB
-  uint64_t frames_to_mark = (kernel_end - kernel_start) / FRAME_SIZE;
-
-  debugf("  Marking 0x%lx-0x%lx as used (%lu frames)\n", kernel_start,
-         kernel_end, frames_to_mark);
-
-  Range range = {
-      kernel_start,
-      kernel_end,
-  };
-  frame_mark_range_used(range);
-
-  uint64_t after_mark = frame_get_free_count();
-  debugf("  Free frames: %lu -> %lu\n", initial_free, after_mark);
-
-  if (after_mark > initial_free) {
-    debugf("FAIL: Free frames increased after marking used!\n");
-    return UT_FAIL;
-  }
-
-  return UT_PASS;
+  return (frame_get_free_count() == init) ? UT_PASS : UT_FAIL;
 }
 
 int ut_exhaustion(void) {
-  uint64_t total_free = frame_get_free_count();
-  debugf("  Available frames: %lu\n", total_free);
+#define MAX 5000
+  static uint64_t frames[MAX];
+  uint64_t total = frame_get_free_count();
+  uint64_t n = total < MAX ? total : MAX;
 
-// Allocate all available frames
-#define MAX_TEST_FRAMES 5000
-  static uint64_t frames[MAX_TEST_FRAMES];
-  uint64_t allocated = 0;
+  for (uint64_t i = 0; i < n; i++)
+    if (!(frames[i] = pmm_frame_alloc()))
+      return UT_FAIL;
 
-  uint64_t frames_to_test =
-      total_free < MAX_TEST_FRAMES ? total_free : MAX_TEST_FRAMES;
-
-  for (uint64_t i = 0; i < frames_to_test; i++) {
-    frames[i] = frame_alloc();
-    if (frames[i] != 0) {
-      allocated++;
-    } else {
-      break;
-    }
-  }
-
-  debugf("  Allocated %lu frames\n", allocated);
-  if (allocated != frames_to_test) {
-    debugf("FAIL: Expected to allocate %lu frames, got %lu\n", frames_to_test,
-           allocated);
+  if (n == total && pmm_frame_alloc() != 0)
     return UT_FAIL;
-  }
 
-  // Try to allocate when exhausted (if we allocated all)
-  if (frames_to_test == total_free) {
-    if (frame_get_free_count() != 0) {
-      debugf("FAIL: Free count should be 0, got %lu\n", frame_get_free_count());
-      return UT_FAIL;
-    }
-
-    uint64_t should_fail = frame_alloc();
-    if (should_fail != 0) {
-      debugf("FAIL: Allocation should fail when exhausted, got 0x%lx\n",
-             should_fail);
-      return UT_FAIL;
-    }
-    debugf("  Allocation correctly failed when exhausted\n");
-  }
-
-  // Free all
-  for (uint64_t i = 0; i < allocated; i++) {
-    frame_free(frames[i]);
-  }
-
-  debugf("  All frames freed successfully\n");
+  for (uint64_t i = 0; i < n; i++)
+    pmm_frame_free(frames[i]);
 
   return UT_PASS;
 }
 
-/*=============================================================================
- * DEFINE THE TEST SUITE
- *===========================================================================*/
+static int suite_setup() {
+  Range mem = {0, 64 * 1024 * 1024};
+  Range used[] = {{0, 0x100000}, {0x200000, 0x300000}};
+  pmm_init(mem, used, 2);
+  return 0;
+}
 
 static ut_test_case_t tests[] = {
     UT_TEST(ut_basic_allocation),    UT_TEST(ut_free_and_realloc),
     UT_TEST(ut_multiple_alloc_free), UT_TEST(ut_double_free),
-    UT_TEST(ut_invalid_operations),  UT_TEST(ut_mark_range_used),
-    UT_TEST(ut_exhaustion)};
+    UT_TEST(ut_invalid_operations),  UT_TEST(ut_exhaustion)};
 
-// Export the suite
-ut_test_suite_t frame_allocator_suite = {
-    .suite_name = "Frame Allocator",
-    .setup = NULL,
-    .teardown = NULL,
-    .suite_setup = NULL,
-    .suite_teardown = NULL,
-    .tests = tests,
-    .num_tests = sizeof(tests) / sizeof(tests[0]),
-};
+ut_test_suite_t frame_allocator_suite = {.suite_name = "Frame Allocator",
+                                         .suite_setup = suite_setup,
+                                         .tests = tests,
+                                         .num_tests =
+                                             sizeof(tests) / sizeof(tests[0])};

@@ -3,13 +3,13 @@
 #include "arch/i686/isr/isr.h"
 #include "include/memory.h"
 #include "include/stdio.h"
-#include "memory_management/frame_allocator.h"
-#include "memory_management/paging.h"
+#include "memory_management/pmm.h"
 #include "memory_management/va_allocation.h"
+#include "memory_management/vmm.h"
 #include "process/task.h"
 #include <stddef.h>
 
-extern PageDirectory *g_kernel_page_dir; // global
+extern vmspace_t *g_kernel_vmspace; // global
 
 static TCB *tasks[2];
 static int task_count = 0;

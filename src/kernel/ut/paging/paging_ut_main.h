@@ -1,6 +1,7 @@
 #pragma once
 
 #include "boot/bootparams.h"
+#include "memory_management/pmm.h"
 #include "ut/ut_framework.h"
 
 // Export the test suite
@@ -8,9 +9,6 @@ extern ut_test_suite_t paging_suite;
 
 // Main function to run paging tests
 int ut_paging_main(BootParams *boot_params) {
-  // Initialize frame allocator ONCE before tests
-  frame_allocator_init(boot_params);
-
   ut_test_suite_t suites[] = {paging_suite};
   ut_config_t config = {
       .verbose = 1, .stop_on_fail = 0, .show_passed = 0, .quiet = 0};

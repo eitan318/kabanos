@@ -5,25 +5,142 @@
 #include "include/memory.h"
 #include "include/stdio.h"
 #include "initrd/initrd.h"
-#include "kmalloc.h"
-#include "memory_management/frame_allocator.h"
-#include "memory_management/paging.h"
+#include "memory_management/boot_allocator.h"
+#include "memory_management/kmalloc.h"
+#include "memory_management/pmm.h"
+#include "memory_management/vmm.h"
 #include "modules/modules.h"
 #include "process/pcb.h"
-#include "process/process.h"
 #include "process/schedualer.h"
 #include "process/task.h"
 #include "ut/ata/ata_ut_main.h"
-#include "ut/frame_allocator/frame_allocator_ut_main.h"
 #include "ut/keyboard_driver.h"
 #include "ut/paging/paging_ut_main.h"
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 
-PageDirectory *g_kernel_page_dir;
-
+vmspace_t *g_kernel_vmspace;
 extern uint8_t _kernel_start[], _kernel_end[], _bss_start[];
+#define MAX_USED_RANGES 64
+
+typedef struct {
+  Range ranges[MAX_USED_RANGES];
+  size_t count;
+} RangeList;
+
+static inline void range_list_push(RangeList *list, Range r) {
+  if (list->count < MAX_USED_RANGES) {
+    list->ranges[list->count++] = r;
+  }
+}
+
+static void collect_non_usable_ranges(RangeList *list, MemoryMap *memory_map,
+                                      Range memory_range) {
+  for (int i = 0; i < memory_map->region_count; i++) {
+    MemoryRegion *region = &memory_map->regions[i];
+
+    if (region->type == E820_USABLE)
+      continue;
+
+    Range r = {
+        .start = region->base,
+        .end = region->base + region->length,
+    };
+
+    r = range_align_outward(r, FRAME_SIZE);
+    r = range_clamp(r, memory_range);
+
+    if (r.start < r.end)
+      range_list_push(list, r);
+  }
+}
+static void collect_kernel_range(RangeList *list) {
+  Range r = {
+      .start = (uint64_t)&_kernel_start,
+      .end = (uint64_t)&_kernel_end,
+  };
+
+  range_list_push(list, r);
+}
+static void collect_initrd_range(RangeList *list, BootParams *bp) {
+  if (bp->initrd_start && bp->initrd_size > 0) {
+    Range r = {
+        .start = (uint64_t)bp->initrd_start,
+        .end = (uint64_t)bp->initrd_start + bp->initrd_size,
+    };
+    range_list_push(list, r);
+  }
+}
+
+static void collect_module_ranges(RangeList *list, BootParams *bp) {
+  for (uint32_t i = 0; i < bp->module_count; i++) {
+    Module *m = &bp->modules[i];
+
+    if (m->start && m->size > 0) {
+      Range r = {
+          .start = (uint64_t)m->start,
+          .end = (uint64_t)m->start + m->size,
+      };
+      range_list_push(list, r);
+    }
+  }
+}
+static void collect_cmdline_range(RangeList *list, BootParams *bp) {
+  if (bp->cmdline_buffer && bp->cmdline_size > 0) {
+    Range r = {
+        .start = (uint64_t)bp->cmdline_buffer,
+        .end = (uint64_t)bp->cmdline_buffer + bp->cmdline_size,
+    };
+    range_list_push(list, r);
+  }
+}
+
+static Range *get_unusable_memory_ranges(BootParams *boot_params,
+                                         MemoryMap *memory_map,
+                                         Range memory_range,
+                                         size_t *out_count) {
+  static RangeList list;
+  list.count = 0;
+
+  collect_non_usable_ranges(&list, memory_map, memory_range);
+  collect_kernel_range(&list);
+  collect_initrd_range(&list, boot_params);
+  collect_module_ranges(&list, boot_params);
+  collect_cmdline_range(&list, boot_params);
+  range_list_push(&list, boot_alloc_get_used_range());
+
+  *out_count = list.count;
+  return list.ranges;
+}
+
+static Range get_memory_range(MemoryMap *memory_map) {
+  uint64_t max_addr = 0;          // Initialize to 0
+  uint64_t min_addr = UINT64_MAX; // Initialize to max value
+
+  for (int i = 0; i < memory_map->region_count; i++) {
+    MemoryRegion *region = &memory_map->regions[i];
+
+    if (region->type != E820_USABLE)
+      continue;
+
+    uint64_t region_start = region->base;
+    uint64_t region_end = region->base + region->length;
+
+    if (region_start < min_addr)
+      min_addr = region_start;
+    if (region_end > max_addr)
+      max_addr = region_end;
+  }
+
+  Range range = {
+      .start = min_addr,
+      .end = max_addr,
+  };
+
+  return range;
+}
 
 void __attribute__((section(".entry"))) start(BootParams boot_params) {
   memset(_bss_start, 0, _kernel_end - _bss_start);
@@ -51,57 +168,32 @@ void __attribute__((section(".entry"))) start(BootParams boot_params) {
 
   __asm__ volatile("sti");
 
-  // Initialize frame allocator ONCE before tests
-  frame_allocator_init(&boot_params);
-
-  g_kernel_page_dir = paging_create_kernel();
-  if (g_kernel_page_dir == NULL) {
+  g_kernel_vmspace = kernel_vmspace_creat();
+  if (g_kernel_vmspace == NULL) {
     debugf("FAIL: Could not create page directory\n");
     return;
   }
 
-  paging_enable(g_kernel_page_dir);
+  vmspace_switch(g_kernel_vmspace);
 
-  kmalloc_init(g_kernel_page_dir);
+  Range total_memory_range = get_memory_range(&boot_params.memory_map);
+  size_t count;
+  Range *unusable_memory_ranges = get_unusable_memory_ranges(
+      &boot_params, &boot_params.memory_map, total_memory_range, &count);
+  pmm_init(total_memory_range, unusable_memory_ranges, count);
 
-  // Initialize FAT filesystem
-  debugf("Initializing FAT filesystem...\n");
+  ut_paging_main(&boot_params);
+
+  kmalloc_init();
+
   if (!fat_initialize(34, 0)) {
     debugf("Failed to initialize FAT\n");
     for (;;) {
     }
   }
 
-  debugf("FAT initialized\n");
+  debugf("Testing tasks\n");
   test_tasks();
   for (;;) {
   }
-}
-
-void test_proccess(PageDirectory *kernel_page_dir) {
-
-  Pcb *calc_process = process_create("/calc.elf");
-
-  Pcb kernel_process = {
-      .page_directory = (uint32_t *)kernel_page_dir,
-      .cpu_context = {0}, // Initialize to zero
-      .state = PROCESS_STATE_RUNNING,
-  };
-
-  // Manually set the return point
-  kernel_process.cpu_context.eip = (uint32_t) && return_here;
-  kernel_process.cpu_context.cr3 = (uint32_t)kernel_page_dir;
-
-  // Save current stack state
-  __asm__ volatile("mov %%esp, %0\n"
-                   "mov %%ebp, %1\n"
-                   : "=r"(kernel_process.cpu_context.esp),
-                     "=r"(kernel_process.cpu_context.ebp));
-
-  // prompt_for_keyboard();
-
-  process_context_switch(&kernel_process, calc_process);
-
-return_here:
-  debugf("KERNEL SUCCESSFULLY RETURNED!");
 }
