@@ -110,5 +110,8 @@ int i686_gdt_init() {
                    "i"(i686_GDT_KERNEL_CS_SEL)  // immediate for ljmp
                  : "ax");
 
+  // Load the TSS for CPU 0
+  __asm volatile("ltr %0" : : "r"((uint16_t)(GDT_DEFAULT_ENTRIES_COUNT << 3)));
+
   return 0;
 }

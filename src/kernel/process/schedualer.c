@@ -9,9 +9,6 @@
 #include "process/task.h"
 #include <stddef.h>
 
-#define KERNEL_VA_START 0xC0400000
-#define KERNEL_VA_END 0xC0800000
-
 extern PageDirectory *g_kernel_page_dir; // global
 
 static TCB *tasks[2];
@@ -28,15 +25,12 @@ TCB *scheduler_pick_next(void) {
 }
 
 extern void __attribute__((naked)) switch_to(TCB *p);
+extern void __attribute__((naked)) switch_debug(TCB *p);
 
 static void preemptive_switch_isr_handler(Registers *regs) {
-  uint32_t cpu_id = 0;
-  TSSEntry *curr_tss = tss_entry_get(cpu_id);
-
   if (current == NULL) {
     current = scheduler_pick_next();
   } else {
-    // Save current task context
     current->kernel_esp = (uint32_t *)regs;
   }
 
@@ -46,6 +40,9 @@ static void preemptive_switch_isr_handler(Registers *regs) {
   }
   current = next;
 
+  uint32_t cpu_id = 0;
+  TSSEntry *curr_tss = tss_entry_get(cpu_id);
+  curr_tss->ss0 = i686_GDT_KERNEL_DS_SEL;
   curr_tss->esp0 = (uint32_t)(next->kernel_stack_top);
 
   switch_to(next);
@@ -76,8 +73,8 @@ void test_tasks() {
   // }
   //
   TCB a, b;
-  task_setup(&a, taskA, TASK_MODE_USER);
-  task_setup(&b, taskB, TASK_MODE_USER);
+  task_setup(&a, taskA, TASK_MODE_KERNEL);
+  task_setup(&b, taskB, TASK_MODE_KERNEL);
   //
   // TCB *c = task_setup(taskA, TASK_MODE_USER);
   // TCB *d = task_setup(taskB, TASK_MODE_KERNEL);

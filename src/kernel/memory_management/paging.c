@@ -314,6 +314,13 @@ static PageTable *page_table_get_or_create(PageDirectory *page_dir,
 
   // If page table already exists, return it
   if (pde->present) {
+    if (flags & PAGE_USER) {
+      pde->user = 1;
+    }
+    if (flags & PAGE_WRITABLE) {
+      pde->write = 1;
+    }
+
     uint32_t pt_physical = pde->frame << 12;
     return (PageTable *)pt_physical;
   }

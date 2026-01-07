@@ -38,6 +38,7 @@ void task_kill(TCB *t) {
 }
 
 // TCB *task_setup(void (*entry)(void), TaskMode mode) {
+extern void user_stub(void);
 
 void task_setup(TCB *t, void (*entry)(void), TaskMode mode) {
   PageDirectory *page_dir = paging_create_kernel();
@@ -55,7 +56,19 @@ void task_setup(TCB *t, void (*entry)(void), TaskMode mode) {
     // return NULL;
     return;
   }
-
+  //
+  // page_dir_load((uint32_t)page_dir);
+  // uint32_t *usp = (uint32_t *)PROCESS_STACK_TOP;
+  //
+  // /* push target entry */
+  // *(--usp) = (uint32_t)entry;
+  //
+  // /* user ESP points here */
+  // t->user_esp = usp;
+  //
+  // page_dir_load((uint32_t)g_kernel_page_dir);
+  //
+  //
   // Allocate user heap
   if (!va_alloc_region(page_dir, PROCESS_HEAP_START, PROCESS_HEAP_SIZE,
                        PAGE_USER | PAGE_WRITABLE, false)) {
@@ -87,7 +100,22 @@ void task_setup(TCB *t, void (*entry)(void), TaskMode mode) {
     uint32_t phys = paging_get_physical(g_kernel_page_dir, va);
     paging_map(page_dir, va, phys, PAGE_WRITABLE);
   }
-
+  //
+  // debugf("Before[]");
+  //
+  // page_dir_load((uint32_t)page_dir);
+  // debugf("Page dir: %x", page_dir);
+  // debugf("After va switch[]");
+  // uint32_t *mem = (uint32_t *)PROCESS_STACK_TOP - 1;
+  // debugf("The memoryyy: %x", *mem--);
+  // debugf("%x", *mem--);
+  // debugf("%x", *mem--);
+  // debugf("%x", *mem--);
+  // debugf("%x", *mem--);
+  // debugf("%x", *mem--);
+  // debugf("%x", *mem--);
+  // debugf("%x", *mem--);
+  //
   // ---- iret frame ----
   uint32_t *stk = t->kernel_stack_top;
 
@@ -98,7 +126,7 @@ void task_setup(TCB *t, void (*entry)(void), TaskMode mode) {
     *(--stk) = (uint32_t)t->user_esp; // ESP
     *(--stk) = 0x202;                 // EFLAGS
     *(--stk) = i686_GDT_USER_CS_SEL;  // CS
-    *(--stk) = (uint32_t)entry;       // EIP
+    *(--stk) = (uint32_t)entry;
   } else {
     *(--stk) = 0x202;                  // EFLAGS
     *(--stk) = i686_GDT_KERNEL_CS_SEL; // CS
@@ -109,9 +137,6 @@ void task_setup(TCB *t, void (*entry)(void), TaskMode mode) {
   *(--stk) = 0;              // error
   *(--stk) = PREEMPTIVE_INT; // int number
 
-  // ---- saved DS ----
-  *(--stk) = i686_GDT_KERNEL_DS_SEL;
-
   // ---- pusha frame ----
   *(--stk) = 0; // edi
   *(--stk) = 0; // esi
@@ -121,6 +146,9 @@ void task_setup(TCB *t, void (*entry)(void), TaskMode mode) {
   *(--stk) = 0; // edx
   *(--stk) = 0; // ecx
   *(--stk) = 0; // eax
+
+  // ---- saved DS ----
+  //*(--stk) = i686_GDT_KERNEL_DS_SEL;
 
   t->kernel_esp = stk;
 
