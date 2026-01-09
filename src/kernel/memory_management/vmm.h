@@ -28,6 +28,6 @@ paddr_t vm_translate(uint32_t *pd, vaddr_t va);
 
 // Virtual Memory Space
 vmspace_t *user_vmspace_creat();
-vmspace_t *kernel_vmspace_creat();
+void kernel_vmspace_creat(vmspace_t *vmspace);
 void vmspace_destroy(vmspace_t *vmspace);
 void vmspace_switch(vmspace_t *vmspace);
