@@ -1,5 +1,5 @@
 #include "boot/bootparams.h"
-#include "memory_management/boot_allocator.h"
+#include "memory_management/early_pmm.h"
 #include "memory_management/pmm.h"
 #include "memory_management/vmm.h"
 #include "ut/ut_framework.h"
@@ -95,7 +95,7 @@ int ut_different_page_tables(void) {
 }
 
 static int suite_setup() {
-  g_vmspace = kernel_vmspace_creat();
+  kernel_vmspace_creat(g_vmspace);
   g_pd = g_vmspace->pd;
   if (!g_pd)
     return UT_FAIL;

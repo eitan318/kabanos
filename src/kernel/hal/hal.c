@@ -8,10 +8,12 @@
 
 void hal_init() {
   i686_gdt_init();
-  vga_clrscr();
   i686_idt_init();
   i686_isr_init();
   pic_init();
+
+  vga_clrscr();
+  vga_setcursor(0, 0);
 
   kbd_init();
 }

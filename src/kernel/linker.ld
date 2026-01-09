@@ -1,44 +1,46 @@
 OUTPUT_FORMAT("elf32-i386")
-ENTRY(start)
+ENTRY (_start)
 
-SECTIONS {
-  . = 0x100000;
-  
-  _kernel_start = .;
-  
-  /* CRITICAL: Entry point MUST come first at 0x100000 */
-  .entry : {
-    *(.entry)
-  }
-  
-  .text : {
-    _text_start = .;
-    *(.text*)
-    _text_end = .;
-  }
-  
-  .rodata : {
-    *(.rodata*)
-  }
-  
-  .data : {
-    _data_start = .;
-    *(.data*)
-    _data_end = .;
-  }
-  
-  .bss : ALIGN(16) {
+SECTIONS
+{
+        . = 0x00100000;
+	/* The kernel will live at 3GB + 1MB in the virtual address space, */
+	/* which will be mapped to 1MB in the physical address space. */
+	/* Note that we page-align the sections. */
+
+	_kernel_start = .;
+        .multiboot.data : {
+            *(.multiboot.data)
+        }
+
+       .multiboot.text : {
+           *(.multiboot.text)
+       }
+
+	. += 0xC0000000;
+	/* Add a symbol that indicates the start address of the kernel. */
+	.text ALIGN (4K) : AT (ADDR (.text) - 0xC0000000)
+	{
+		*(.text)
+	}
+	.rodata ALIGN (4K) : AT (ADDR (.rodata) - 0xC0000000)
+	{
+		*(.rodata)
+	}
+	.data ALIGN (4K) : AT (ADDR (.data) - 0xC0000000)
+	{
+		*(.data)
+	}
     _bss_start = .;
-    *(.bss*)
-    *(COMMON)
+	.bss ALIGN (4K) : AT (ADDR (.bss) - 0xC0000000)
+	{
+		*(COMMON)
+		*(.bss)
+		*(.bootstrap_stack)
+	}
     _bss_end = .;
-  }
-  
-  _kernel_end = .;
-  
-  /DISCARD/ : {
-    *(.comment)
-    *(.note*)
-    *(.eh_frame)
-  }
+
+	/* Add a symbol that indicates the end address of the kernel. */
+	_kernel_end = .;
 }
+

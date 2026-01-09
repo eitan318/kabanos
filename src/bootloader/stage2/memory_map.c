@@ -1,9 +1,8 @@
 #include "memory_map.h"
+#include "boot/bootparams.h"
 #include "stdio.h"
 
-#define MAX_REGIONS 256
-
-MemoryRegion g_mem_regions[MAX_REGIONS];
+MemoryRegion g_mem_regions[MAX_MEMORY_REGIONS];
 int g_mem_region_count;
 
 void memory_map_detect(MemoryMap *memory_map) {

@@ -8,14 +8,12 @@
 #include "mbr.h"
 #include "memdefs.h"
 #include "memory_map.h"
+#include "multiboot2.h"
 #include "stdio.h"
 #include "string.h"
-#include "vga_text.h"
 #include <stdint.h>
 
 #define CMDLINE_SIZE 2048
-#define MODULE_PATH_SIZE 256
-#define MODULES_MAX 16
 
 void halt() {
   debugf("\nSystem halted.\n");
@@ -23,10 +21,6 @@ void halt() {
     __asm__ volatile("cli; hlt");
   }
 }
-
-BootParams g_boot_params = {0};
-
-typedef void (*KernelStart)(BootParams boot_params);
 
 void __attribute__((cdecl)) start(uint32_t boot_drive) {
   i686_gdt_init();
@@ -84,71 +78,61 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   char cmdline[CMDLINE_SIZE];
   bcd_cmdline_construct(bcd.cmdline, strlen(bcd.cmdline), cmdline);
 
+  // Read initrd, not passed to kernel for now
   int initrd_size = fat_read_file(bcd.initrd, (void *)INITRD_LOAD_ADDR);
   if (initrd_size < 0) {
     debugf("ERROR: Failed to load initrd (error code: %d)!\n", initrd_size);
     halt();
   }
-
-  g_boot_params.initrd_start = (void *)INITRD_LOAD_ADDR;
-  g_boot_params.initrd_size = (uint32_t)initrd_size;
-  debugf("Initrd loaded at 0x%x, size: %d bytes\n", INITRD_LOAD_ADDR,
-         initrd_size);
+  uint32_t initrd_start = (uint32_t)INITRD_LOAD_ADDR;
+  debugf("Initrd loaded at 0x%x, size: %d bytes\n", initrd_start, initrd_size);
 
   // Load modules
+
   void *module_load_addr = (void *)MODULE_LOAD_ADDR;
-  g_boot_params.module_count = 0;
+  uint32_t modules_count = 0;
+  void *modules_starts[MAX_MODULES];
+  int modules_sizes[MAX_MODULES];
 
   for (int i = 0; i < bcd.module_count; i++) {
-    debugf("Loading module %d: %s\n", i, bcd.modules[i].path);
+    debugf("Loading module %d: %s\n", i, bcd.modules_paths[i]);
 
-    int module_size = fat_read_file(bcd.modules[i].path, module_load_addr);
+    int module_size = fat_read_file(bcd.modules_paths[i], module_load_addr);
     if (module_size < 0) {
       debugf("WARNING: Failed to load module %s (error: %d)\n",
-             bcd.modules[i].path, module_size);
+             bcd.modules_paths[i], module_size);
       continue;
     }
 
-    // Store module information
-    g_boot_params.modules[i].start = module_load_addr;
-    g_boot_params.modules[i].size = (uint32_t)module_size;
-
-    // Copy path string to a safe location (heap or static buffer)
-    // Instead of storing pointer to BCD data which may be overwritten
-    static char module_paths[MAX_MODULES][MODULE_PATH_SIZE];
-    strncpy(module_paths[i], bcd.modules[i].path, MODULE_PATH_SIZE - 1);
-    module_paths[i][MODULE_PATH_SIZE - 1] = '\0';
-    g_boot_params.modules[i].path = module_paths[i];
-
     debugf("Module %d loaded at 0x%p, size: %d bytes\n", i, module_load_addr,
            module_size);
+
+    modules_sizes[i] = module_size;
+    modules_starts[i] = (void *)module_load_addr;
 
     // Align next module to 4KB boundary
     uint32_t aligned_size = (module_size + 0xFFF) & ~0xFFF;
     module_load_addr = (void *)((uint8_t *)module_load_addr + aligned_size);
 
-    g_boot_params.module_count++;
+    modules_count++;
   }
 
-  // Fill remaining BootParams
-  g_boot_params.cpu_info = cpu_info;
-  g_boot_params.disk_params = disk_params;
-  g_boot_params.cmdline_buffer = cmdline;
-  g_boot_params.cmdline_size = CMDLINE_SIZE;
-  g_boot_params.memory_map = memory_map;
-  g_boot_params.partition_table = partition_table;
-
   // load kernel
-  KernelStart kernelEntry;
-  if (!elf_read(&boot_partition, bcd.kernel, (void **)&kernelEntry)) {
+  void *kernel_entry;
+  if (!elf_read(&boot_partition, bcd.kernel, &kernel_entry)) {
     printf("ELF read failed, booting halted!");
     halt();
   }
 
   debugf("Kernel loaded successfully, jumping...\n");
-  debugf("Kernel entry point address: 0x%x\n", (uint32_t)kernelEntry);
 
-  kernelEntry(g_boot_params);
+  // Write to the agreed-upon physical address
+  uint8_t *multiboot2_info_buffer = (uint8_t *)BOOT_PARAMS_PHYSICAL_ADDR;
+  multiboot2_build(multiboot2_info_buffer, cmdline, modules_count,
+                   modules_starts, modules_sizes, bcd.modules_paths,
+                   &memory_map);
+
+  multiboot2_jump_to_kernel(kernel_entry, multiboot2_info_buffer);
 
   // Should never reach here
   debugf("ERROR: Kernel returned!\n");

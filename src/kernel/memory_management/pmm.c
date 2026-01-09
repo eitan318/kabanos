@@ -1,8 +1,5 @@
 #include "pmm.h"
-#include "boot/bootparams.h"
 #include "include/stdio.h"
-#include "memory_management/boot_allocator.h"
-#include "memory_management/vmm.h"
 #include "utils/bitmap.h"
 #include "utils/range.h"
 
@@ -92,7 +89,7 @@ void pmm_init(Range memory_range, Range *used_ranges, int used_ranges_count) {
   if (total_frames > MAX_FRAMES) {
     debugf("Memory range greater than max frames!");
     total_frames = MAX_FRAMES;
-    memory_range.end = memory_range.start + (MAX_FRAMES * FRAME_SIZE);
+    memory_range.end = memory_range.start + ((uint64_t)MAX_FRAMES * FRAME_SIZE);
   }
 
   bitmap_size_bytes = (total_frames + 7) / 8;
