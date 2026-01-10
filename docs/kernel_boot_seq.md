@@ -5,7 +5,7 @@ KERNEL BOOTING SEQUENCE
 * Creating page table with:
 - low memory (0 -> 1MiB) [contains stage2 stack, boot params (including cmdline, mem-map and more)]
 - kernel memory (kernel start -> kernel end
-* Create empty page dir with table identity mapped into:
+* Create empty page dir with table identity mapped(Early) into:
 - lower half (0x00000000 -> 0x00000000) 
 - heigher half (0xC0000000 -> 0x00000000) 
 * Set cr3 with page dir
@@ -20,7 +20,8 @@ KERNEL BOOTING SEQUENCE
 * Early-allocate kernel addr space struct
 * Init main pmm (No more early pmm, because this is the 
     last and only time the memory it used is marked as used)
-* Fill main kernel addr space struct (how to initially map stuff?)
+* Early-map the Early-allocated memory 
+* Fill main kernel addr space struct
 * Switch to this addr space
 * Initializing heap
 

@@ -1,7 +1,9 @@
 #include "pmm.h"
 #include "include/stdio.h"
 #include "utils/bitmap.h"
+#include "utils/math.h"
 #include "utils/range.h"
+#include <string.h>
 
 #define MAX_FRAMES (1024 * 1024)               // 4GB worth of 4KB frames
 #define MAX_BITMAP_SIZE ((MAX_FRAMES + 7) / 8) // 128KB
@@ -92,10 +94,14 @@ void pmm_init(Range memory_range, Range *used_ranges, int used_ranges_count) {
     memory_range.end = memory_range.start + ((uint64_t)MAX_FRAMES * FRAME_SIZE);
   }
 
-  bitmap_size_bytes = (total_frames + 7) / 8;
+  bitmap_size_bytes = align_up(total_frames, 8);
+  memset(bitmap, 0, bitmap_size_bytes);
 
   used_frames = 0;
   mark_frame_used(0); // for alloc to return 0 on err, frame 0 must be used
+  for (int i = 0; i < used_ranges_count; i++) {
+    pmm_mark_range_used(used_ranges[i].start, used_ranges[i].end);
+  }
 }
 
 // -1 because the real count of usable frames does not include first frame

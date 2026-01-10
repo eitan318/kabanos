@@ -7,6 +7,9 @@ FLAGS        equ ALIG_FLAG | MEMINFO_FLAG
 MAGIC        equ 0x1BADB002
 CHECKSUM     equ -(MAGIC + FLAGS)
 
+; early pmm const
+EARLY_PMM_SIZE equ 0x1000 * 4
+
 ; Declare a multiboot header that marks the program as a kernel.
 section .multiboot.data
 align 4
@@ -50,7 +53,7 @@ _start:
     ; Only map the kernel and low memory
     cmp esi, 0 
     jl .skip
-    cmp esi, (_kernel_end - 0xC0000000)
+    cmp esi, (_kernel_end - 0xC0000000 + EARLY_PMM_SIZE)
     jge .done_loop
     
     ; Map physical address as "present, writable"
@@ -67,9 +70,6 @@ _start:
     loop .loop
 
 .done_loop:
-    ; ALSO map the boot params page (0x8000 -> 0xC0008000)
-    ;    mov dword [boot_page_table1 - 0xC0000000 + 8 * 4], (0x00008000 | 0x003)
-
     ; Map VGA video memory to 0xC03FF000 as "present, writable"
     ; why not map to 0xc00B8000
     mov dword [boot_page_table1 - 0xC0000000 + 1023 * 4], (0x000B8000 | 0x003)

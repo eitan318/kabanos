@@ -1,4 +1,6 @@
 #include "early_pmm.h"
+#include "memory_management/memdefs.h"
+#include "memory_management/vmm.h"
 
 extern uint8_t _kernel_end;
 
@@ -6,12 +8,12 @@ static uintptr_t mem_start;
 static uintptr_t mem_head;
 
 void early_mem_init(void) {
-  mem_start = (uintptr_t)&_kernel_end;
+  mem_start = ((uintptr_t)&_kernel_end - KERNEL_BASE);
   mem_head = mem_start;
 }
 
 void *early_pmm_alloc(size_t size) {
-  if (mem_head + size - mem_start >= EARLY_IDENTITY_MAP_SIZE) {
+  if (mem_head + size - mem_start >= EARLY_PMM_SIZE) {
     return 0;
   }
   void *addr = (void *)mem_head;
@@ -19,4 +21,6 @@ void *early_pmm_alloc(size_t size) {
   return addr;
 }
 
-Range early_pmm_get_used_range() { return (Range){mem_start, mem_head}; }
+void *early_pmm_vm_alloc(size_t size) {
+  return early_pmm_alloc(size) + KERNEL_BASE;
+}

@@ -24,7 +24,7 @@ KernelBootInfo parse_multiboot2_early(mb2_info_t *mbi) {
 
       // Allocate/copy into kernel memory
       size_t len = strlen(cmdline_src) + 1;
-      kernel_boot_info.cmdline = early_pmm_alloc(len);
+      kernel_boot_info.cmdline = early_pmm_vm_alloc(len);
       memcpy(kernel_boot_info.cmdline, cmdline_src, len);
       break;
     }
@@ -40,7 +40,7 @@ KernelBootInfo parse_multiboot2_early(mb2_info_t *mbi) {
 
         // Copy module cmdline string into kernel memory
         size_t len = strlen(mod_tag->cmdline) + 1;
-        mod->cmdline = early_pmm_alloc(len);
+        mod->cmdline = early_pmm_vm_alloc(len);
         memcpy(mod->cmdline, mod_tag->cmdline, len);
       }
       break;
@@ -76,7 +76,6 @@ KernelBootInfo parse_multiboot2_early(mb2_info_t *mbi) {
   return kernel_boot_info;
 }
 
-extern uint8_t _kernel_start[], _kernel_end[];
 Range *get_unusable_memory_ranges(KernelBootInfo *kbi, Range memory_range,
                                   size_t *out_count) {
   static RangeList list;
@@ -98,12 +97,9 @@ Range *get_unusable_memory_ranges(KernelBootInfo *kbi, Range memory_range,
                                .end = (uintptr_t)m->start + m->size,
                            });
   }
-  Range r = {
-      .start = (uintptr_t)&_kernel_start,
-      .end = (uintptr_t)&_kernel_end,
-  };
 
-  range_list_push(&list, r);
+  extern Range g_kernel_phys_range;
+  range_list_push(&list, g_kernel_phys_range);
 
   *out_count = list.count;
   return list.ranges;
