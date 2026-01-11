@@ -1,9 +1,5 @@
 #include "arch/i686/vga_text.h"
-#include "boot/bootparams.h"
-#include "fat/fat.h"
-#include "hal/hal.h"
-#include "include/memory.h"
-#include "include/stdio.h"
+#include "boot/bootparams.h" #include "fat/fat.h" #include "hal/hal.h" #include "include/memory.h" #include "include/stdio.h"
 #include "initrd/initrd.h"
 #include "kernel_boot_info.h"
 #include "memory_management/early_pmm.h"
@@ -55,7 +51,7 @@ void kmain(uint32_t mb2_ptr) {
   pmm_init(total_memory_range, unusable_memory_ranges, count);
 
   static vmspace_t kernel_vmspace = {0};
-  kernel_vmspace_create(&kernel_vmspace);
+  kernel_vmspace_create(&kernel_vmspace, total_memory_range);
   g_kernel_vmspace = &kernel_vmspace;
 
   if (g_kernel_vmspace == NULL) {

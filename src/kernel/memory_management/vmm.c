@@ -15,11 +15,6 @@
 #define PD_PT_READWRITE PAGE_READWRITE
 #define PD_PT_USER PAGE_USER
 
-// Used for identity map low memory
-static inline uint32_t *physical_access(uintptr_t paddr) {
-  return (uint32_t *)(paddr);
-}
-
 static void tlb_flush(vaddr_t virtual_addr) {
   __asm__ volatile("invlpg (%0)" : : "r"(virtual_addr) : "memory");
 }
@@ -32,7 +27,7 @@ paddr_t vm_translate(page_dir_t *pd, vaddr_t va) {
     return 0; // not mapped
   }
 
-  uint32_t *pt_virt = (uint32_t *)physical_access(pd[pd_index] & ~0xFFF);
+  uint32_t *pt_virt = (uint32_t *)(pd[pd_index] & ~0xFFF);
   if (!(pt_virt[pt_index] & PD_PT_PRESENT)) {
     return 0;
   }
@@ -73,11 +68,11 @@ bool vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
         return false;
       }
 
-      uint32_t *pt = physical_access(pt_phys);
+      uint32_t *pt_virt = (uint32_t *)(pt_phys + KERNEL_BASE);
 
       // Fill entire page table
       for (uint32_t i = 0; i < 1024; i++) {
-        pt[i] = (pa + i * PAGE_SIZE) | (flags & 0xFFF) | PD_PT_PRESENT;
+        pt_virt[i] = (pa + i * PAGE_SIZE) | (flags & 0xFFF) | PD_PT_PRESENT;
       }
 
       pd_virt[pd_index] =
@@ -94,18 +89,19 @@ bool vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
           debugf("Alloc FAILED The allocator was out of memory!");
           return false;
         }
-        uint32_t *pt = physical_access(pt_phys);
-        memset(pt, 0, PAGE_SIZE);
+        uint32_t *pt_virt = (uint32_t *)(pt_phys + KERNEL_BASE);
+        memset(pt_virt, 0, PAGE_SIZE);
         pd_virt[pd_index] =
             pt_phys | PD_PT_PRESENT | PD_PT_READWRITE | (flags & PD_PT_USER);
       }
 
-      uint32_t *pt = physical_access(pd_virt[pd_index] & ~0xFFF);
+      uint32_t pt_phys = pd_virt[pd_index] & ~0xFFF;
+      uint32_t *pt_virt = (uint32_t *)(pt_phys + KERNEL_BASE);
       uint32_t pages = map_size / PAGE_SIZE;
 
       // Map pages in this page table
       for (uint32_t i = 0; i < pages; i++) {
-        pt[pt_index + i] =
+        pt_virt[pt_index + i] =
             (pa + i * PAGE_SIZE) | (flags & 0xFFF) | PD_PT_PRESENT;
       }
 
@@ -151,14 +147,12 @@ bool vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size) {
     uint32_t unmap_size =
         (remaining_in_pt < remaining_total) ? remaining_in_pt : remaining_total;
 
-    uint32_t *pt_virt = physical_access(pd_virt[pd_index] & ~0xFFF);
+    uint32_t pt_phys = pd_virt[pd_index] & ~0xFFF;
+    uint32_t *pt_virt = (uint32_t *)(pt_phys + KERNEL_BASE);
 
     // Check if we're unmapping an entire page table
     if (pt_index == 0 && unmap_size >= (1024 * PAGE_SIZE)) {
-      // Free the page table itself
-      paddr_t pt_phys = pd_virt[pd_index] & ~0xFFF;
       pmm_frame_free(pt_phys);
-
       // Clear page directory entry
       pd_virt[pd_index] = 0;
 

@@ -18,7 +18,7 @@ static void map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
   }
 }
 
-void kernel_vmspace_create(vmspace_t *vmspace) {
+void kernel_vmspace_create(vmspace_t *vmspace, Range total_memory_range) {
   paddr_t pd_phys = (paddr_t)pmm_frame_alloc();
   if (!pd_phys)
     return;
@@ -27,21 +27,18 @@ void kernel_vmspace_create(vmspace_t *vmspace) {
   vmspace->pd_phys = pd_phys;
   memset(vmspace->pd, 0, PAGE_SIZE);
 
-  extern Range g_kernel_phys_range;
-
-  // Calculate the kernel's physical range including early PMM
-  uint32_t kernel_start_phys = 0;
-  uint32_t kernel_end_phys = align_up(g_kernel_phys_range.end, PAGE_SIZE);
-  uint32_t early_pmm_end =
-      kernel_end_phys + align_up(EARLY_PMM_SIZE, PAGE_SIZE);
-  uint32_t total_size = early_pmm_end - kernel_start_phys;
-
   // Map to HIGHER HALF ONLY
-  map_range(vmspace->pd, kernel_start_phys, kernel_start_phys + KERNEL_BASE,
-            total_size, PAGE_READWRITE);
+  map_range(vmspace->pd, total_memory_range.start,
+            total_memory_range.start + KERNEL_BASE, total_memory_range.end,
+            PAGE_READWRITE);
 
-  // Map VGA buffer BEFORE switching (critical for debugging)
+  // Map VGA buffer BEFORE switching
   vm_map(vmspace->pd, VGA_SCREEN_BUF, VGA_SCREEN_BUF_PHYS, PAGE_READWRITE);
+
+  // Map pd itself to heigher half and derefrance it
+  vm_map(vmspace->pd, vmspace->pd_phys + KERNEL_BASE, vmspace->pd_phys,
+         PAGE_READWRITE);
+  vmspace->pd = (uint32_t *)(vmspace->pd_phys + KERNEL_BASE);
 }
 
 // Create virtual memory space for user processes
