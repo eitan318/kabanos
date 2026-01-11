@@ -18,29 +18,30 @@ static void map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
   }
 }
 
-// Create initial virtual memory space for kernel
-void kernel_vmspace_creat(vmspace_t *vmspace) {
+void kernel_vmspace_create(vmspace_t *vmspace) {
   paddr_t pd_phys = (paddr_t)pmm_frame_alloc();
   if (!pd_phys)
     return;
-  // TODO: make virt
+
   vmspace->pd = (uint32_t *)pd_phys;
   vmspace->pd_phys = pd_phys;
   memset(vmspace->pd, 0, PAGE_SIZE);
 
-  // map kernel code/data/bss
   extern Range g_kernel_phys_range;
-  uint32_t initial_range_start = 0;
-  uint32_t initial_range_size = align_up(g_kernel_phys_range.end, PAGE_SIZE) +
-                                align_up(EARLY_PMM_SIZE, PAGE_SIZE) -
-                                initial_range_start;
 
-  // identity map kernel code and early pmm to heigher helf and lower half
-  map_range(vmspace->pd, initial_range_start, initial_range_start,
-            initial_range_size, PAGE_READWRITE);
+  // Calculate the kernel's physical range including early PMM
+  uint32_t kernel_start_phys = 0;
+  uint32_t kernel_end_phys = align_up(g_kernel_phys_range.end, PAGE_SIZE);
+  uint32_t early_pmm_end =
+      kernel_end_phys + align_up(EARLY_PMM_SIZE, PAGE_SIZE);
+  uint32_t total_size = early_pmm_end - kernel_start_phys;
 
-  map_range(vmspace->pd, initial_range_start, initial_range_start + KERNEL_BASE,
-            initial_range_size, PAGE_READWRITE);
+  // Map to HIGHER HALF ONLY
+  map_range(vmspace->pd, kernel_start_phys, kernel_start_phys + KERNEL_BASE,
+            total_size, PAGE_READWRITE);
+
+  // Map VGA buffer BEFORE switching (critical for debugging)
+  vm_map(vmspace->pd, VGA_SCREEN_BUF, VGA_SCREEN_BUF_PHYS, PAGE_READWRITE);
 }
 
 // Create virtual memory space for user processes
@@ -66,6 +67,10 @@ vmspace_t *user_vmspace_creat() {
   memcpy(vmspace->pd, g_kernel_vmspace->pd, PAGE_SIZE);
 
   return vmspace;
+}
+
+void vmspace_switch(vmspace_t *vmspace) {
+  asm volatile("mov %0, %%cr3" ::"r"(vmspace->pd_phys));
 }
 
 void vmspace_destroy(vmspace_t *vmspace) {

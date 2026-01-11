@@ -7,12 +7,13 @@
 #include "utils/math.h"
 #include "utils/range.h"
 
-KernelBootInfo parse_multiboot2_early(mb2_info_t *mbi) {
+KernelBootInfo *parse_multiboot2_early(mb2_info_t *mbi) {
 
-  KernelBootInfo kernel_boot_info = {0};
+  KernelBootInfo *kernel_boot_info =
+      early_pmm_vm_alloc(sizeof(*kernel_boot_info));
   uint8_t *tag_ptr = mbi->tags;
 
-  kernel_boot_info.module_count = 0;
+  kernel_boot_info->module_count = 0;
 
   while (tag_ptr < ((uint8_t *)mbi + mbi->total_size)) {
     mb2_tag_t *tag = (mb2_tag_t *)tag_ptr;
@@ -24,16 +25,16 @@ KernelBootInfo parse_multiboot2_early(mb2_info_t *mbi) {
 
       // Allocate/copy into kernel memory
       size_t len = strlen(cmdline_src) + 1;
-      kernel_boot_info.cmdline = early_pmm_vm_alloc(len);
-      memcpy(kernel_boot_info.cmdline, cmdline_src, len);
+      kernel_boot_info->cmdline = early_pmm_vm_alloc(len);
+      memcpy(kernel_boot_info->cmdline, cmdline_src, len);
       break;
     }
 
     case MB2_TAG_MODULE: {
       mb2_tag_module_t *mod_tag = (void *)tag;
-      if (kernel_boot_info.module_count < MAX_MODULES) {
+      if (kernel_boot_info->module_count < MAX_MODULES) {
         KernelModule *mod =
-            &kernel_boot_info.modules[kernel_boot_info.module_count++];
+            &kernel_boot_info->modules[kernel_boot_info->module_count++];
 
         mod->start = (void *)mod_tag->mod_start;
         mod->size = mod_tag->mod_end - mod_tag->mod_start;
@@ -54,11 +55,10 @@ KernelBootInfo parse_multiboot2_early(mb2_info_t *mbi) {
            (uint8_t *)entry < ((uint8_t *)mmap_tag + mmap_tag->tag.size);
            entry =
                (mb2_mmap_entry_t *)((uint8_t *)entry + mmap_tag->entry_size)) {
-
-        if (kernel_boot_info.memory_map.region_count < MAX_MEMORY_REGIONS) {
+        if (kernel_boot_info->memory_map.region_count < MAX_MEMORY_REGIONS) {
           MemoryRegion *r =
-              &kernel_boot_info.memory_map
-                   .regions[kernel_boot_info.memory_map.region_count++];
+              &kernel_boot_info->memory_map
+                   .regions[kernel_boot_info->memory_map.region_count++];
           r->start = entry->addr;
           r->size = entry->len;
           r->type = entry->type;

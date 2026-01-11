@@ -78,3 +78,14 @@ PROB:
 (gdb) p/x $edx
 $2 = 0xc0149000
 (gdb)
+
+TO THINK ABOUT:
+kmain(kernel_boot_info);     ■ Passing 'KernelBootInfo' to parameter of incompatible type 'void *'
+
+also, what is better? wraping in vspace struct? or allocating new page dir for vmspace? also how to alloc vmspace itself?
+
+also, should I copy the kernel params and free early pmm? 
+
+
+TODO:
+Check if stack created below kernel in entry is not overriden by pmm alocations

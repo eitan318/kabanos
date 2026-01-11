@@ -40,59 +40,166 @@ paddr_t vm_translate(page_dir_t *pd, vaddr_t va) {
   return (pt_virt[pt_index] & ~0xFFF) + (va & 0xFFF);
 }
 
-bool vm_map(page_dir_t *pd_virt, vaddr_t va, paddr_t pa, uint32_t flags) {
-  va = align_down(va, PAGE_SIZE);
-  pa = align_down(pa, PAGE_SIZE);
+// Efficient range mapping
+bool vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
+                  size_t size, uint32_t flags) {
+  if (size == 0)
+    return true;
 
-  uint32_t pd_index = va >> 22;
-  uint32_t pt_index = (va >> 12) & 0x3FF;
+  va_start = align_down(va_start, PAGE_SIZE);
+  pa_start = align_down(pa_start, PAGE_SIZE);
+  size = align_up(size, PAGE_SIZE);
 
-  if (!(pd_virt[pd_index] & PD_PT_PRESENT)) {
-    paddr_t pt_phys = pmm_frame_alloc();
+  vaddr_t va = va_start;
+  paddr_t pa = pa_start;
+  vaddr_t va_end = va_start + size;
 
-    if (!pt_phys) {
+  while (va < va_end) {
+    uint32_t pd_index = va >> 22;
+    uint32_t pt_index = (va >> 12) & 0x3FF;
 
-      debugf("Alloc FAILED The allocator was out of memory!");
-      return false;
+    // Calculate how much we can map in this page table
+    uint32_t remaining_in_pt = (1024 - pt_index) * PAGE_SIZE;
+    uint32_t remaining_total = va_end - va;
+    uint32_t map_size =
+        (remaining_in_pt < remaining_total) ? remaining_in_pt : remaining_total;
+
+    // Check if we can map an entire page table at once
+    if (pt_index == 0 && map_size >= (1024 * PAGE_SIZE)) {
+      // Fast path: map entire 4MB region
+      paddr_t pt_phys = pmm_frame_alloc();
+      if (!pt_phys) {
+        debugf("Alloc FAILED The allocator was out of memory!");
+        return false;
+      }
+
+      uint32_t *pt = physical_access(pt_phys);
+
+      // Fill entire page table
+      for (uint32_t i = 0; i < 1024; i++) {
+        pt[i] = (pa + i * PAGE_SIZE) | (flags & 0xFFF) | PD_PT_PRESENT;
+      }
+
+      pd_virt[pd_index] =
+          pt_phys | PD_PT_PRESENT | PD_PT_READWRITE | (flags & PD_PT_USER);
+
+      va += 1024 * PAGE_SIZE;
+      pa += 1024 * PAGE_SIZE;
+    } else {
+      // Slow path: map partial page table
+      // Ensure page table exists
+      if (!(pd_virt[pd_index] & PD_PT_PRESENT)) {
+        paddr_t pt_phys = pmm_frame_alloc();
+        if (!pt_phys) {
+          debugf("Alloc FAILED The allocator was out of memory!");
+          return false;
+        }
+        uint32_t *pt = physical_access(pt_phys);
+        memset(pt, 0, PAGE_SIZE);
+        pd_virt[pd_index] =
+            pt_phys | PD_PT_PRESENT | PD_PT_READWRITE | (flags & PD_PT_USER);
+      }
+
+      uint32_t *pt = physical_access(pd_virt[pd_index] & ~0xFFF);
+      uint32_t pages = map_size / PAGE_SIZE;
+
+      // Map pages in this page table
+      for (uint32_t i = 0; i < pages; i++) {
+        pt[pt_index + i] =
+            (pa + i * PAGE_SIZE) | (flags & 0xFFF) | PD_PT_PRESENT;
+      }
+
+      va += map_size;
+      pa += map_size;
+    }
+  }
+
+  if (size > PAGE_SIZE) {
+    // Flush TLB for entire range (CR3 reload for efficiency)
+    __asm__ volatile("mov %%cr3, %%eax\n"
+                     "mov %%eax, %%cr3\n" ::
+                         : "eax", "memory");
+  }
+
+  return true;
+}
+
+// Efficient range unmapping
+bool vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size) {
+  if (size == 0)
+    return true;
+
+  va_start = align_down(va_start, PAGE_SIZE);
+  size = align_up(size, PAGE_SIZE);
+
+  vaddr_t va = va_start;
+  vaddr_t va_end = va_start + size;
+
+  while (va < va_end) {
+    uint32_t pd_index = va >> 22;
+    uint32_t pt_index = (va >> 12) & 0x3FF;
+
+    if (!(pd_virt[pd_index] & PD_PT_PRESENT)) {
+      // Skip to next page table boundary
+      va = (pd_index + 1) << 22;
+      continue;
     }
 
-    uint32_t *pt = physical_access(pt_phys);
-    memset(pt, 0, PAGE_SIZE);
+    // Calculate how much we can unmap in this page table
+    uint32_t remaining_in_pt = (1024 - pt_index) * PAGE_SIZE;
+    uint32_t remaining_total = va_end - va;
+    uint32_t unmap_size =
+        (remaining_in_pt < remaining_total) ? remaining_in_pt : remaining_total;
 
-    pd_virt[pd_index] =
-        pt_phys | PD_PT_PRESENT | PD_PT_READWRITE | (flags & PD_PT_USER);
+    uint32_t *pt_virt = physical_access(pd_virt[pd_index] & ~0xFFF);
+
+    // Check if we're unmapping an entire page table
+    if (pt_index == 0 && unmap_size >= (1024 * PAGE_SIZE)) {
+      // Free the page table itself
+      paddr_t pt_phys = pd_virt[pd_index] & ~0xFFF;
+      pmm_frame_free(pt_phys);
+
+      // Clear page directory entry
+      pd_virt[pd_index] = 0;
+
+      va += 1024 * PAGE_SIZE;
+    } else {
+      // Slow path: unmap partial page table
+      uint32_t pages = unmap_size / PAGE_SIZE;
+
+      for (uint32_t i = 0; i < pages; i++) {
+        if (pt_virt[pt_index + i] & PD_PT_PRESENT) {
+          pt_virt[pt_index + i] = 0;
+        }
+      }
+
+      va += unmap_size;
+    }
   }
-  uint32_t *pt = physical_access(pd_virt[pd_index] & ~0xFFF);
-  pt[pt_index] = pa | (flags & 0xFFF) | PD_PT_PRESENT;
 
-  __asm__ volatile("invlpg (%0)" : : "r"(va) : "memory");
+  if (size > PAGE_SIZE) {
+    // Flush TLB for entire range (CR3 reload for efficiency)
+    __asm__ volatile("mov %%cr3, %%eax\n"
+                     "mov %%eax, %%cr3\n" ::
+                         : "eax", "memory");
+  }
   return true;
+}
+
+bool vm_map(page_dir_t *pd_virt, vaddr_t va, paddr_t pa, uint32_t flags) {
+  bool res = vm_map_range(pd_virt, pa, va, PAGE_SIZE, flags);
+  if (res) {
+    tlb_flush(va);
+  }
+  return res;
 }
 
 bool vm_unmap(page_dir_t *pd_virt, vaddr_t virt_addr) {
-  virt_addr = align_down(virt_addr, PAGE_SIZE);
-
-  uint32_t pd_index = virt_addr >> 22;
-  uint32_t pt_index = (virt_addr >> 12) & 0x3FF;
-
-  if (!(pd_virt[pd_index] & PD_PT_PRESENT)) {
-    return false;
+  bool res = vm_unmap_range(pd_virt, virt_addr, PAGE_SIZE);
+  if (res) {
+    tlb_flush(virt_addr);
   }
-  uint32_t *pt_virt = physical_access(pd_virt[pd_index] & ~0xFFF);
-  if (!(pt_virt[pt_index] & PD_PT_PRESENT)) {
-    return false;
-  }
-
-  paddr_t pa = pt_virt[pt_index] & ~0xFFF;
-  pt_virt[pt_index] = 0;
-
-  tlb_flush(virt_addr);
-  pmm_frame_free(pa);
-  return true;
-}
-
-void vmspace_switch(vmspace_t *vmspace) {
-  asm volatile("mov %0, %%cr3" ::"r"(vmspace->pd_phys));
+  return res;
 }
 
 void pd_destroy(page_dir_t *pd) {

@@ -1,6 +1,7 @@
 #pragma once
 #include "pmm.h"
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 // FLAGS
@@ -25,9 +26,11 @@ typedef uint32_t vaddr_t;
 bool vm_map(uint32_t *pd, vaddr_t va, paddr_t pa, uint32_t flags);
 bool vm_unmap(uint32_t *pd, vaddr_t va);
 paddr_t vm_translate(uint32_t *pd, vaddr_t va);
+// Efficient range mapping
+bool vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
+                  size_t size, uint32_t flags);
+// Efficient range unmapping
+bool vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size);
 
 // Virtual Memory Space
-vmspace_t *user_vmspace_creat();
-void kernel_vmspace_creat(vmspace_t *vmspace);
-void vmspace_destroy(vmspace_t *vmspace);
-void vmspace_switch(vmspace_t *vmspace);
+void pd_switch(page_dir_t *pd);

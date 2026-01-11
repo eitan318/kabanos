@@ -1,39 +1,37 @@
 OUTPUT_FORMAT("elf32-i386")
-ENTRY (_start)
+ENTRY (kernel_start)
+KERNEL_BASE_VIRT = 0xC0000000;
+KERNEL_BASE_PHYS = 0x00100000;
 
 SECTIONS
 {
-        . = 0x00100000;
-	/* The kernel will live at 3GB + 1MB in the virtual address space, */
-	/* which will be mapped to 1MB in the physical address space. */
-	/* Note that we page-align the sections. */
+    . = KERNEL_BASE_PHYS;
+    .multiboot.data : {
+        *(.multiboot.data)
+    }
 
-        .multiboot.data : {
-            *(.multiboot.data)
-        }
+   .multiboot.text : {
+       *(.multiboot.text)
+    }
 
-       .multiboot.text : {
-           *(.multiboot.text)
-       }
-
-	. += 0xC0000000;
+	. += KERNEL_BASE_VIRT;
 
 	_kernel_start = .;
-	/* Add a symbol that indicates the start address of the kernel. */
-	.text ALIGN (4K) : AT (ADDR (.text) - 0xC0000000)
+
+	.text ALIGN (4K) : AT (ADDR (.text) - KERNEL_BASE_VIRT)
 	{
 		*(.text)
 	}
-	.rodata ALIGN (4K) : AT (ADDR (.rodata) - 0xC0000000)
+	.rodata ALIGN (4K) : AT (ADDR (.rodata) - KERNEL_BASE_VIRT)
 	{
 		*(.rodata)
 	}
-	.data ALIGN (4K) : AT (ADDR (.data) - 0xC0000000)
+	.data ALIGN (4K) : AT (ADDR (.data) - KERNEL_BASE_VIRT)
 	{
 		*(.data)
 	}
     _bss_start = .;
-	.bss ALIGN (4K) : AT (ADDR (.bss) - 0xC0000000)
+	.bss ALIGN (4K) : AT (ADDR (.bss) - KERNEL_BASE_VIRT)
 	{
 		*(COMMON)
 		*(.bss)
@@ -41,7 +39,6 @@ SECTIONS
 	}
     _bss_end = .;
 
-	/* Add a symbol that indicates the end address of the kernel. */
 	_kernel_end = .;
 }
 

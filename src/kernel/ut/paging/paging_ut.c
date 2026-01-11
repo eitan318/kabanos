@@ -2,6 +2,7 @@
 #include "memory_management/early_pmm.h"
 #include "memory_management/pmm.h"
 #include "memory_management/vmm.h"
+#include "memory_management/vmspace.h"
 #include "ut/ut_framework.h"
 
 static page_dir_t *g_pd;
@@ -95,7 +96,7 @@ int ut_different_page_tables(void) {
 }
 
 static int suite_setup() {
-  kernel_vmspace_creat(g_vmspace);
+  kernel_vmspace_create(g_vmspace);
   g_pd = g_vmspace->pd;
   if (!g_pd)
     return UT_FAIL;

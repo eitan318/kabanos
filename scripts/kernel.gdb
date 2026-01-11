@@ -2,7 +2,7 @@ file build/out/kernel/kernel.elf
 target remote localhost:1234
 set architecture i386
 set disassembly-flavor intel
-b kmain 
+b kernel_start 
 c
 lay src
 
