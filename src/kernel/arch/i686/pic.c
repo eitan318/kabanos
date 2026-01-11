@@ -1,10 +1,6 @@
 #include "pic.h"
 #include "hal/io.h"
 
-// Track which IRQs are masked
-static uint8_t pic1_mask = 0xFF; // Start with all masked
-static uint8_t pic2_mask = 0xFF;
-
 // Initialize the PIC (Programmable Interrupt Controller)
 void pic_init() {
   // ICW1: Initialize PIC
@@ -24,9 +20,7 @@ void pic_init() {
   io_write8(PIC1_DATA, 0x01);
   io_write8(PIC2_DATA, 0x01);
 
-  // Mask all interrupts initially
-  io_write8(PIC1_DATA, pic1_mask);
-  io_write8(PIC2_DATA, pic2_mask);
+  pic_disable();
 }
 
 // Unmask (enable) a specific IRQ
@@ -66,3 +60,10 @@ void pic_send_eoi(uint8_t irq) {
   }
   io_write8(PIC1_COMMAND, PIC_EOI);
 }
+
+void pic_disable() {
+  // Mask all interrupts to disable PICs
+  io_write8(PIC1_DATA, 0xff);
+  io_write8(PIC2_DATA, 0xff);
+}
+
