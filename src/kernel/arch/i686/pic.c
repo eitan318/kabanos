@@ -35,13 +35,13 @@ void pic_unmask_irq(uint8_t irq) {
 
   if (irq < 8) {
     port = PIC1_DATA;
-    pic1_mask &= ~(1 << irq);
-    io_write8(port, pic1_mask);
   } else {
     port = PIC2_DATA;
-    pic2_mask &= ~(1 << (irq - 8));
-    io_write8(port, pic2_mask);
+	irq -=8;
   }
+  
+  uint8_t unmask = io_read8(port);
+  io_write8(port, unmask & ~(1 << irq));
 }
 
 // Mask (disable) a specific IRQ
@@ -50,13 +50,13 @@ void pic_mask_irq(uint8_t irq) {
 
   if (irq < 8) {
     port = PIC1_DATA;
-    pic1_mask |= (1 << irq);
-    io_write8(port, pic1_mask);
   } else {
     port = PIC2_DATA;
-    pic2_mask |= (1 << (irq - 8));
-    io_write8(port, pic2_mask);
+	irq -= 8;
   }
+  
+  uint8_t mask = io_read8(port);
+  io_write8(port, mask | (1 << irq));
 }
 
 // Send End of Interrupt
