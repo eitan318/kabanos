@@ -12,6 +12,7 @@
 #include "modules/modules.h"
 #include "process/schedualer.h"
 #include "ut/ata/ata_ut_main.h"
+#include "ut/frame_allocator/frame_allocator_ut_main.h"
 #include "ut/keyboard_driver.h"
 #include "ut/paging/paging_ut_main.h"
 #include "utils/range.h"
@@ -26,6 +27,8 @@ Range g_kernel_phys_range;
 
 extern uint8_t _bss_start[], _bss_end[];
 void kmain(uint32_t mb2_ptr) {
+  debugf("[Kernel starting...]\n");
+
   extern uint8_t _kernel_start[], _kernel_end[];
   g_kernel_virt_range.start = (uintptr_t)&_kernel_start;
   g_kernel_virt_range.end = (uintptr_t)&_kernel_end;
@@ -39,7 +42,6 @@ void kmain(uint32_t mb2_ptr) {
 
   uintptr_t bss_size = (uintptr_t)(_bss_end - _bss_start);
   // memset(&_bss_start[0], 0, bss_size);
-  debugf("[Kernel starting...]\n");
 
   Range total_memory_range = get_memory_range(&kernel_boot_info->memory_map);
   size_t count;
@@ -67,6 +69,8 @@ void kmain(uint32_t mb2_ptr) {
   asm volatile("sti");
 
   kmalloc_init();
+  ut_frame_allocator_main();
+  ut_paging_main();
 
   if (!fat_initialize(34, 0)) {
     debugf("Failed to initialize FAT\n");
