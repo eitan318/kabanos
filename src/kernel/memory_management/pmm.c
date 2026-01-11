@@ -85,8 +85,9 @@ void pmm_frame_free(uint64_t frame_addr) {
   mark_frame_free(frame);
 }
 
-void pmm_init(Range memory_range, Range *used_ranges, int used_ranges_count) {
-  memory_range = range_align_outward(memory_range, FRAME_SIZE);
+void pmm_init(Range total_memory_range, Range *used_ranges,
+              int used_ranges_count) {
+  memory_range = range_align_outward(total_memory_range, FRAME_SIZE);
   total_frames = (memory_range.end - memory_range.start) / FRAME_SIZE;
   if (total_frames > MAX_FRAMES) {
     debugf("Memory range greater than max frames!");
