@@ -56,8 +56,8 @@ bool elf_read(Partition *part, const char *path, void **entryPoint) {
         (ELFProgramHeader *)(headerBuffer + i * programHeaderTableEntrySize);
     if (progHeader->Type == ELF_PROGRAM_TYPE_LOAD) {
       // TODO: validate that the program doesn't overwrite the stage2
-      uint8_t *virtAddress = (uint8_t *)progHeader->VirtualAddress;
-      memset(virtAddress, 0, progHeader->MemorySize);
+      uint8_t *physAddress = (uint8_t *)progHeader->PhysicalAddress;
+      memset(physAddress, 0, progHeader->MemorySize);
 
       // ugly nasty seeking
       // TODO: proper seeking
@@ -84,8 +84,8 @@ bool elf_read(Partition *part, const char *path, void **entryPoint) {
         }
         progHeader->FileSize -= read;
         // here
-        memcpy(virtAddress, loadBuffer, read);
-        virtAddress += read;
+        memcpy(physAddress, loadBuffer, read);
+        physAddress += read;
       }
 
       fat_close(fd);

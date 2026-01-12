@@ -1,10 +1,9 @@
 #include "pmm.h"
-#include "boot/bootparams.h"
 #include "include/stdio.h"
-#include "memory_management/boot_allocator.h"
-#include "memory_management/vmm.h"
 #include "utils/bitmap.h"
+#include "utils/math.h"
 #include "utils/range.h"
+#include <string.h>
 
 #define MAX_FRAMES (1024 * 1024)               // 4GB worth of 4KB frames
 #define MAX_BITMAP_SIZE ((MAX_FRAMES + 7) / 8) // 128KB
@@ -86,19 +85,24 @@ void pmm_frame_free(uint64_t frame_addr) {
   mark_frame_free(frame);
 }
 
-void pmm_init(Range memory_range, Range *used_ranges, int used_ranges_count) {
-  memory_range = range_align_outward(memory_range, FRAME_SIZE);
+void pmm_init(Range total_memory_range, Range *used_ranges,
+              int used_ranges_count) {
+  memory_range = range_align_outward(total_memory_range, FRAME_SIZE);
   total_frames = (memory_range.end - memory_range.start) / FRAME_SIZE;
   if (total_frames > MAX_FRAMES) {
     debugf("Memory range greater than max frames!");
     total_frames = MAX_FRAMES;
-    memory_range.end = memory_range.start + (MAX_FRAMES * FRAME_SIZE);
+    memory_range.end = memory_range.start + ((uint64_t)MAX_FRAMES * FRAME_SIZE);
   }
 
-  bitmap_size_bytes = (total_frames + 7) / 8;
+  bitmap_size_bytes = align_up(total_frames, 8);
+  memset(bitmap, 0, bitmap_size_bytes);
 
   used_frames = 0;
   mark_frame_used(0); // for alloc to return 0 on err, frame 0 must be used
+  for (int i = 0; i < used_ranges_count; i++) {
+    pmm_mark_range_used(used_ranges[i].start, used_ranges[i].end);
+  }
 }
 
 // -1 because the real count of usable frames does not include first frame

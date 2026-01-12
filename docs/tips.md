@@ -56,3 +56,36 @@ after popa and pop ds and skip err and int:
 0xc0103fec:     0x001083aa      0x0000001b      0x00000202      0xc0001000
 0xc0103ffc:     0x00000023      Cannot access memory at address 0xc0104000
 (gdb)
+
+PROB:
+  vmspace->pd = physical_access(pd_phys);
+  vmspace->pd_phys = pd_phys;
+  memset(vmspace->pd, 0, PAGE_SIZE);
+
+
+│    0xc0107d5a <kernel_vmspace_creat+30>    call   0xc010796f <physical_access>          │
+│    0xc0107d5f <kernel_vmspace_creat+35>    add    esp,0x10                              │
+│    0xc0107d62 <kernel_vmspace_creat+38>    mov    edx,DWORD PTR [ebp+0x8]               │
+│  > 0xc0107d65 <kernel_vmspace_creat+41>    mov    DWORD PTR [edx],eax                   │
+│    0xc0107d67 <kernel_vmspace_creat+43>    mov    eax,DWORD PTR [ebp+0x8]               │
+│    0xc0107d6a <kernel_vmspace_creat+46>    mov    edx,DWORD PTR [ebp-0xc]               │
+│    0xc0107d6d <kernel_vmspace_creat+49>    mov    DWORD PTR [eax+0x4],edx               │
+│    0xc0107d70 <kernel_vmspace_creat+52>    mov    eax,DWORD PTR [ebp+0x8]               │
+│    0xc0107d73 <kernel_vmspace_creat+55>    mov    eax,DWORD PTR [eax]                   │
+
+
+
+(gdb) p/x $edx
+$2 = 0xc0149000
+(gdb)
+
+TO THINK ABOUT:
+kmain(kernel_boot_info);     ■ Passing 'KernelBootInfo' to parameter of incompatible type 'void *'
+
+also, what is better? wraping in vspace struct? or allocating new page dir for vmspace? also how to alloc vmspace itself?
+
+also, should I copy the kernel params and free early pmm? 
+
+
+TODO:
+Check if stack created below kernel in entry is not overriden by pmm alocations

@@ -1,7 +1,8 @@
 #include "boot/bootparams.h"
-#include "memory_management/boot_allocator.h"
+#include "memory_management/early_pmm.h"
 #include "memory_management/pmm.h"
 #include "memory_management/vmm.h"
+#include "memory_management/vmspace.h"
 #include "ut/ut_framework.h"
 
 static page_dir_t *g_pd;
@@ -95,14 +96,14 @@ int ut_different_page_tables(void) {
 }
 
 static int suite_setup() {
-  g_vmspace = kernel_vmspace_creat();
+  Range mem = {0, 64 * 1024 * 1024};
+  kernel_vmspace_create(g_vmspace, mem);
   g_pd = g_vmspace->pd;
   if (!g_pd)
     return UT_FAIL;
 
   vmspace_switch(g_vmspace);
 
-  Range mem = {0, 64 * 1024 * 1024};
   Range used[] = {{0, 0x100000}, {0x200000, 0x300000}};
   pmm_init(mem, used, 2);
 
