@@ -3,8 +3,8 @@
 #include <stdint.h>
 
 typedef struct Range {
-  uint64_t start;
-  uint64_t end;
+  uintptr_t start;
+  uintptr_t end;
 } Range;
 
 Range range_clamp(Range src, Range boundry);

@@ -1,7 +1,7 @@
 #include "kmalloc.h"
-#include "memory_management/frame_allocator.h"
 #include "memory_management/memdefs.h"
-#include "memory_management/paging.h"
+#include "memory_management/pmm.h"
+#include "memory_management/vmspace.h"
 #include <string.h>
 
 // Size classes for slab allocator (in bytes)
@@ -35,7 +35,7 @@ static kmalloc_stats_t stats = {0};
 
 static uint32_t next_heap_addr = KERNEL_HEAP_START;
 
-PageDirectory *kernel_page_directory;
+page_dir_t *kernel_page_directory;
 
 /**
  * Allocate a page from the kernel heap
@@ -46,15 +46,15 @@ static void *heap_page_alloc(void) {
   }
 
   // Allocate physical frame
-  uint32_t physical = frame_alloc();
+  uint32_t physical = pmm_frame_alloc();
   if (physical == 0) {
     return NULL;
   }
 
   // Map it to virtual address
   uint32_t virtual = next_heap_addr;
-  if (!paging_map(kernel_page_directory, virtual, physical, PAGE_WRITABLE)) {
-    frame_free(physical);
+  if (!vm_map(kernel_page_directory, virtual, physical, PAGE_READWRITE)) {
+    pmm_frame_free(physical);
     return NULL;
   }
 
@@ -67,14 +67,13 @@ static void *heap_page_alloc(void) {
  */
 static void heap_page_free(void *ptr) {
   uint32_t virtual = (uint32_t)ptr;
-  uint32_t physical = paging_get_physical(kernel_page_directory, virtual);
+  uint32_t physical = vm_translate(kernel_page_directory, virtual);
 
   if (physical) {
-    paging_unmap(kernel_page_directory, virtual);
-    frame_free(physical);
+    vm_unmap(kernel_page_directory, virtual);
+    pmm_frame_free(physical);
   }
 }
-
 /**
  * Create a new slab for the given cache
  */
@@ -167,7 +166,7 @@ static kmem_cache_t *cache_for_size(size_t size) {
  * Initialize the kernel memory allocator
  */
 
-void kmalloc_init(PageDirectory *_kernel_page_directory) {
+void kmalloc_init() {
   // Initialize each cache
   for (size_t i = 0; i < NUM_SIZE_CLASSES; i++) {
     caches[i].partial_slabs = NULL;
@@ -180,7 +179,8 @@ void kmalloc_init(PageDirectory *_kernel_page_directory) {
     caches[i].objects_per_slab = available / SIZE_CLASSES[i];
   }
 
-  kernel_page_directory = _kernel_page_directory;
+  extern vmspace_t *g_kernel_vmspace;
+  kernel_page_directory = g_kernel_vmspace->pd;
 }
 
 /**

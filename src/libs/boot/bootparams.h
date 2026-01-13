@@ -3,7 +3,9 @@
 #include <stdint.h>
 
 #define MAX_MODULES 16
+#define MAX_MEMORY_REGIONS 256
 
+#define BOOT_PARAMS_PHYSICAL_ADDR 0x00008000 // 32KB mark (safe location)
 typedef struct DiskParams {
   uint8_t hdds_count;
   uint8_t drive_id;
@@ -41,24 +43,6 @@ typedef struct {
   int entries_count;
   MBRPartitionEntry *partition_entries;
 } PartitionTable;
-
-enum E820MemoryBlockType {
-  E820_USABLE = 1,
-  E820_RESERVED = 2,
-  E820_ACPI_RECLAIMABLE = 3,
-  E820_ACPI_NVS = 4,
-  E820_BAD_MEMORY = 5,
-};
-
-typedef struct {
-  uint64_t base, length;
-  uint32_t type, acpi_flag, reserved1, reserved2;
-} __attribute__((packed)) MemoryRegion;
-
-typedef struct {
-  int region_count;
-  MemoryRegion *regions;
-} MemoryMap;
 
 // Structure to pass CPU info to kernel
 typedef struct {
@@ -137,25 +121,60 @@ typedef struct {
 
 } CPUInfo;
 
-// Module structure
-typedef struct {
-  void *start;
-  void *end;
-  char *path;
-  uint32_t size;
-  int loaded;
-  void *module_data; // Module-specific data after loading
-} Module;
+enum E820MemoryBlockType {
+  E820_USABLE = 1,
+  E820_RESERVED = 2,
+  E820_ACPI_RECLAIMABLE = 3,
+  E820_ACPI_NVS = 4,
+  E820_BAD_MEMORY = 5,
+};
 
-typedef struct {
-  PartitionTable partition_table;
-  DiskParams disk_params;
-  MemoryMap memory_map;
-  CPUInfo cpu_info;
-  char *cmdline_buffer;
-  int cmdline_size;
-  void *initrd_start;
-  uint32_t initrd_size;
-  Module modules[MAX_MODULES];
-  int module_count;
-} BootParams;
+#define MULTIBOOT2_MAGIC 0x36d76289
+
+#define MB2_TAG_END 0
+#define MB2_TAG_CMDLINE 1
+#define MB2_TAG_BOOT_LOADER_NAME 2
+#define MB2_TAG_MODULE 3
+#define MB2_TAG_MMAP 6
+
+typedef struct mb2_tag_t {
+  uint32_t type;
+  uint32_t size; // size of tag including header
+} __attribute__((packed)) mb2_tag_t;
+
+// Command line tag
+typedef struct mb2_tag_string_t {
+  mb2_tag_t tag;
+  char string[];
+} __attribute__((packed)) mb2_tag_string_t;
+
+// Module tag
+typedef struct mb2_tag_module_t {
+  mb2_tag_t tag;
+  uint32_t mod_start;
+  uint32_t mod_end;
+  char cmdline[];
+} __attribute__((packed)) mb2_tag_module_t;
+
+// Memory map entry
+typedef struct mb2_mmap_entry_t {
+  uint64_t addr; // start of region
+  uint64_t len;  // length of region
+  uint32_t type;
+  uint32_t reserved;
+} __attribute__((packed)) mb2_mmap_entry_t;
+
+// Memory map tag
+typedef struct mb2_tag_mmap_t {
+  mb2_tag_t tag;
+  uint32_t entry_size;        // sizeof(mb2_mmap_entry)
+  uint32_t entry_version;     // usually 0
+  mb2_mmap_entry_t entries[]; // flexible array
+} __attribute__((packed)) mb2_tag_mmap_t;
+
+// Full mb2 info pointer
+typedef struct mb2_info_t {
+  uint32_t total_size;
+  uint32_t reserved;
+  uint8_t tags[]; // pointer to first tag (walk tags using tag->size)
+} __attribute__((packed)) mb2_info_t;

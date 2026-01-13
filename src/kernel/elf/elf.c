@@ -3,11 +3,12 @@
 #include "include/memory.h"
 #include "include/stdio.h"
 #include "include/string.h"
-#include "kmalloc.h"
-#include "memory_management/frame_allocator.h"
-#include "memory_management/paging.h"
+#include "memory_management/kmalloc.h"
+#include "memory_management/pmm.h"
+#include "memory_management/vmm.h"
+#include "utils/math.h"
 
-void *elf_load(PageDirectory *page_dir, const char *filepath) {
+void *elf_load(page_dir_t *page_dir, const char *filepath) {
   // Read entire ELF file into memory
   void *elf_data = NULL;
   uint32_t elf_size = 0;
@@ -67,31 +68,31 @@ void *elf_load(PageDirectory *page_dir, const char *filepath) {
     }
 
     // Calculate number of pages needed
-    uint32_t virt_start = paging_virt_addr_align_down(prog_hdr->VirtualAddress);
-    uint32_t virt_end = paging_virt_addr_align_up(prog_hdr->VirtualAddress +
-                                                  prog_hdr->MemorySize);
+    uint32_t virt_start = align_down(prog_hdr->VirtualAddress, PAGE_SIZE);
+    uint32_t virt_end =
+        align_up(prog_hdr->VirtualAddress + prog_hdr->MemorySize, PAGE_SIZE);
     uint32_t num_pages = (virt_end - virt_start) / PAGE_SIZE;
 
     // Determine page flags
     uint32_t page_flags = PAGE_USER;
     if (prog_hdr->Flags & ELF_PROGRAM_FLAG_WRITABLE) {
-      page_flags |= PAGE_WRITABLE;
+      page_flags |= PAGE_READWRITE;
     }
 
     // Allocate and map pages
     for (uint32_t page = 0; page < num_pages; page++) {
       uint32_t virt_addr = virt_start + (page * PAGE_SIZE);
 
-      uint32_t phys_addr = frame_alloc();
+      uint32_t phys_addr = pmm_frame_alloc();
       if (phys_addr == 0) {
         debugf("ELF: Failed to allocate frame\n");
         kfree(elf_data);
         return NULL;
       }
 
-      if (!paging_map(page_dir, virt_addr, phys_addr, page_flags)) {
+      if (!vm_map(page_dir, virt_addr, phys_addr, page_flags)) {
         debugf("ELF: Failed to map page at 0x%x\n", virt_addr);
-        frame_free(phys_addr);
+        pmm_frame_free(phys_addr);
         kfree(elf_data);
         return NULL;
       }
@@ -107,7 +108,7 @@ void *elf_load(PageDirectory *page_dir, const char *filepath) {
       for (uint32_t offset = 0; offset < prog_hdr->FileSize;
            offset += PAGE_SIZE) {
         uint32_t virt_addr = prog_hdr->VirtualAddress + offset;
-        uint32_t phys_addr = paging_get_physical(page_dir, virt_addr);
+        uint32_t phys_addr = vm_translate(page_dir, virt_addr);
 
         if (phys_addr == 0) {
           debugf("ELF: Failed to get physical address\n");

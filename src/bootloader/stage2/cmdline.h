@@ -3,6 +3,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 
+#define MODULE_PATH_SIZE 256
+
 typedef struct {
   int width;
   int height;
@@ -14,7 +16,7 @@ typedef struct {
 typedef struct {
   char *kernel;
   char *initrd;
-  Module modules[MAX_MODULES];
+  char **modules_paths;
   int module_count;
   VideoMode video;
   char *cmdline;
