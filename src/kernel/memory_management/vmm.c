@@ -27,7 +27,8 @@ paddr_t vm_translate(page_dir_t *pd, vaddr_t va) {
     return 0; // not mapped
   }
 
-  uint32_t *pt_virt = (uint32_t *)(pd[pd_index] & ~0xFFF);
+  paddr_t pt_phys = (pd[pd_index] & ~0xFFF);
+  uint32_t *pt_virt = (uint32_t *)(pt_phys + KERNEL_BASE);
   if (!(pt_virt[pt_index] & PD_PT_PRESENT)) {
     return 0;
   }
@@ -61,15 +62,21 @@ bool vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
 
     // Check if we can map an entire page table at once
     if (pt_index == 0 && map_size >= (1024 * PAGE_SIZE)) {
-      // Fast path: map entire 4MB region
-      paddr_t pt_phys = pmm_frame_alloc();
-      if (!pt_phys) {
-        debugf("Alloc FAILED The allocator was out of memory!");
-        return false;
+      uint32_t *pt_virt = NULL;
+      paddr_t pt_phys;
+      if (pd_virt[pd_index] & PD_PT_PRESENT) {
+        // Reuse existing PT instead of allocating
+        pt_phys = pd_virt[pd_index] & ~0xFFF;
+        pt_virt = (uint32_t *)(pt_phys + KERNEL_BASE); // Remove "uint32_t *"
+      } else {
+        // Fast path: map entire 4MB region
+        pt_phys = pmm_frame_alloc();
+        if (!pt_phys) {
+          debugf("Alloc FAILED The allocator was out of memory!");
+          return false;
+        }
+        pt_virt = (uint32_t *)(pt_phys + KERNEL_BASE);
       }
-
-      uint32_t *pt_virt = (uint32_t *)(pt_phys + KERNEL_BASE);
-
       // Fill entire page table
       for (uint32_t i = 0; i < 1024; i++) {
         pt_virt[i] = (pa + i * PAGE_SIZE) | (flags & 0xFFF) | PD_PT_PRESENT;
@@ -103,6 +110,7 @@ bool vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
       for (uint32_t i = 0; i < pages; i++) {
         pt_virt[pt_index + i] =
             (pa + i * PAGE_SIZE) | (flags & 0xFFF) | PD_PT_PRESENT;
+        tlb_flush(va + i * PAGE_SIZE);
       }
 
       va += map_size;

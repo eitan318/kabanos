@@ -1,6 +1,7 @@
 #pragma once
 #include "arch/i686/isr/isr.h"
 #include "memory_management/vmm.h"
+#include "memory_management/vmspace.h"
 #include <stdint.h>
 
 #define PREEMPTIVE_INT 45

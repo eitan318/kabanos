@@ -34,10 +34,6 @@ void kernel_vmspace_create(vmspace_t *vmspace, Range total_memory_range) {
 
   // Map VGA buffer BEFORE switching
   vm_map(vmspace->pd, VGA_SCREEN_BUF, VGA_SCREEN_BUF_PHYS, PAGE_READWRITE);
-
-  // Map pd itself to heigher half and derefrance it
-  vm_map(vmspace->pd, vmspace->pd_phys + KERNEL_BASE, vmspace->pd_phys,
-         PAGE_READWRITE);
   vmspace->pd = (uint32_t *)(vmspace->pd_phys + KERNEL_BASE);
 }
 
@@ -55,7 +51,7 @@ vmspace_t *user_vmspace_creat() {
     return NULL;
   }
 
-  vmspace->pd = (uint32_t *)pd_phys;
+  vmspace->pd = (uint32_t *)(pd_phys + KERNEL_BASE);
   vmspace->pd_phys = pd_phys;
   memset(vmspace->pd, 0, PAGE_SIZE);
 

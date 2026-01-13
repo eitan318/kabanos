@@ -1,7 +1,7 @@
 #include "kmalloc.h"
 #include "memory_management/memdefs.h"
 #include "memory_management/pmm.h"
-#include "memory_management/vmm.h"
+#include "memory_management/vmspace.h"
 #include <string.h>
 
 // Size classes for slab allocator (in bytes)

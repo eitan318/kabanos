@@ -2,6 +2,11 @@
 #include "vmm.h"
 #include <stdint.h>
 
+typedef struct vmspace_t {
+  uint32_t *pd;
+  paddr_t pd_phys;
+} vmspace_t;
+
 // Create initial virtual memory space for kernel
 void kernel_vmspace_create(vmspace_t *vmspace, Range total_memory_range);
 // Create virtual memory space for user processes

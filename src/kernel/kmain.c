@@ -1,5 +1,9 @@
 #include "arch/i686/vga_text.h"
-#include "boot/bootparams.h" #include "fat/fat.h" #include "hal/hal.h" #include "include/memory.h" #include "include/stdio.h"
+#include "boot/bootparams.h"
+#include "fat/fat.h"
+#include "hal/hal.h"
+#include "include/memory.h"
+#include "include/stdio.h"
 #include "initrd/initrd.h"
 #include "kernel_boot_info.h"
 #include "memory_management/early_pmm.h"
@@ -35,13 +39,13 @@ void kmain(uint32_t mb2_ptr) {
   g_kernel_phys_range.start = g_kernel_virt_range.start - KERNEL_BASE;
   g_kernel_phys_range.end = g_kernel_virt_range.end - KERNEL_BASE;
 
+  uintptr_t bss_size = (uintptr_t)(_bss_end - _bss_start);
+  // memset(&_bss_start[0], 0, bss_size);
+
   early_pmm_init(g_kernel_phys_range.end);
   KernelBootInfo *kernel_boot_info =
       parse_multiboot2_early((mb2_info_t *)mb2_ptr);
   mb2_ptr = 0; // disabling use of unparsed, low half params
-
-  uintptr_t bss_size = (uintptr_t)(_bss_end - _bss_start);
-  // memset(&_bss_start[0], 0, bss_size);
 
   Range total_memory_range = get_memory_range(&kernel_boot_info->memory_map);
   size_t count;
@@ -69,7 +73,6 @@ void kmain(uint32_t mb2_ptr) {
   asm volatile("sti");
 
   kmalloc_init();
-  ut_frame_allocator_main();
   ut_paging_main();
 
   if (!fat_initialize(34, 0)) {

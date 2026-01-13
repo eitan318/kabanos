@@ -14,23 +14,15 @@
 #define PD_ENTRIES PAGE_SIZE / sizeof(uint32_t)
 
 typedef uint32_t page_dir_t;
-
-typedef struct vmspace_t {
-  uint32_t *pd;
-  paddr_t pd_phys;
-} vmspace_t;
-
 typedef uint32_t vaddr_t;
 
 // Virtual Memory Mapping
-bool vm_map(uint32_t *pd, vaddr_t va, paddr_t pa, uint32_t flags);
-bool vm_unmap(uint32_t *pd, vaddr_t va);
-paddr_t vm_translate(uint32_t *pd, vaddr_t va);
-// Efficient range mapping
+bool vm_map(page_dir_t *pd, vaddr_t va, paddr_t pa, uint32_t flags);
+bool vm_unmap(page_dir_t *pd, vaddr_t va);
+
+paddr_t vm_translate(page_dir_t *pd, vaddr_t va);
+
+// Efficient range mapping/Unmapping
 bool vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
                   size_t size, uint32_t flags);
-// Efficient range unmapping
 bool vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size);
-
-// Virtual Memory Space
-void pd_switch(page_dir_t *pd);

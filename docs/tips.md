@@ -89,3 +89,12 @@ also, should I copy the kernel params and free early pmm?
 
 TODO:
 Check if stack created below kernel in entry is not overriden by pmm alocations
+
+
+b vmspace.c:53
+
+B+> 0xc0101000 <e9_putc>    add    eax,DWORD PTR [eax]       │
+│    0xc0101002 <e9_putc+2>  and    BYTE PTR [eax],al         │
+│    0xc0101004 <e9_putc+4>  add    edx,DWORD PTR [eax]       │
+│    0xc0101006 <e9_putc+6>  and    BYTE PTR [eax],al         │
+│ 

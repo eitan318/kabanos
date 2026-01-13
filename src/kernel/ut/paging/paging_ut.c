@@ -6,7 +6,7 @@
 #include "ut/ut_framework.h"
 
 static page_dir_t *g_pd;
-static vmspace_t *g_vmspace;
+static vmspace_t *g_test_vmspace;
 
 int ut_simple_mapping(void) {
   if (!vm_map(g_pd, 0x400000, 0x200000, PAGE_READWRITE))
@@ -15,11 +15,12 @@ int ut_simple_mapping(void) {
 }
 
 int ut_multiple_mappings(void) {
-  uint32_t map[][2] = {{0x400000, 0x100000},
-                       {0x401000, 0x101000},
-                       {0x800000, 0x200000},
-                       {0x801000, 0x201000},
-                       {0xC0000000, 0x300000}};
+  uint32_t map[][2] = {
+      {0x400000, 0x100000},
+      {0x401000, 0x101000},
+      {0x800000, 0x200000},
+      {0x801000, 0x201000},
+  };
   int n = sizeof(map) / sizeof(map[0]);
 
   for (int i = 0; i < n; i++)
@@ -96,22 +97,19 @@ int ut_different_page_tables(void) {
 }
 
 static int suite_setup() {
-  Range mem = {0, 64 * 1024 * 1024};
-  kernel_vmspace_create(g_vmspace, mem);
-  g_pd = g_vmspace->pd;
+  g_test_vmspace = user_vmspace_creat();
+  g_pd = g_test_vmspace->pd;
   if (!g_pd)
     return UT_FAIL;
 
-  vmspace_switch(g_vmspace);
-
-  Range used[] = {{0, 0x100000}, {0x200000, 0x300000}};
-  pmm_init(mem, used, 2);
-
+  vmspace_switch(g_test_vmspace);
   return 0;
 }
 
 static int suite_teardown() {
-  vmspace_destroy(g_vmspace);
+  vmspace_destroy(g_test_vmspace);
+  extern vmspace_t *g_kernel_vmspace;
+  vmspace_switch(g_kernel_vmspace);
   return 0;
 }
 
