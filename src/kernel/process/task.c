@@ -78,7 +78,7 @@ void task_setup(TCB *t, void (*entry)(void), TaskMode mode) {
   // Map same physical frame into the process page table
   for (uint32_t off = 0; off < PROCESS_KERNEL_STACK_SIZE; off += PAGE_SIZE) {
     uint32_t va = kernel_stack_bottom + off;
-    uint32_t phys = vm_translate(g_kernel_vmspace->pd, va);
+    uint32_t phys = virt_to_phys(g_kernel_vmspace->pd, va);
     vm_map(page_dir, va, phys, PAGE_READWRITE);
   }
 

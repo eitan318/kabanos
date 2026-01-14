@@ -38,7 +38,7 @@ static inline uint32_t calc_remaining_in_pt(uint32_t pt_index) {
   return (PT_ENTRIES - pt_index) * PAGE_SIZE;
 }
 
-paddr_t vm_translate(page_dir_t *pd, vaddr_t va) {
+paddr_t virt_to_phys(page_dir_t *pd, vaddr_t va) {
   uint32_t pd_index = get_pd_index(va);
   uint32_t pt_index = get_pt_index(va);
 
@@ -286,10 +286,10 @@ bool vm_unmap(page_dir_t *pd_virt, vaddr_t virt_addr) {
 }
 
 //
-// Page Directory Cleanup
+// Page Directory Lifetime
 //
 
-void pd_destroy(page_dir_t *pd) {
+void vm_pd_destroy(page_dir_t *pd) {
   for (int i = 0; i < KERNEL_PD_START; i++) {
     if (pd[i] & PD_PT_PRESENT) {
       paddr_t pt_phys = pd[i] & ~0xFFF;
@@ -297,3 +297,5 @@ void pd_destroy(page_dir_t *pd) {
     }
   }
 }
+
+paddr_t vm_empty_pd_create() { return allocate_page_table(); }

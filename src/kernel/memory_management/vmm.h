@@ -20,9 +20,12 @@ typedef uint32_t vaddr_t;
 bool vm_map(page_dir_t *pd, vaddr_t va, paddr_t pa, uint32_t flags);
 bool vm_unmap(page_dir_t *pd, vaddr_t va);
 
-paddr_t vm_translate(page_dir_t *pd, vaddr_t va);
+paddr_t virt_to_phys(page_dir_t *pd, vaddr_t va);
 
 // Efficient range mapping/Unmapping
 bool vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
                   size_t size, uint32_t flags);
 bool vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size);
+
+paddr_t vm_empty_pd_create();
+void vm_pd_destroy(page_dir_t *pd);

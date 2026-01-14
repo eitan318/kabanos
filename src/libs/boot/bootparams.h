@@ -5,7 +5,7 @@
 #define MAX_MODULES 16
 #define MAX_MEMORY_REGIONS 256
 
-#define BOOT_PARAMS_PHYSICAL_ADDR 0x00008000 // 32KB mark (safe location)
+#define BOOT_PARAMS_PHYSICAL_ADDR 0x7A000
 typedef struct DiskParams {
   uint8_t hdds_count;
   uint8_t drive_id;

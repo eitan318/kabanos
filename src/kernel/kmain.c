@@ -73,6 +73,7 @@ void kmain(uint32_t mb2_ptr) {
   asm volatile("sti");
 
   kmalloc_init();
+  // ut_paging_main();
 
   if (!fat_initialize(34, 0)) {
     debugf("Failed to initialize FAT\n");
@@ -80,8 +81,9 @@ void kmain(uint32_t mb2_ptr) {
     }
   }
 
-  debugf("Testing tasks\n");
+  /*debugf("Testing tasks\n");
   test_tasks();
+  */
 
   for (;;) {
   }

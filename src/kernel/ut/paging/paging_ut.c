@@ -11,7 +11,7 @@ static vmspace_t *g_test_vmspace;
 int ut_simple_mapping(void) {
   if (!vm_map(g_pd, 0x400000, 0x200000, PAGE_READWRITE))
     return UT_FAIL;
-  return (vm_translate(g_pd, 0x400000) == 0x200000) ? UT_PASS : UT_FAIL;
+  return (virt_to_phys(g_pd, 0x400000) == 0x200000) ? UT_PASS : UT_FAIL;
 }
 
 int ut_multiple_mappings(void) {
@@ -28,7 +28,7 @@ int ut_multiple_mappings(void) {
       return UT_FAIL;
 
   for (int i = 0; i < n; i++)
-    if (vm_translate(g_pd, map[i][0]) != map[i][1])
+    if (virt_to_phys(g_pd, map[i][0]) != map[i][1])
       return UT_FAIL;
 
   return UT_PASS;
@@ -39,7 +39,7 @@ int ut_unmapping(void) {
     return UT_FAIL;
   if (!vm_unmap(g_pd, 0x400000))
     return UT_FAIL;
-  return (vm_translate(g_pd, 0x400000) == 0) ? UT_PASS : UT_FAIL;
+  return (virt_to_phys(g_pd, 0x400000) == 0) ? UT_PASS : UT_FAIL;
 }
 
 int ut_identity_mapping(void) {
@@ -53,7 +53,7 @@ int ut_identity_mapping(void) {
 
   for (uint32_t i = 0; i < n; i += 100) {
     uint32_t addr = i * PAGE_SIZE;
-    if (vm_translate(g_pd, addr) != addr)
+    if (virt_to_phys(g_pd, addr) != addr)
       return UT_FAIL;
   }
 
@@ -66,7 +66,7 @@ int ut_page_offset_preservation(void) {
 
   uint32_t off[] = {0, 1, 0x100, 0x500, 0xFFF};
   for (int i = 0; i < 5; i++)
-    if (vm_translate(g_pd, 0x400000 + off[i]) != 0x200000 + off[i])
+    if (virt_to_phys(g_pd, 0x400000 + off[i]) != 0x200000 + off[i])
       return UT_FAIL;
 
   return UT_PASS;
@@ -74,7 +74,7 @@ int ut_page_offset_preservation(void) {
 
 int ut_unmap_nonexistent(void) {
   vm_unmap(g_pd, 0x400000);
-  return (vm_translate(g_pd, 0x400000) == 0) ? UT_PASS : UT_FAIL;
+  return (virt_to_phys(g_pd, 0x400000) == 0) ? UT_PASS : UT_FAIL;
 }
 
 int ut_remap_page(void) {
@@ -82,7 +82,7 @@ int ut_remap_page(void) {
     return UT_FAIL;
   if (!vm_map(g_pd, 0x400000, 0x300000, PAGE_READWRITE))
     return UT_FAIL;
-  return (vm_translate(g_pd, 0x400000) == 0x300000) ? UT_PASS : UT_FAIL;
+  return (virt_to_phys(g_pd, 0x400000) == 0x300000) ? UT_PASS : UT_FAIL;
 }
 
 int ut_different_page_tables(void) {
@@ -91,8 +91,8 @@ int ut_different_page_tables(void) {
   if (!vm_map(g_pd, 0x800000, 0x200000, PAGE_READWRITE))
     return UT_FAIL;
 
-  uint32_t r1 = vm_translate(g_pd, 0x400000);
-  uint32_t r2 = vm_translate(g_pd, 0x800000);
+  uint32_t r1 = virt_to_phys(g_pd, 0x400000);
+  uint32_t r2 = virt_to_phys(g_pd, 0x800000);
   return (r1 == 0x100000 && r2 == 0x200000) ? UT_PASS : UT_FAIL;
 }
 

@@ -108,7 +108,7 @@ void *elf_load(page_dir_t *page_dir, const char *filepath) {
       for (uint32_t offset = 0; offset < prog_hdr->FileSize;
            offset += PAGE_SIZE) {
         uint32_t virt_addr = prog_hdr->VirtualAddress + offset;
-        uint32_t phys_addr = vm_translate(page_dir, virt_addr);
+        uint32_t phys_addr = virt_to_phys(page_dir, virt_addr);
 
         if (phys_addr == 0) {
           debugf("ELF: Failed to get physical address\n");

@@ -67,7 +67,7 @@ static void *heap_page_alloc(void) {
  */
 static void heap_page_free(void *ptr) {
   uint32_t virtual = (uint32_t)ptr;
-  uint32_t physical = vm_translate(kernel_page_directory, virtual);
+  uint32_t physical = virt_to_phys(kernel_page_directory, virtual);
 
   if (physical) {
     vm_unmap(kernel_page_directory, virtual);
