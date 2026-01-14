@@ -1,10 +1,6 @@
 #include "pic.h"
 #include "hal/io.h"
 
-// Track which IRQs are masked
-static uint8_t pic1_mask = 0xFF; // Start with all masked
-static uint8_t pic2_mask = 0xFF;
-
 // Initialize the PIC (Programmable Interrupt Controller)
 void pic_init() {
   // ICW1: Initialize PIC
@@ -24,9 +20,7 @@ void pic_init() {
   io_write8(PIC1_DATA, 0x01);
   io_write8(PIC2_DATA, 0x01);
 
-  // Mask all interrupts initially
-  io_write8(PIC1_DATA, pic1_mask);
-  io_write8(PIC2_DATA, pic2_mask);
+  pic_disable();
 }
 
 // Unmask (enable) a specific IRQ
@@ -35,13 +29,13 @@ void pic_unmask_irq(uint8_t irq) {
 
   if (irq < 8) {
     port = PIC1_DATA;
-    pic1_mask &= ~(1 << irq);
-    io_write8(port, pic1_mask);
   } else {
     port = PIC2_DATA;
-    pic2_mask &= ~(1 << (irq - 8));
-    io_write8(port, pic2_mask);
+	irq -=8;
   }
+  
+  uint8_t unmask = io_read8(port);
+  io_write8(port, unmask & ~(1 << irq));
 }
 
 // Mask (disable) a specific IRQ
@@ -50,13 +44,13 @@ void pic_mask_irq(uint8_t irq) {
 
   if (irq < 8) {
     port = PIC1_DATA;
-    pic1_mask |= (1 << irq);
-    io_write8(port, pic1_mask);
   } else {
     port = PIC2_DATA;
-    pic2_mask |= (1 << (irq - 8));
-    io_write8(port, pic2_mask);
+	irq -= 8;
   }
+  
+  uint8_t mask = io_read8(port);
+  io_write8(port, mask | (1 << irq));
 }
 
 // Send End of Interrupt
@@ -66,3 +60,10 @@ void pic_send_eoi(uint8_t irq) {
   }
   io_write8(PIC1_COMMAND, PIC_EOI);
 }
+
+void pic_disable() {
+  // Mask all interrupts to disable PICs
+  io_write8(PIC1_DATA, 0xff);
+  io_write8(PIC2_DATA, 0xff);
+}
+

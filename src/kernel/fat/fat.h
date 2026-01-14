@@ -27,7 +27,7 @@ typedef struct __attribute__((packed)) {
 } FAT_DirectoryEntry;
 
 // Initialize FAT filesystem with partition offset
-bool fat_initialize(uint32_t partition_lba, uint32_t partition_size);
+bool fat_initialize(uint32_t partition_lba);
 
 // Open a file
 FAT_File *fat_open(const char *path);
