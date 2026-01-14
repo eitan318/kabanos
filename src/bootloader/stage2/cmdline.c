@@ -109,7 +109,7 @@ void bcd_parse_into(char *boot_config, BCD *out) {
       out->cmdline = line + 8;
     } else if (starts_with(line, "module=")) {
       if (out->module_count < MAX_MODULES) {
-        out->modules[out->module_count].path = line + 7;
+        out->modules_paths[out->module_count] = line + 7;
         out->module_count++;
       }
     }

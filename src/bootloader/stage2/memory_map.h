@@ -4,13 +4,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-enum E820MemoryBlockType {
-  E820_USABLE = 1,
-  E820_RESERVED = 2,
-  E820_ACPI_RECLAIMABLE = 3,
-  E820_ACPI_NVS = 4,
-  E820_BAD_MEMORY = 5,
-};
+typedef struct {
+  uint64_t base, length;
+  uint32_t type, acpi_flag, reserved1, reserved2;
+} __attribute__((packed)) MemoryRegion;
+
+typedef struct {
+  int region_count;
+  MemoryRegion *regions;
+} MemoryMap;
 
 int __attribute__((cdecl))
 x86_e820_get_next_block(MemoryRegion *block, uint32_t *continuationId);

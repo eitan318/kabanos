@@ -6,8 +6,9 @@
 #include "stdio.h"
 
 bool elf_read(Partition *part, const char *path, void **entryPoint) {
-  uint8_t *headerBuffer = MEMORY_ELF_ADDR;
-  uint8_t *loadBuffer = MEMORY_LOAD_KERNEL;
+  uint8_t *headerBuffer = MEMORY_STAGE2_ELF_BUFFER;
+  uint8_t *loadBuffer = MEMORY_STAGE2_LOAD_BUFFER;
+
   uint32_t filePos = 0;
   uint32_t read;
 
@@ -55,14 +56,15 @@ bool elf_read(Partition *part, const char *path, void **entryPoint) {
         (ELFProgramHeader *)(headerBuffer + i * programHeaderTableEntrySize);
     if (progHeader->Type == ELF_PROGRAM_TYPE_LOAD) {
       // TODO: validate that the program doesn't overwrite the stage2
-      uint8_t *virtAddress = (uint8_t *)progHeader->VirtualAddress;
-      memset(virtAddress, 0, progHeader->MemorySize);
+      uint8_t *physAddress = (uint8_t *)progHeader->PhysicalAddress;
+      memset(physAddress, 0, progHeader->MemorySize);
 
       // ugly nasty seeking
       // TODO: proper seeking
       fd = fat_open(part, path);
       while (progHeader->Offset > 0) {
-        uint32_t shouldRead = min(progHeader->Offset, MEMORY_LOAD_SIZE);
+        // here
+        uint32_t shouldRead = min(progHeader->Offset, MEMORY_STAGE2_LOAD_SIZE);
         read = fat_read(part, fd, shouldRead, loadBuffer);
         if (read != shouldRead) {
           printf("ELF Load error!\n");
@@ -73,16 +75,17 @@ bool elf_read(Partition *part, const char *path, void **entryPoint) {
 
       // read program
       while (progHeader->FileSize > 0) {
-        uint32_t shouldRead = min(progHeader->FileSize, MEMORY_LOAD_SIZE);
+        uint32_t shouldRead =
+            min(progHeader->FileSize, MEMORY_STAGE2_LOAD_SIZE);
         read = fat_read(part, fd, shouldRead, loadBuffer);
         if (read != shouldRead) {
           printf("ELF Load error!\n");
           return false;
         }
         progHeader->FileSize -= read;
-
-        memcpy(virtAddress, loadBuffer, read);
-        virtAddress += read;
+        // here
+        memcpy(physAddress, loadBuffer, read);
+        physAddress += read;
       }
 
       fat_close(fd);

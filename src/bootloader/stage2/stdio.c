@@ -306,6 +306,17 @@ void debugf(const char *fmt, ...) {
   va_end(args);
 }
 
+void debugf_and_printf(const char *fmt, ...) {
+  va_list args, args_copy;
+
+  va_start(args, fmt);
+  va_copy(args_copy, args);
+  vfprintf(VFS_FD_DEBUG, fmt, args_copy);
+  vfprintf(VFS_FD_STDOUT, fmt, args);
+  va_end(args_copy);
+  va_end(args);
+}
+
 int snprintf(char *buffer, size_t size, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);

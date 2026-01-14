@@ -1,54 +1,44 @@
-ENTRY(start)
-phys = 0x00100000;
+OUTPUT_FORMAT("elf32-i386")
+ENTRY (kernel_start)
+KERNEL_BASE_VIRT = 0xC0000000;
+KERNEL_BASE_PHYS = 0x00100000;
 
 SECTIONS
 {
-    . = phys;
-    
-    /* Entry point MUST be first */
-    .entry : {
-        __entry_start = .;
-        *(.entry)
+    . = KERNEL_BASE_PHYS;
+    .multiboot.data : {
+        *(.multiboot.data)
     }
-    
-    /* Code sections */
-    .text : {
-        __text_start = .;
-        *(.text)
-        *(.text.*)
+
+   .multiboot.text : {
+       *(.multiboot.text)
     }
-    
-    /* Read-only data */
-    .rodata : {
-        __rodata_start = .;
-        *(.rodata)
-        *(.rodata.*)
-    }
-    
-    /* Initialized data */
-    .data : {
-        __data_start = .;
-        *(.data)
-        *(.data.*)
-    }
-    
-    /* Uninitialized data */
-    .bss : {
-        __bss_start = .;
-        *(.bss)
-        *(.bss.*)
-        *(COMMON)
-    }
-    
-    __end = .;
-    
-    /* Discard unnecessary sections */
-    /DISCARD/ : {
-        *(.note.*)
-        *(.comment)
-        *(.eh_frame)
-        *(.eh_frame_hdr)
-        *(.gnu.hash)
-        *(.gnu.version*)
-    }
+
+	. += KERNEL_BASE_VIRT;
+
+	_kernel_start = .;
+
+	.text ALIGN (4K) : AT (ADDR (.text) - KERNEL_BASE_VIRT)
+	{
+		*(.text)
+	}
+	.rodata ALIGN (4K) : AT (ADDR (.rodata) - KERNEL_BASE_VIRT)
+	{
+		*(.rodata)
+	}
+	.data ALIGN (4K) : AT (ADDR (.data) - KERNEL_BASE_VIRT)
+	{
+		*(.data)
+	}
+    _bss_start = .;
+	.bss ALIGN (4K) : AT (ADDR (.bss) - KERNEL_BASE_VIRT)
+	{
+		*(COMMON)
+		*(.bss)
+		*(.bootstrap_stack)
+	}
+    _bss_end = .;
+
+	_kernel_end = .;
 }
+
