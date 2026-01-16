@@ -4,15 +4,15 @@
 #include "hal/hal.h"
 #include "include/memory.h"
 #include "include/stdio.h"
-#include "initrd/initrd.h"
 #include "kernel_boot_info.h"
 #include "memory_management/early_pmm.h"
 #include "memory_management/kmalloc.h"
 #include "memory_management/memdefs.h"
+#include "memory_management/memory_map.h"
 #include "memory_management/pmm.h"
 #include "memory_management/vmm.h"
 #include "memory_management/vmspace.h"
-#include "memory_map.h"
+#include "modules/initrd.h"
 #include "modules/modules.h"
 #include "process/schedualer.h"
 #include "ut/ata/ata_ut_main.h"
@@ -81,9 +81,8 @@ void kmain(uint32_t mb2_ptr) {
     }
   }
 
-  /*debugf("Testing tasks\n");
+  debugf("Testing tasks\n");
   test_tasks();
-  */
 
   for (;;) {
   }

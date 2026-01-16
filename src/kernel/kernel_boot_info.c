@@ -3,7 +3,7 @@
 #include "include/memory.h"
 #include "include/string.h"
 #include "memory_management/early_pmm.h"
-#include "memory_map.h"
+#include "memory_management/memory_map.h"
 #include "utils/math.h"
 #include "utils/range.h"
 
