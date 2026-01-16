@@ -32,7 +32,6 @@ Range g_kernel_phys_range;
 extern uint8_t _bss_start[], _bss_end[];
 void kmain(uint32_t mb2_ptr) {
   debugf("[Kernel starting...]\n");
-
   extern uint8_t _kernel_start[], _kernel_end[];
   g_kernel_virt_range.start = (uintptr_t)&_kernel_start;
   g_kernel_virt_range.end = (uintptr_t)&_kernel_end;

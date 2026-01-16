@@ -1,8 +1,11 @@
 #include "schedualer.h"
 #include "arch/i686/gdt.h"
 #include "arch/i686/isr/isr.h"
+#include "elf/elf.h"
 #include "include/memory.h"
 #include "include/stdio.h"
+#include "include/string.h"
+#include "memory_management/memdefs.h"
 #include "memory_management/pmm.h"
 #include "memory_management/va_allocation.h"
 #include "memory_management/vmm.h"
@@ -45,10 +48,18 @@ static void preemptive_switch_isr_handler(Registers *regs) {
   curr_tss->ss0 = i686_GDT_KERNEL_DS_SEL;
   curr_tss->esp0 = (uint32_t)(next->kernel_stack_top);
 
+  uintptr_t p = virt_to_phys(next->vmspace->pd, USER_STACK_TOP);
+  debugf("user stack translate: %p", p);
+
   switch_to(next);
 }
 
-void taskA(void) {
+__attribute__((naked)) void taskA(void) {
+  asm volatile("nop");
+  asm volatile("int $45");
+}
+
+void taskC(void) {
   while (1) {
     debugf_and_printf("Task A PID: %d\n", current->pid);
     asm volatile("int $45");
@@ -65,20 +76,22 @@ void taskB(void) {
 void test_tasks() {
   i686_isr_handler_register(PREEMPTIVE_INT, preemptive_switch_isr_handler);
 
-  // TCB *a = task_setup(taskA, TASK_MODE_USER);
-  // TCB *b = task_setup(taskB, TASK_MODE_KERNEL);
-  // if (a == NULL || a == NULL) {
-  //   debugf("TASK Were null!!! ERR");
-  //   return;
-  // }
-  //
+  static const uint8_t user_code[] = {
+      0x68, 0x78, 0x56, 0x34, 0x12, // push 0x12345678
+      0xCD, 0x2D,                   // int 45
+      0xF4                          // hlt
+  };
+
+#define USER_CODE_BASE 0x400000 // classic
+  va_alloc_region(g_kernel_vmspace->pd, USER_CODE_BASE, PAGE_SIZE,
+                  PAGE_USER | PAGE_READWRITE);
+
   TCB a, b;
-  task_setup(&a, taskA, TASK_MODE_KERNEL);
-  task_setup(&b, taskB, TASK_MODE_KERNEL);
-  //
-  // TCB *c = task_setup(taskA, TASK_MODE_USER);
-  // TCB *d = task_setup(taskB, TASK_MODE_KERNEL);
-  //
+  task_setup(&a, (void *)USER_CODE_BASE, TASK_MODE_USER);
+  task_setup(&b, (void *)USER_CODE_BASE, TASK_MODE_USER);
+
+  memcpy((void *)USER_CODE_BASE, user_code, sizeof(user_code));
+
   scheduler_add(&a);
   scheduler_add(&b);
 
