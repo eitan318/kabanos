@@ -83,10 +83,10 @@ void kmain(uint32_t mb2_ptr) {
 
   debugf("Testing Proc\n");
   sched_init();
-  if (process_exec("test.elf") != 0)
+  if (process_exec("test_a.elf") != 0)
     debugf("err\n\n");
 
-  if (process_exec("test.elf") != 0)
+  if (process_exec("test_b.elf") != 0)
     debugf("err\n\n");
 
   asm volatile("int $45");
