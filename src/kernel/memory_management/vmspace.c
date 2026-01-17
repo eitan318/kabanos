@@ -25,7 +25,7 @@ void kernel_vmspace_create(vmspace_t *vmspace, Range total_memory_range) {
 }
 
 // Create virtual memory space for user processes
-vmspace_t *user_vmspace_creat() {
+vmspace_t *vmspace_create() {
   vmspace_t *vmspace = kmalloc(sizeof(*vmspace));
   if (!vmspace)
     return NULL;

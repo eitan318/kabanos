@@ -97,7 +97,7 @@ int ut_different_page_tables(void) {
 }
 
 static int suite_setup() {
-  g_test_vmspace = user_vmspace_creat();
+  g_test_vmspace = vmspace_create();
   g_pd = g_test_vmspace->pd;
   if (!g_pd)
     return UT_FAIL;

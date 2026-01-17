@@ -14,7 +14,8 @@
 #include "memory_management/vmspace.h"
 #include "modules/initrd.h"
 #include "modules/modules.h"
-#include "process/schedualer.h"
+#include "proc/exec.h"
+#include "sched/sched.h"
 #include "ut/ata/ata_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
 #include "ut/keyboard_driver.h"
@@ -80,8 +81,15 @@ void kmain(uint32_t mb2_ptr) {
     }
   }
 
-  debugf("Testing tasks\n");
-  test_tasks();
+  debugf("Testing Proc\n");
+  sched_init();
+  if (process_exec("test.elf") != 0)
+    debugf("err\n\n");
+
+  if (process_exec("test.elf") != 0)
+    debugf("err\n\n");
+
+  asm volatile("int $45");
 
   for (;;) {
   }
