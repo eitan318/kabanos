@@ -61,10 +61,7 @@ static int load_segment(page_dir_t *pd, vaddr_t va, size_t mem_size,
   return 0;
 }
 
-/* ============================================================================
- * Load ELF file
- * ============================================================================
- */
+// Load ELF file
 int elf_load(page_dir_t *pd, void *elf_data, uint32_t elf_size,
              uintptr_t *entry) {
   if (!pd || !elf_data || !entry || elf_size < sizeof(ELFHeader)) {
