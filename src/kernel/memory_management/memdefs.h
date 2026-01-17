@@ -28,7 +28,7 @@
 #define PROCESS_KERNEL_STACK_SIZE 0x2000
 
 // PROCESS VIRTUAL
-#define USER_STACK_TOP 0xBFFFE000 // Just below kernel space (3GB)
+#define USER_STACK_TOP 0xBFFFF000 // Just below kernel space (3GB)
 #define USER_STACK_SIZE 0x4000    // 16KB
 #define USER_STACK_BOTTOM (USER_STACK_TOP - USER_STACK_SIZE)
 

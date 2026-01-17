@@ -10,8 +10,7 @@
 #include "memory_management/vmm.h"
 #include "proc/exec.h"
 #include "sched/thread.h"
-#include <stddef.h>
-#include <stdint.h>
+#include <stddef.h> #include <stdint.h>
 
 extern vmspace_t *g_kernel_vmspace; // global
 
@@ -47,7 +46,7 @@ static void preemptive_switch_isr_handler(Registers *regs) {
   uint32_t cpu_id = 0;
   TSSEntry *curr_tss = tss_entry_get(cpu_id);
   curr_tss->ss0 = i686_GDT_KERNEL_DS_SEL;
-  curr_tss->esp0 = (uint32_t)(next->kstack);
+  curr_tss->esp0 = (uint32_t)(next->kstack_top);
 
   switch_to(next);
 }

@@ -9,10 +9,10 @@ typedef struct thread {
   void *kernel_esp;
 
   enum thread_state { THREAD_READY, THREAD_RUNNING } state;
-  enum thread_mode { TASK_MODE_KERNEL, TASK_MODE_USER } mode;
+  enum thread_mode { THREAD_MODE_KERNEL, THREAD_MODE_USER } mode;
 
   /* Stack tracking (for cleanup only) */
-  void *kstack; // Top of kernel stack (for deallocation)
+  void *kstack_top; // Top of kernel stack (for deallocation)
 
   /* Scheduler linkage */
   struct thread *next;

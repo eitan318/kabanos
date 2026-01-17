@@ -48,13 +48,13 @@ static void *build_initial_frame(void *kstack_top, uintptr_t entry,
   uint32_t *sp = (uint32_t *)kstack_top;
 
   /* IRET frame */
-  if (mode == TASK_MODE_USER) {
+  if (mode == THREAD_MODE_USER) {
     *(--sp) = i686_GDT_USER_DS_SEL; // SS
     *(--sp) = user_stack;           // ESP
   }
   *(--sp) = 0x202; // EFLAGS (IF=1)
-  *(--sp) =
-      (mode == TASK_MODE_USER) ? i686_GDT_USER_CS_SEL : i686_GDT_KERNEL_CS_SEL;
+  *(--sp) = (mode == THREAD_MODE_USER) ? i686_GDT_USER_CS_SEL
+                                       : i686_GDT_KERNEL_CS_SEL;
   *(--sp) = entry; // EIP
 
   /* Interrupt frame */
@@ -67,8 +67,8 @@ static void *build_initial_frame(void *kstack_top, uintptr_t entry,
   }
 
   /* Segment registers */
-  *(--sp) =
-      (mode == TASK_MODE_USER) ? i686_GDT_USER_DS_SEL : i686_GDT_KERNEL_DS_SEL;
+  *(--sp) = (mode == THREAD_MODE_USER) ? i686_GDT_USER_DS_SEL
+                                       : i686_GDT_KERNEL_DS_SEL;
 
   return sp;
 }
@@ -88,7 +88,7 @@ thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
 
   /* Allocate kernel stack (mapped to user PD if user mode) */
   page_dir_t *user_pd =
-      (mode == TASK_MODE_USER && proc) ? proc->vmspace->pd : NULL;
+      (mode == THREAD_MODE_USER && proc) ? proc->vmspace->pd : NULL;
   void *kstack_top = alloc_kernel_stack(t->tid, user_pd);
   if (!kstack_top) {
     kfree(t);
@@ -99,7 +99,7 @@ thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
   void *kernel_esp = build_initial_frame(kstack_top, entry, user_stack, mode);
 
   /* Set thread state */
-  t->kstack = kstack_top;
+  t->kstack_top = kstack_top;
   t->kernel_esp = kernel_esp;
 
   /* Add to process and scheduler */
@@ -113,26 +113,26 @@ thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
 
 thread_t *thread_create_user(process_t *proc, uintptr_t entry,
                              uintptr_t user_stack) {
-  return thread_create(proc, entry, user_stack, TASK_MODE_USER);
+  return thread_create(proc, entry, user_stack, THREAD_MODE_USER);
 }
 
 thread_t *thread_create_kernel(process_t *proc, uintptr_t entry) {
-  return thread_create(proc, entry, 0, TASK_MODE_KERNEL);
+  return thread_create(proc, entry, 0, THREAD_MODE_KERNEL);
 }
 
 void thread_destroy(thread_t *t) {
   if (!t)
     return;
 
-  if (t->kstack) {
-    vaddr_t stack_bottom = (vaddr_t)t->kstack - PROCESS_KERNEL_STACK_SIZE;
+  if (t->kstack_top) {
+    vaddr_t stack_bottom = (vaddr_t)t->kstack_top - PROCESS_KERNEL_STACK_SIZE;
     extern vmspace_t *g_kernel_vmspace;
     va_free_region(g_kernel_vmspace->pd, stack_bottom,
                    PROCESS_KERNEL_STACK_SIZE);
 
     /* Also unmap from user PD if it was a user thread */
-    if (t->mode == TASK_MODE_USER && t->process && t->process->vmspace->pd) {
-      for (vaddr_t va = stack_bottom; va < (vaddr_t)t->kstack;
+    if (t->mode == THREAD_MODE_USER && t->process && t->process->vmspace->pd) {
+      for (vaddr_t va = stack_bottom; va < (vaddr_t)t->kstack_top;
            va += PAGE_SIZE) {
         vm_unmap(t->process->vmspace->pd, va);
       }

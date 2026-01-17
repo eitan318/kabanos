@@ -40,6 +40,5 @@ void va_free_region(page_dir_t *pd, uint32_t virt_start, size_t size) {
     }
   }
 
-  // Unmap the entire range
   vm_unmap_range(pd, virt_start, size);
 }

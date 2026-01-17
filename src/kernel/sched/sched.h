@@ -5,5 +5,4 @@
 
 thread_t *sched_next(void);
 void sched_add(thread_t *t);
-void yield(void);
 void sched_init();

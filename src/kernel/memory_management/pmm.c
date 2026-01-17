@@ -1,4 +1,5 @@
 #include "pmm.h"
+#include "assert.h"
 #include "include/stdio.h"
 #include "utils/bitmap.h"
 #include "utils/math.h"
@@ -16,14 +17,17 @@ static uint64_t bitmap_size_bytes = 0;
 static bool initialized = false;
 static Range memory_range;
 
-static inline void mark_frame_used(uint64_t frame) {
-  if (!bitmap_test(bitmap, frame)) {
-    bitmap_set(bitmap, frame);
+static inline void mark_frame_used(uint64_t frame_idx) {
+  if (!bitmap_test(bitmap, frame_idx)) {
+    bitmap_set(bitmap, frame_idx);
     used_frames++;
   }
 }
 
 static inline uint64_t aligned_addr_to_frame(uint64_t addr) {
+  ASSERT((addr & (FRAME_SIZE - 1)) == 0);
+  ASSERT(addr >= memory_range.start);
+
   return (addr - memory_range.start) / FRAME_SIZE;
 }
 
@@ -87,7 +91,10 @@ void pmm_frame_free(uint64_t frame_addr) {
 
 void pmm_init(Range total_memory_range, Range *used_ranges,
               int used_ranges_count) {
-  memory_range = range_align_outward(total_memory_range, FRAME_SIZE);
+  memory_range = range_align_inward(total_memory_range, FRAME_SIZE);
+
+  ASSERT((memory_range.start & (FRAME_SIZE - 1)) == 0);
+
   total_frames = (memory_range.end - memory_range.start) / FRAME_SIZE;
   if (total_frames > MAX_FRAMES) {
     debugf("Memory range greater than max frames!");
@@ -95,7 +102,7 @@ void pmm_init(Range total_memory_range, Range *used_ranges,
     memory_range.end = memory_range.start + ((uint64_t)MAX_FRAMES * FRAME_SIZE);
   }
 
-  bitmap_size_bytes = align_up(total_frames, 8);
+  bitmap_size_bytes = align_up(total_frames, 8) / 8;
   memset(bitmap, 0, bitmap_size_bytes);
 
   used_frames = 0;
