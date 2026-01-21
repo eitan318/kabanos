@@ -1,4 +1,5 @@
 #include "memory_management/vmm.h"
+#include "assert.h"
 #include "include/memory.h"
 #include "include/stdio.h"
 #include "memory_management/memdefs.h"
@@ -190,9 +191,9 @@ bool vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
     return true;
   }
 
-  va_start = align_down(va_start, PAGE_SIZE);
-  pa_start = align_down(pa_start, PAGE_SIZE);
-  size = align_up(size, PAGE_SIZE);
+  ASSERT(is_aligned(va_start, PAGE_SIZE));
+  ASSERT(is_aligned(pa_start, PAGE_SIZE));
+  ASSERT(is_aligned(size, PAGE_SIZE));
 
   vaddr_t va = va_start;
   paddr_t pa = pa_start;
@@ -230,8 +231,8 @@ bool vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size) {
     return true;
   }
 
-  va_start = align_down(va_start, PAGE_SIZE);
-  size = align_up(size, PAGE_SIZE);
+  ASSERT(is_aligned(va_start, PAGE_SIZE));
+  ASSERT(is_aligned(size, PAGE_SIZE));
 
   vaddr_t va = va_start;
   vaddr_t va_end = va_start + size;
@@ -268,7 +269,6 @@ bool vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size) {
 //
 // Single Page Operations
 //
-
 bool vm_map(page_dir_t *pd_virt, vaddr_t va, paddr_t pa, uint32_t flags) {
   bool res = vm_map_range(pd_virt, pa, va, PAGE_SIZE, flags);
   if (res) {

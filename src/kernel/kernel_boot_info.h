@@ -1,6 +1,6 @@
 #pragma once
 #include "boot/bootparams.h"
-#include "memory_map.h"
+#include "memory_management/memory_map.h"
 #include <stddef.h>
 
 typedef struct {

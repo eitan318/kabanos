@@ -1,4 +1,5 @@
 #pragma once
+#include <stdbool.h>
 #include <stdint.h>
 static inline int min_int(int a, int b) { return a < b ? a : b; }
 static inline int max_int(int a, int b) { return a > b ? a : b; }
@@ -13,4 +14,7 @@ static inline uintptr_t align_down(uintptr_t num, uintptr_t jump_size) {
 
 static inline uintptr_t align_up(uintptr_t num, uintptr_t jump_size) {
   return align_down(num + jump_size - 1, jump_size);
+}
+static inline bool is_aligned(uintptr_t num, uintptr_t jump_size) {
+  return (num & (jump_size - 1)) == 0;
 }

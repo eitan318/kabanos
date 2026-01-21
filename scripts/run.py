@@ -17,7 +17,8 @@ is_debug = args.is_debug  # True if --is_debug was passed
 # QEMU command
 qemu_run_cmd = [
     "qemu-system-i386",
-    "-debugcon",
+    #    "-debugcon",
+    "-serial",
     "stdio",
     #    "-d",
     #    "int",
@@ -27,7 +28,8 @@ qemu_run_cmd = [
 
 qemu_debug_cmd = [
     "qemu-system-i386",
-    "-debugcon",
+    #    "-debugcon",
+    "-serial",
     "stdio",
     "-drive",
     f"format=raw,file={OS_IMG}",

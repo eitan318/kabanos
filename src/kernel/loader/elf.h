@@ -83,11 +83,5 @@ enum ELFProgramFlags {
   ELF_PROGRAM_FLAG_READABLE = 0x4,
 };
 
-/**
- * Load an ELF file into memory with paging
- *
- * @param page_dir Page directory to map pages into
- * @param filepath Path to ELF file on FAT filesystem
- * @return Entry point address, or NULL on failure
- */
-void *elf_load(page_dir_t *page_dir, const char *filepath);
+int elf_load(page_dir_t *page_dir, void *elf_data, uint32_t size,
+             uintptr_t *entry);

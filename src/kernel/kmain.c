@@ -4,17 +4,18 @@
 #include "hal/hal.h"
 #include "include/memory.h"
 #include "include/stdio.h"
-#include "initrd/initrd.h"
 #include "kernel_boot_info.h"
 #include "memory_management/early_pmm.h"
 #include "memory_management/kmalloc.h"
 #include "memory_management/memdefs.h"
+#include "memory_management/memory_map.h"
 #include "memory_management/pmm.h"
 #include "memory_management/vmm.h"
 #include "memory_management/vmspace.h"
-#include "memory_map.h"
+#include "modules/initrd.h"
 #include "modules/modules.h"
-#include "process/schedualer.h"
+#include "proc/exec.h"
+#include "sched/sched.h"
 #include "ut/ata/ata_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
 #include "ut/keyboard_driver.h"
@@ -32,7 +33,6 @@ Range g_kernel_phys_range;
 extern uint8_t _bss_start[], _bss_end[];
 void kmain(uint32_t mb2_ptr) {
   debugf("[Kernel starting...]\n");
-
   extern uint8_t _kernel_start[], _kernel_end[];
   g_kernel_virt_range.start = (uintptr_t)&_kernel_start;
   g_kernel_virt_range.end = (uintptr_t)&_kernel_end;
@@ -81,9 +81,15 @@ void kmain(uint32_t mb2_ptr) {
     }
   }
 
-  /*debugf("Testing tasks\n");
-  test_tasks();
-  */
+  debugf("Testing Proc\n");
+  sched_init();
+  if (process_exec("test_a.elf") != 0)
+    debugf("err\n\n");
+
+  if (process_exec("test_b.elf") != 0)
+    debugf("err\n\n");
+
+  asm volatile("int $45");
 
   for (;;) {
   }

@@ -25,19 +25,25 @@ void kernel_vmspace_create(vmspace_t *vmspace, Range total_memory_range) {
 }
 
 // Create virtual memory space for user processes
-vmspace_t *user_vmspace_creat() {
+vmspace_t *vmspace_create() {
   vmspace_t *vmspace = kmalloc(sizeof(*vmspace));
-  if (!vmspace) {
+  if (!vmspace)
+    return NULL;
+
+  vmspace->pd_phys = vm_empty_pd_create();
+  if (!vmspace->pd_phys) {
+    kfree(vmspace);
     return NULL;
   }
-  vmspace->pd_phys = vm_empty_pd_create();
-  if (!vmspace->pd_phys)
-    return NULL;
-  vmspace->pd = (uint32_t *)(vmspace->pd_phys + KERNEL_BASE);
-  // Copy kernel mappings (including identity map)
-  extern vmspace_t *g_kernel_vmspace;
-  memcpy(vmspace->pd, g_kernel_vmspace->pd, PAGE_SIZE);
 
+  // Temporarily map the new PD in current address space to initialize it
+  uint32_t *temp_pd = (uint32_t *)(vmspace->pd_phys + KERNEL_BASE);
+
+  // Copy kernel mappings while we're still in kernel's CR3
+  extern vmspace_t *g_kernel_vmspace;
+  memcpy(temp_pd, g_kernel_vmspace->pd, PAGE_SIZE);
+
+  vmspace->pd = temp_pd;
   return vmspace;
 }
 
