@@ -1,11 +1,10 @@
 #include "vmspace.h"
-#include "include/memory.h"
+#include "hal.h"
 #include "kmalloc.h"
-#include "memory_management/early_pmm.h"
 #include "memory_management/memdefs.h"
+#include "string.h"
 #include "utils/math.h"
 #include "utils/range.h"
-#include "vmm.h"
 #include <stddef.h>
 
 void kernel_vmspace_create(vmspace_t *vmspace, Range total_memory_range) {

@@ -1,16 +1,15 @@
 #include "sched/sched.h"
-#include "arch/i686/gdt.h"
-#include "arch/i686/isr/isr.h"
-#include "include/memory.h"
-#include "include/stdio.h"
-#include "include/string.h"
+#include "hal.h"
+#include "isr.h"
 #include "memory_management/memdefs.h"
 #include "memory_management/pmm.h"
 #include "memory_management/va_allocation.h"
-#include "memory_management/vmm.h"
 #include "proc/exec.h"
 #include "sched/thread.h"
-#include <stddef.h> #include <stdint.h>
+#include "stdio.h"
+#include "string.h"
+#include <stddef.h>
+#include <stdint.h>
 
 extern vmspace_t *g_kernel_vmspace; // global
 
@@ -30,7 +29,7 @@ thread_t *sched_next(void) {
 extern void __attribute__((naked)) switch_to(thread_t *p);
 extern void __attribute__((naked)) switch_debug(thread_t *p);
 
-static void preemptive_switch_isr_handler(Registers *regs) {
+static void preemptive_switch_isr_handler(struct regs *regs) {
   if (current == NULL) {
     current = sched_next();
   } else {
@@ -44,13 +43,11 @@ static void preemptive_switch_isr_handler(Registers *regs) {
   current = next;
 
   uint32_t cpu_id = 0;
-  TSSEntry *curr_tss = tss_entry_get(cpu_id);
-  curr_tss->ss0 = i686_GDT_KERNEL_DS_SEL;
-  curr_tss->esp0 = (uint32_t)(next->kstack_top);
+  hal_set_kernel_stack(cpu_id, next->kstack_top);
 
   switch_to(next);
 }
 
 void sched_init() {
-  i686_isr_handler_register(PREEMPTIVE_INT, preemptive_switch_isr_handler);
+  isr_handler_register(PREEMPTIVE_INT, preemptive_switch_isr_handler);
 }

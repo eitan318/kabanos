@@ -1,7 +1,6 @@
-#include "drivers/keyboard/keyboard_driver.h"
-#include "arch/i686/isr/isr.h"
-#include "arch/i686/pic.h"
-#include "hal/io.h"
+#include "drivers/keyboard.h"
+#include "hal.h"
+#include "isr.h"
 #include "utils/queue.h"
 
 // Keyboard is IRQ1, which maps to interrupt 0x21 after PIC remap
@@ -39,7 +38,7 @@ static char scancode_to_ascii_shift[128] = {
     'J', 'K', 'L',  ':',  '"',  '~', 0,   '|', 'Z', 'X', 'C', 'V',
     'B', 'N', 'M',  '<',  '>',  '?', 0,   '*', 0,   ' ', 0};
 
-static void keyboard_isr_handler(Registers *regs) {
+static void keyboard_isr_handler(struct regs *regs) {
   uint8_t scancode = io_read8(KEYBOARD_PORT);
 
   // Handle key release
@@ -71,17 +70,16 @@ static void keyboard_isr_handler(Registers *regs) {
   }
 
 eoi:
-  pic_send_eoi(KBD_IRQ);
+  hal_irq_send_eoi(KBD_IRQ);
 }
 
 void kbd_init() {
   queue_init(&keyboard_queue);
 
   // Register keyboard interrupt handler
-  i686_isr_handler_register(KBD_INT, keyboard_isr_handler);
-
+  isr_handler_register(KBD_INT, keyboard_isr_handler);
   // Enable keyboard interrupt (IRQ1)
-  pic_unmask_irq(KBD_IRQ);
+  hal_irq_enable(KBD_IRQ);
 }
 
 char kbd_char_get() { return (char)(uintptr_t)dequeue(&keyboard_queue); }

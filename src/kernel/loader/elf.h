@@ -1,5 +1,5 @@
 #pragma once
-#include "memory_management/vmm.h"
+#include "hal.h"
 #include <stdbool.h>
 #include <stdint.h>
 

@@ -1,5 +1,5 @@
 #include "ut_framework.h"
-#include "include/stdio.h"
+#include "stdio.h"
 
 /*=============================================================================
  * RUN A SINGLE TEST SUITE (beautiful compact output)

@@ -4,7 +4,6 @@
 // PHYSICAL
 //
 #define VGA_SCREEN_BUF_PHYS 0xB8000
-#define EARLY_PMM_SIZE (0x1000 * 4)
 
 //
 // KERNEL VIRTUAL

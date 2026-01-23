@@ -1,9 +1,8 @@
 #include "fat.h"
-#include "../drivers/block/ata.h"
-#include "../include/stdio.h"
-#include "../include/string.h"
-#include "include/memory.h"
+#include "drivers/ata.h"
 #include "memory_management/kmalloc.h"
+#include "stdio.h"
+#include "string.h"
 #include <stdbool.h>
 #include <stdint.h>
 

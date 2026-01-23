@@ -1,5 +1,6 @@
 #include "gdt.h"
-#include "include/memory.h"
+#include "string.h"
+#include "tss.h"
 #include <stdint.h>
 #define TY_CODE 0x8 // Executable
 #define TY_DATA 0x0
@@ -15,14 +16,14 @@ typedef enum {
   GDT_USER_CS,
   GDT_USER_DS,
   GDT_DEFAULT_ENTRIES_COUNT,
-} GDTEntryIndex;
+} gdt_entry_index_t;
 
 // Public constants computed from private indices
-const GDTSelector i686_GDT_NULL_SEL = (GDT_NULL_SEGMENT << 3);
-const GDTSelector i686_GDT_KERNEL_CS_SEL = (GDT_KERNEL_CS << 3);
-const GDTSelector i686_GDT_KERNEL_DS_SEL = (GDT_KERNEL_DS << 3);
-const GDTSelector i686_GDT_USER_CS_SEL = (GDT_USER_CS << 3) | 3;
-const GDTSelector i686_GDT_USER_DS_SEL = (GDT_USER_DS << 3) | 3;
+const gdt_selector_t i686_GDT_NULL_SEL = (GDT_NULL_SEGMENT << 3);
+const gdt_selector_t i686_GDT_KERNEL_CS_SEL = (GDT_KERNEL_CS << 3);
+const gdt_selector_t i686_GDT_KERNEL_DS_SEL = (GDT_KERNEL_DS << 3);
+const gdt_selector_t i686_GDT_USER_CS_SEL = (GDT_USER_CS << 3) | 3;
+const gdt_selector_t i686_GDT_USER_DS_SEL = (GDT_USER_DS << 3) | 3;
 
 typedef struct {
   uint16_t limit_low;
@@ -31,10 +32,10 @@ typedef struct {
   uint8_t access;
   uint8_t granularity;
   uint8_t base_high;
-} __attribute__((packed)) GDTEntry;
+} __attribute__((packed)) gdt_entry_t;
 
 // Helper function to set a GDT entry dynamically
-static void gdt_set_entry(GDTEntry *entry, uint32_t base, uint32_t limit,
+static void gdt_set_entry(gdt_entry_t *entry, uint32_t base, uint32_t limit,
                           uint8_t type, uint8_t s, uint8_t dpl, uint8_t p,
                           uint8_t l, uint8_t d, uint8_t g) {
   entry->limit_low = limit & 0xFFFF;
@@ -54,21 +55,12 @@ static void gdt_set_entry(GDTEntry *entry, uint32_t base, uint32_t limit,
   entry->base_high = (base >> 24) & 0xFF;
 }
 
-#define MAX_CORES 20
-static GDTEntry entries[MAX_CORES + GDT_DEFAULT_ENTRIES_COUNT];
-static TSSEntry tss_entries[MAX_CORES];
-
-static void tss_entry_set(TSSEntry *e) {
-  memset((uint8_t *)e, 0, sizeof(TSSEntry));
-  e->ss0 = e->ss = e->ds = e->es = e->fs = e->gs = i686_GDT_KERNEL_DS_SEL;
-  e->cs = i686_GDT_KERNEL_CS_SEL;
-}
-TSSEntry *tss_entry_get(int cpu_id) { return &tss_entries[cpu_id]; }
+static gdt_entry_t entries[MAX_CORES + GDT_DEFAULT_ENTRIES_COUNT];
 
 typedef struct {
   uint16_t limit;
   uint32_t base;
-} __attribute__((packed)) GDTDescriptor;
+} __attribute__((packed)) gdt_descriptor_t;
 
 int i686_gdt_init() {
 
@@ -82,19 +74,19 @@ int i686_gdt_init() {
   gdt_set_entry(&entries[GDT_USER_DS], 0, 0xFFFFF, TY_DATA | TY_WRITABLE, 1, 3,
                 1, 0, 1, 1);
 
-  GDTDescriptor gdt_descriptor;
+  gdt_descriptor_t gdt_descriptor;
   int num_cores = 1;
   int num_gdt_entries = num_cores + GDT_DEFAULT_ENTRIES_COUNT;
 
   for (int i = 0; i < num_cores; ++i) {
-    tss_entry_set(&tss_entries[i]);
+    tss_entry_set(tss_entry_get(i));
     gdt_set_entry(&entries[i + GDT_DEFAULT_ENTRIES_COUNT],
-                  (uint32_t)&tss_entries[i], sizeof(TSSEntry) - 1,
+                  (uint32_t)tss_entry_get(i), sizeof(tss_entry_t) - 1,
                   TY_CODE | TY_ACCESSED, 0, 3, 1, 0, 0, 1);
   }
 
   gdt_descriptor.base = (uint32_t)&entries[0];
-  gdt_descriptor.limit = sizeof(GDTEntry) * num_gdt_entries - 1;
+  gdt_descriptor.limit = sizeof(gdt_entry_t) * num_gdt_entries - 1;
 
   __asm volatile("lgdt %0;"
                  "mov  %1, %%ax;"

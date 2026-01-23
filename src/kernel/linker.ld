@@ -30,14 +30,16 @@ SECTIONS
 	{
 		*(.data)
 	}
+
     _bss_start = .;
-	.bss ALIGN (4K) : AT (ADDR (.bss) - KERNEL_BASE_VIRT)
-	{
-		*(COMMON)
-		*(.bss)
-		*(.bootstrap_stack)
-	}
+    .bss ALIGN(4K) : AT(ADDR(.bss) - KERNEL_BASE_VIRT)
+    {
+        *(COMMON)
+        *(.bss)
+    }
     _bss_end = .;
+
+    .bootstrap_stack ALIGN(16) : { *(.bootstrap_stack) }
 
 	_kernel_end = .;
 }

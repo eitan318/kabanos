@@ -1,5 +1,6 @@
 #pragma once
-#include "vmm.h"
+#include "hal.h"
+#include "utils/range.h"
 #include <stdint.h>
 
 typedef struct vmspace_t {

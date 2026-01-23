@@ -1,16 +1,31 @@
 #include "kernel_boot_info.h"
 #include "boot/bootparams.h"
-#include "include/memory.h"
-#include "include/string.h"
-#include "memory_management/early_pmm.h"
 #include "memory_management/memory_map.h"
+#include "string.h"
 #include "utils/math.h"
 #include "utils/range.h"
+
+#define EARLYALLOC_SIZE (5 * 1024)
+
+static uintptr_t early_alloc(unsigned len) {
+  static uint8_t buf[EARLYALLOC_SIZE];
+  static unsigned idx = 0;
+
+  if (idx + len >= EARLYALLOC_SIZE)
+    /* Return NULL on failure. It's too early in the boot process to give out a
+       diagnostic.*/
+    return NULL;
+
+  uint8_t *ptr = &buf[idx];
+  idx += len;
+
+  return (uintptr_t)ptr;
+}
 
 KernelBootInfo *parse_multiboot2_early(mb2_info_t *mbi) {
 
   KernelBootInfo *kernel_boot_info =
-      early_pmm_vm_alloc(sizeof(*kernel_boot_info));
+      (KernelBootInfo *)early_alloc(sizeof(*kernel_boot_info));
   uint8_t *tag_ptr = mbi->tags;
 
   kernel_boot_info->module_count = 0;
@@ -25,7 +40,7 @@ KernelBootInfo *parse_multiboot2_early(mb2_info_t *mbi) {
 
       // Allocate/copy into kernel memory
       size_t len = strlen(cmdline_src) + 1;
-      kernel_boot_info->cmdline = early_pmm_vm_alloc(len);
+      kernel_boot_info->cmdline = (char *)early_alloc(len);
       memcpy(kernel_boot_info->cmdline, cmdline_src, len);
       break;
     }
@@ -41,7 +56,7 @@ KernelBootInfo *parse_multiboot2_early(mb2_info_t *mbi) {
 
         // Copy module cmdline string into kernel memory
         size_t len = strlen(mod_tag->cmdline) + 1;
-        mod->cmdline = early_pmm_vm_alloc(len);
+        mod->cmdline = (char *)early_alloc(len);
         memcpy(mod->cmdline, mod_tag->cmdline, len);
       }
       break;

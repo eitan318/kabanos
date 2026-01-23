@@ -1,5 +1,3 @@
-#include "kernel_boot_info.h"
-#include "memory_management/early_pmm.h"
 #include "memory_management/memdefs.h"
 #include <stdint.h>
 
@@ -48,13 +46,23 @@ __attribute__((section(".bss"),
                aligned(PAGE_SIZE))) static uint32_t boot_pt[PD_ENTRIES];
 
 __attribute__((section(".multiboot.text"))) void kernel_start(void) {
-  uint32_t *boot_pt_phys = (uint32_t *)((uint32_t)boot_pt - KERNEL_BASE);
-  uint32_t *boot_pd_phys = (uint32_t *)((uint32_t)boot_pd - KERNEL_BASE);
-  uint32_t kernel_end_phys = (uint32_t)&_kernel_end - KERNEL_BASE;
+  __asm__ volatile("mov %0, %%esp"
+                   :
+                   : "r"(stack_bottom + BOOT_STACK_SIZE)
+                   : "memory");
+
+  // Zero bss
+  extern uint8_t _bss_start[], _bss_end[];
+  volatile uint8_t *p = _bss_start;
+  while (p < _bss_end)
+    *p++ = 0;
+
+  uintptr_t *boot_pt_phys = (uintptr_t *)((uintptr_t)boot_pt - KERNEL_BASE);
+  uintptr_t *boot_pd_phys = (uintptr_t *)((uintptr_t)boot_pd - KERNEL_BASE);
+  uintptr_t kernel_end_phys = (uintptr_t)&_kernel_end - KERNEL_BASE;
 
   // Calculate number of pages needed
-  uint32_t pages_needed =
-      (kernel_end_phys + EARLY_PMM_SIZE + PAGE_SIZE - 1) / PAGE_SIZE;
+  int pages_needed = (kernel_end_phys + PAGE_SIZE - 1) / PAGE_SIZE;
 
   // Cap at 1023 to leave room for VGA
   if (pages_needed > 1023) {
@@ -72,8 +80,8 @@ __attribute__((section(".multiboot.text"))) void kernel_start(void) {
   boot_pt_phys[1023] = VGA_SCREEN_BUF_PHYS | PAGE_PRESENT | PAGE_READWRITE;
 
   // Map to lower half and higher half
-  boot_pd_phys[0] = (uint32_t)boot_pt_phys | PAGE_PRESENT | PAGE_READWRITE;
-  boot_pd_phys[768] = (uint32_t)boot_pt_phys | PAGE_PRESENT | PAGE_READWRITE;
+  boot_pd_phys[0] = (uintptr_t)boot_pt_phys | PAGE_PRESENT | PAGE_READWRITE;
+  boot_pd_phys[768] = (uintptr_t)boot_pt_phys | PAGE_PRESENT | PAGE_READWRITE;
 
   __asm__ volatile("mov %0, %%cr3\n" : : "r"(boot_pd_phys) : "memory");
 
@@ -92,12 +100,6 @@ __attribute__((section(".multiboot.text"))) void kernel_start(void) {
 void higher_half(void) {
   void *mb2_ptr;
   __asm__ volatile("mov %%ebx, %0" : "=r"(mb2_ptr));
-
-  // Set up stack FIRST
-  __asm__ volatile("mov %0, %%esp\n"
-                   :
-                   : "r"(stack_bottom + sizeof(stack_bottom))
-                   : "memory");
 
   kmain((uint32_t)mb2_ptr);
 

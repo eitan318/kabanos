@@ -1,7 +1,6 @@
 #include "boot/bootparams.h"
-#include "memory_management/early_pmm.h"
+#include "hal.h"
 #include "memory_management/pmm.h"
-#include "memory_management/vmm.h"
 #include "memory_management/vmspace.h"
 #include "ut/ut_framework.h"
 

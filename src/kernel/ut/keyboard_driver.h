@@ -1,5 +1,5 @@
-#include "drivers/keyboard/keyboard_driver.h"
-#include "include/stdio.h"
+#include "drivers/keyboard.h"
+#include "stdio.h"
 
 void prompt_for_keyboard() {
   printf("Keyboard ready - start typing:\n");

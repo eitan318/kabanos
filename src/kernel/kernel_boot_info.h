@@ -2,7 +2,6 @@
 #include "boot/bootparams.h"
 #include "memory_management/memory_map.h"
 #include <stddef.h>
-
 typedef struct {
   void *start;
   size_t size;

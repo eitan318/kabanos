@@ -1,8 +1,8 @@
 #include "kmap.h"
-#include "include/stdio.h"
+#include "hal.h"
 #include "memory_management/memdefs.h"
-#include "memory_management/vmm.h"
 #include "memory_management/vmspace.h"
+#include "stdio.h"
 
 static vaddr_t kmap_temp = KMAPPING_BASE;
 extern vmspace_t *g_kernel_vmspace;

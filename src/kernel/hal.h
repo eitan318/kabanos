@@ -1,0 +1,70 @@
+#pragma once
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+struct regs;
+typedef void (*interrupt_handler_t)(struct regs *r);
+
+// Init
+void hal_arch_init(void);
+
+// Panic
+int hal_describe_regs(struct regs *regs, int max, const char **names,
+                      uintptr_t *values);
+uintptr_t hal_backtrace(uintptr_t *data, struct regs *regs);
+void hal_halt(void);
+void hal_trap();
+
+// Regs
+int hal_interrupt_number(struct regs *regs);
+uintptr_t hal_regs_pc(struct regs *regs);
+bool hal_regs_from_user(const struct regs *regs);
+
+// Interrupts
+void hal_interrupts_enable(void);
+void hal_interrupts_disable(void);
+int hal_interrupts_state_get();
+
+// Debug
+void hal_serial_putc(const char c);
+
+// IO
+uint8_t io_read8(uint16_t port);
+uint16_t io_read16(uint16_t port);
+void io_write8(uint16_t port, uint8_t value);
+void io_write16(uint16_t port, uint16_t value);
+
+// IRQ
+void hal_irq_enable(int irq);
+void hal_irq_disable(int irq);
+void hal_irq_send_eoi(uint8_t irq);
+
+typedef uint32_t page_dir_t;
+typedef uint32_t vaddr_t;
+typedef uint32_t paddr_t;
+
+#define PAGE_PRESENT 0x1
+#define PAGE_READWRITE 0x2
+#define PAGE_USER 0x4
+
+#define PAGE_SIZE 4096
+
+#define PD_ENTRIES PAGE_SIZE / sizeof(uint32_t)
+
+// VMM
+bool vm_map(page_dir_t *pd, vaddr_t va, paddr_t pa, uint32_t flags);
+bool vm_unmap(page_dir_t *pd, vaddr_t va);
+paddr_t virt_to_phys(page_dir_t *pd, vaddr_t va);
+bool vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
+                  size_t size, uint32_t flags);
+bool vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size);
+paddr_t vm_empty_pd_create();
+void vm_pd_destroy(page_dir_t *pd);
+
+// Processes
+enum thread_mode { THREAD_MODE_KERNEL, THREAD_MODE_USER };
+void hal_set_kernel_stack(int cpu_id, void *kstack_top);
+void *hal_build_initial_frame(void *kstack_top, uintptr_t entry,
+                              uintptr_t user_stack, enum thread_mode mode,
+                              int interrupt_number);

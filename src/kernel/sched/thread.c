@@ -1,12 +1,11 @@
-#include "thread.h"
-#include "arch/i686/gdt.h"
-#include "include/memory.h"
-#include "include/stdio.h"
+#include "hal.h"
 #include "memory_management/kmalloc.h"
 #include "memory_management/memdefs.h"
 #include "memory_management/va_allocation.h"
 #include "memory_management/vmspace.h"
 #include "sched/sched.h"
+#include "stdio.h"
+#include "string.h"
 
 static uint32_t next_tid = 1;
 static uint32_t alloc_tid() { return next_tid++; }
@@ -42,37 +41,6 @@ static void *alloc_kernel_stack(uint32_t tid, page_dir_t *user_pd) {
   return (void *)stack_top;
 }
 
-// Build initial interrupt frame on kernel stack
-static void *build_initial_frame(void *kstack_top, uintptr_t entry,
-                                 uintptr_t user_stack, enum thread_mode mode) {
-  uint32_t *sp = (uint32_t *)kstack_top;
-
-  /* IRET frame */
-  if (mode == THREAD_MODE_USER) {
-    *(--sp) = i686_GDT_USER_DS_SEL; // SS
-    *(--sp) = user_stack;           // ESP
-  }
-  *(--sp) = 0x202; // EFLAGS (IF=1)
-  *(--sp) = (mode == THREAD_MODE_USER) ? i686_GDT_USER_CS_SEL
-                                       : i686_GDT_KERNEL_CS_SEL;
-  *(--sp) = entry; // EIP
-
-  /* Interrupt frame */
-  *(--sp) = 0;              // Error code
-  *(--sp) = PREEMPTIVE_INT; // Interrupt number
-
-  /* PUSHA frame */
-  for (int i = 0; i < 8; i++) {
-    *(--sp) = 0; // EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI
-  }
-
-  /* Segment registers */
-  *(--sp) = (mode == THREAD_MODE_USER) ? i686_GDT_USER_DS_SEL
-                                       : i686_GDT_KERNEL_DS_SEL;
-
-  return sp;
-}
-
 // Generic thread creation (works for both kernel and user threads)
 thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
                         enum thread_mode mode) {
@@ -96,7 +64,8 @@ thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
   }
 
   /* Build interrupt frame */
-  void *kernel_esp = build_initial_frame(kstack_top, entry, user_stack, mode);
+  void *kernel_esp = hal_build_initial_frame(kstack_top, entry, user_stack,
+                                             mode, PREEMPTIVE_INT);
 
   /* Set thread state */
   t->kstack_top = kstack_top;

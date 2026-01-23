@@ -1,7 +1,7 @@
 #include "va_allocation.h"
-#include "include/stdio.h"
+#include "hal.h"
 #include "memory_management/pmm.h"
-#include "memory_management/vmm.h"
+#include "stdio.h"
 #include "utils/math.h"
 
 bool va_alloc_region(page_dir_t *pd, uint32_t virt_start, size_t size,
