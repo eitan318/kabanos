@@ -3,12 +3,10 @@
 #include "fat/fat.h"
 #include "hal.h"
 #include "kernel_boot_info.h"
-#include "memory_management/early_pmm.h"
 #include "memory_management/kmalloc.h"
 #include "memory_management/memdefs.h"
 #include "memory_management/memory_map.h"
 #include "memory_management/pmm.h"
-#include "memory_management/vmm.h"
 #include "memory_management/vmspace.h"
 #include "modules/initrd.h"
 #include "modules/modules.h"
@@ -38,7 +36,6 @@ void kmain(uint32_t mb2_ptr) {
   g_kernel_phys_range.start = g_kernel_virt_range.start - KERNEL_BASE;
   g_kernel_phys_range.end = g_kernel_virt_range.end - KERNEL_BASE;
 
-  early_pmm_init(g_kernel_phys_range.end);
   KernelBootInfo *kernel_boot_info =
       parse_multiboot2_early((mb2_info_t *)mb2_ptr);
   mb2_ptr = 0; // disabling use of unparsed, low half params
@@ -49,7 +46,6 @@ void kmain(uint32_t mb2_ptr) {
       get_unusable_memory_ranges(kernel_boot_info, total_memory_range, &count);
 
   // From now on, no early pmm
-  early_pmm_disable();
   pmm_init(total_memory_range, unusable_memory_ranges, count);
 
   static vmspace_t kernel_vmspace = {0};

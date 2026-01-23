@@ -1,11 +1,10 @@
-#include "memory_management/vmm.h"
 #include "assert.h"
+#include "hal.h"
 #include "memory_management/memdefs.h"
 #include "memory_management/pmm.h"
 #include "stdio.h"
 #include "string.h"
 #include "utils/math.h"
-#include "vmm.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

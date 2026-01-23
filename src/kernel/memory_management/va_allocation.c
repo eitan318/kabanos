@@ -1,6 +1,6 @@
 #include "va_allocation.h"
+#include "hal.h"
 #include "memory_management/pmm.h"
-#include "memory_management/vmm.h"
 #include "stdio.h"
 #include "utils/math.h"
 

@@ -4,7 +4,6 @@
 #include "memory_management/memdefs.h"
 #include "memory_management/pmm.h"
 #include "memory_management/va_allocation.h"
-#include "memory_management/vmm.h"
 #include "proc/exec.h"
 #include "sched/thread.h"
 #include "stdio.h"

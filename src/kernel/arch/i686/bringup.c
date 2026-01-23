@@ -1,5 +1,3 @@
-#include "kernel_boot_info.h"
-#include "memory_management/early_pmm.h"
 #include "memory_management/memdefs.h"
 #include <stdint.h>
 
@@ -64,8 +62,7 @@ __attribute__((section(".multiboot.text"))) void kernel_start(void) {
   uintptr_t kernel_end_phys = (uintptr_t)&_kernel_end - KERNEL_BASE;
 
   // Calculate number of pages needed
-  int pages_needed =
-      (kernel_end_phys + EARLY_PMM_SIZE + PAGE_SIZE - 1) / PAGE_SIZE;
+  int pages_needed = (kernel_end_phys + PAGE_SIZE - 1) / PAGE_SIZE;
 
   // Cap at 1023 to leave room for VGA
   if (pages_needed > 1023) {
