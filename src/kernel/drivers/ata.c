@@ -1,6 +1,6 @@
 #include "ata.h"
 #include "arch/i686/ata_portmap.h"
-#include "hal/io.h"
+#include "hal.h"
 
 // ATA Commands
 #define ATA_CMD_READ_SECTORS 0x20
@@ -16,14 +16,12 @@
 #define ATA_STATUS_RDY 0x40
 #define ATA_STATUS_BSY 0x80
 
-// Wait for 400ns by reading the status register 4 times
 static void ata_delay_400ns(void) {
   for (int i = 0; i < 4; i++) {
     io_read8(ATA_PRIMARY_STATUS);
   }
 }
 
-// Wait until the drive is not busy
 static int ata_wait_not_busy(void) {
   uint8_t status;
   int timeout = 1000000;
@@ -40,6 +38,7 @@ static int ata_wait_not_busy(void) {
 // Wait until the drive is ready
 static int ata_wait_ready(void) {
   uint8_t status;
+
   int timeout = 1000000;
 
   if (ata_wait_not_busy() != 0) {
@@ -112,7 +111,8 @@ void ata_read_sector(uint32_t lba, int count, uint8_t *buffer) {
     // Read 256 words (512 bytes)
     uint16_t *buf16 = (uint16_t *)(buffer + i * SECTOR_SIZE);
     for (int j = 0; j < 256; j++) {
-      buf16[j] = io_read16(ATA_PRIMARY_DATA);  // FIXED: was io_read8, should be io_read16
+      buf16[j] = io_read16(
+          ATA_PRIMARY_DATA); // FIXED: was io_read8, should be io_read16
     }
 
     ata_delay_400ns();

@@ -42,9 +42,9 @@ typedef struct {
   uint8_t access;
   uint8_t granularity;
   uint8_t base_high;
-} __attribute__((packed)) GDTEntry;
+} __attribute__((packed)) gdt_entry_t;
 
-GDTEntry g_gdt[] = {
+gdt_entry_t g_gdt[] = {
     // NULL descriptor
     GDT_ENTRY(0, 0, 0, 0),
 
@@ -77,14 +77,14 @@ GDTEntry g_gdt[] = {
 
 typedef struct {
   uint16_t size;
-  GDTEntry *offset;
-} __attribute__((packed)) GDTDescriptor;
+  gdt_entry_t *offset;
+} __attribute__((packed)) gdt_descriptor_t;
 
-static GDTDescriptor g_gdt_descriptor = {sizeof(g_gdt) - 1, g_gdt};
+static gdt_descriptor_t g_gdt_descriptor = {sizeof(g_gdt) - 1, g_gdt};
 
 // Functions
 void __attribute__((cdecl))
-i686_gdt_load(GDTDescriptor *gdt_descriptor, uint16_t code_segment,
+i686_gdt_load(gdt_descriptor_t *gdt_descriptor, uint16_t code_segment,
               uint16_t data_segment);
 
 void i686_gdt_init() {

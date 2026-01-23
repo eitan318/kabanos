@@ -1,6 +1,6 @@
 #include "vfs.h"
-#include "arch/i686/com1.h"
-#include "arch/i686/vga_text.h"
+#include "drivers/vga_text.h"
+#include "hal.h"
 
 size_t pvfs_write(int fd, uint8_t *buf, size_t size) {
   switch (fd) {
@@ -17,7 +17,7 @@ size_t pvfs_write(int fd, uint8_t *buf, size_t size) {
   case VFS_FD_DEBUG:
     for (size_t i = 0; i < size; i++) {
       char c = buf[i];
-      com1_putc(c);
+      hal_serial_putc(c);
     }
     return size;
   default:

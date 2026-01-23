@@ -1,9 +1,7 @@
-#include "arch/i686/vga_text.h"
 #include "boot/bootparams.h"
+#include "drivers/vga_text.h"
 #include "fat/fat.h"
-#include "hal/hal.h"
-#include "include/memory.h"
-#include "include/stdio.h"
+#include "hal.h"
 #include "kernel_boot_info.h"
 #include "memory_management/early_pmm.h"
 #include "memory_management/kmalloc.h"
@@ -16,6 +14,8 @@
 #include "modules/modules.h"
 #include "proc/exec.h"
 #include "sched/sched.h"
+#include "stdio.h"
+#include "string.h"
 #include "ut/ata/ata_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
 #include "ut/keyboard_driver.h"
@@ -30,7 +30,6 @@ vmspace_t *g_kernel_vmspace;
 Range g_kernel_virt_range;
 Range g_kernel_phys_range;
 
-extern uint8_t _bss_start[], _bss_end[];
 void kmain(uint32_t mb2_ptr) {
   debugf("[Kernel starting...]\n");
   extern uint8_t _kernel_start[], _kernel_end[];
@@ -38,9 +37,6 @@ void kmain(uint32_t mb2_ptr) {
   g_kernel_virt_range.end = (uintptr_t)&_kernel_end;
   g_kernel_phys_range.start = g_kernel_virt_range.start - KERNEL_BASE;
   g_kernel_phys_range.end = g_kernel_virt_range.end - KERNEL_BASE;
-
-  uintptr_t bss_size = (uintptr_t)(_bss_end - _bss_start);
-  // memset(&_bss_start[0], 0, bss_size);
 
   early_pmm_init(g_kernel_phys_range.end);
   KernelBootInfo *kernel_boot_info =
@@ -68,9 +64,13 @@ void kmain(uint32_t mb2_ptr) {
   // From now on no lower half mapping
   vmspace_switch(g_kernel_vmspace);
 
-  hal_init();
+  // Init hardware
+  hal_arch_init();
+  vga_clrscr();
+  vga_setcursor(0, 0);
+  kbd_init();
 
-  asm volatile("sti");
+  hal_interrupts_enable();
 
   kmalloc_init();
   // ut_paging_main();

@@ -1,4 +1,5 @@
 #pragma once
+#include "hal.h"
 #include "proc/proc.h"
 #include <stdint.h>
 
@@ -9,7 +10,7 @@ typedef struct thread {
   void *kernel_esp;
 
   enum thread_state { THREAD_READY, THREAD_RUNNING } state;
-  enum thread_mode { THREAD_MODE_KERNEL, THREAD_MODE_USER } mode;
+  enum thread_mode mode;
 
   /* Stack tracking (for cleanup only) */
   void *kstack_top; // Top of kernel stack (for deallocation)

@@ -1,8 +1,8 @@
-#include "pic.h"
-#include "hal/io.h"
+#include "arch/i686/pic.h"
+#include "hal.h"
 
 // Initialize the PIC (Programmable Interrupt Controller)
-void pic_init() {
+void i686_pic_init() {
   // ICW1: Initialize PIC
   io_write8(PIC1_COMMAND, 0x11);
   io_write8(PIC2_COMMAND, 0x11);
@@ -20,50 +20,49 @@ void pic_init() {
   io_write8(PIC1_DATA, 0x01);
   io_write8(PIC2_DATA, 0x01);
 
-  pic_disable();
+  i686_pic_disable();
 }
 
 // Unmask (enable) a specific IRQ
-void pic_unmask_irq(uint8_t irq) {
+void i686_pic_unmask_irq(uint8_t irq) {
   uint16_t port;
 
   if (irq < 8) {
     port = PIC1_DATA;
   } else {
     port = PIC2_DATA;
-	irq -=8;
+    irq -= 8;
   }
-  
+
   uint8_t unmask = io_read8(port);
   io_write8(port, unmask & ~(1 << irq));
 }
 
 // Mask (disable) a specific IRQ
-void pic_mask_irq(uint8_t irq) {
+void i686_pic_mask_irq(uint8_t irq) {
   uint16_t port;
 
   if (irq < 8) {
     port = PIC1_DATA;
   } else {
     port = PIC2_DATA;
-	irq -= 8;
+    irq -= 8;
   }
-  
+
   uint8_t mask = io_read8(port);
   io_write8(port, mask | (1 << irq));
 }
 
 // Send End of Interrupt
-void pic_send_eoi(uint8_t irq) {
+void i686_pic_send_eoi(uint8_t irq) {
   if (irq >= 8) {
     io_write8(PIC2_COMMAND, PIC_EOI);
   }
   io_write8(PIC1_COMMAND, PIC_EOI);
 }
 
-void pic_disable() {
+void i686_pic_disable() {
   // Mask all interrupts to disable PICs
   io_write8(PIC1_DATA, 0xff);
   io_write8(PIC2_DATA, 0xff);
 }
-

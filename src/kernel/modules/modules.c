@@ -1,6 +1,6 @@
 #include "modules.h"
-#include "include/stdio.h"
-#include "include/string.h"
+#include "stdio.h"
+#include "string.h"
 
 // Load a specific module
 int module_load(KernelBootInfo *kbi, const char *name) {

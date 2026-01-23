@@ -23,8 +23,6 @@ i686_isr%1:
 
 %endmacro
 
-;!! this file is auto generated !!
-
 ; Assembly ISR stubs
 ISR_NOERRORCODE 0
 ISR_NOERRORCODE 1

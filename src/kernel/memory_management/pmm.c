@@ -1,6 +1,6 @@
 #include "pmm.h"
 #include "assert.h"
-#include "include/stdio.h"
+#include "stdio.h"
 #include "utils/bitmap.h"
 #include "utils/math.h"
 #include "utils/range.h"

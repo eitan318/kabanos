@@ -2,7 +2,7 @@
 // vga_text.c - VGA Text Mode Driver Implementation
 // ============================================================================
 #include "vga_text.h"
-#include "hal/io.h"
+#include "hal.h"
 #include "memory_management/memdefs.h"
 
 const unsigned SCREEN_WIDTH = 80;

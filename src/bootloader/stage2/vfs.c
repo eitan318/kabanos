@@ -1,5 +1,5 @@
 #include "vfs.h"
-#include "com1.h"
+#include "com_one.h"
 #include "vga_text.h"
 
 size_t pvfs_write(int fd, uint8_t *buf, size_t size) {

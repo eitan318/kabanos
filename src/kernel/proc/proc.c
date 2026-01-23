@@ -1,7 +1,7 @@
 #include "proc/proc.h"
-#include "include/memory.h"
 #include "memory_management/kmalloc.h"
 #include "memory_management/vmspace.h"
+#include "string.h"
 
 static uint32_t next_pid = 1;
 static uint32_t alloc_pid() { return next_pid++; }

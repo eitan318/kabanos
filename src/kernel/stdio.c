@@ -1,4 +1,4 @@
-#include "include/stdio.h"
+#include "stdio.h"
 #include "utils/math.h"
 #include "vfs.h"
 #include <stdbool.h>

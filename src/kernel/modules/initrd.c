@@ -1,6 +1,6 @@
 #include "initrd.h"
-#include "include/stdio.h"
-#include "include/string.h"
+#include "stdio.h"
+#include "string.h"
 #include <stddef.h>
 
 // Simple TAR header for initrd
