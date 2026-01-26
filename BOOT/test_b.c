@@ -13,6 +13,6 @@ void _start(void) {
 		: "a"(1), "b"(str), "c"(len)
 		: "memory"
 	);
-    asm volatile("int $45");
+    //asm volatile("int $45");
   }
 }
