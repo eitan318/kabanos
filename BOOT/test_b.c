@@ -8,6 +8,6 @@ void _start(void) {
       len++;
     }
     asm volatile("int $0x80" : : "a"(1), "b"(str), "c"(len) : "memory");
-    asm volatile("int $45");
+    //asm volatile("int $45");
   }
 }

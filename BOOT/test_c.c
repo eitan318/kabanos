@@ -2,7 +2,7 @@
 
 void _start(void) {
   for (;;) {
-    char *str = "Hello from process A\n";
+    char *str = "Hello from process C\n";
     size_t len = 0;
     while (str[len]) {
       len++;

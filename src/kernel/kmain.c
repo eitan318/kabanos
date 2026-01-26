@@ -2,6 +2,7 @@
 #include "drivers/vga_text.h"
 #include "fat/fat.h"
 #include "hal.h"
+#include "timer.h"
 #include "kernel_boot_info.h"
 #include "memory_management/kmalloc.h"
 #include "memory_management/memdefs.h"
@@ -67,6 +68,7 @@ void kmain(uint32_t mb2_ptr) {
   kbd_init();
 
   hal_interrupts_enable();
+  timer_init();
   syscall_init();
   kmalloc_init();
   // ut_paging_main();
@@ -84,6 +86,9 @@ void kmain(uint32_t mb2_ptr) {
 
   if (process_exec("test_b.elf") != 0)
     debugf("err\n\n");
+
+  // if (process_exec("test_c.elf") != 0)
+    // debugf("err\n\n");
 
   asm volatile("int $45");
 
