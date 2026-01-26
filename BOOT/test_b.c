@@ -1,14 +1,19 @@
 #include <stdint.h>
+#include <stddef.h>
 
 void _start(void) {
-  uint16_t port = 0x3F8; // COM1
-  uint8_t c = 'B';
   for (;;) {
-    asm volatile("outb %0, %1"
-                 :
-                 : "a"(c), "d"(port) // value in AL, port in DX
-    );
-
+    char *str = "Hello from process B\n";
+	size_t len = 0;
+	while (str[len]) {
+		len++;
+	}
+	asm volatile(
+		"int $80"
+		: 
+		: "a"(1), "b"(str), "c"(len)
+		: "memory"
+	);
     asm volatile("int $45");
   }
 }

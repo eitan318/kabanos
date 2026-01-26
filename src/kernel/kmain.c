@@ -67,7 +67,7 @@ void kmain(uint32_t mb2_ptr) {
   kbd_init();
 
   hal_interrupts_enable();
-
+  syscall_init();
   kmalloc_init();
   // ut_paging_main();
 
