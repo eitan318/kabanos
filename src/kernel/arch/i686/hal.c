@@ -3,6 +3,8 @@
 #include "arch/i686/interrupts.h"
 #include "arch/i686/pic.h"
 #include "arch/i686/regs.h"
+#include "arch/i686/syscall.h"
+#include "arch/i686/timer.h"
 #include "assert.h"
 #include "panic.h"
 #include "string.h"
@@ -40,6 +42,8 @@ void hal_arch_init(void) {
   i686_idt_init();
   i686_isr_init();
   i686_pic_init();
+  i686_timer_init();
+  i686_syscall_init();
 }
 
 int describe_regs(i686_regs_t *regs, int max, const char **names,

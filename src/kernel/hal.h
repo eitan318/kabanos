@@ -26,6 +26,8 @@ void hal_interrupts_enable(void);
 void hal_interrupts_disable(void);
 int hal_interrupts_state_get();
 
+const char *hal_exception_name(int vector);
+
 // Debug
 void hal_serial_putc(const char c);
 
@@ -68,6 +70,3 @@ void hal_set_kernel_stack(int cpu_id, void *kstack_top);
 void *hal_build_initial_frame(void *kstack_top, uintptr_t entry,
                               uintptr_t user_stack, enum thread_mode mode,
                               int interrupt_number);
-
-// Syscall
-void hal_syscall_isr_handler(struct regs *r);

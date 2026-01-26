@@ -1,12 +1,8 @@
 #include "sched/sched.h"
 #include "hal.h"
-#include "isr.h"
 #include "sched/thread.h"
 #include <stddef.h>
 #include <stdint.h>
-
-#define TIMER_IRQ 0
-#define TIMER_INTERRUPT 32
 
 extern vmspace_t *g_kernel_vmspace; // global
 
@@ -18,22 +14,18 @@ thread_t *current = NULL;
 
 void sched_add(thread_t *t) { tasks[task_count++] = t; }
 
-thread_t *sched_next(void) {
+static thread_t *sched_next(void) {
   current_index = (current_index + 1) % task_count;
   return tasks[current_index];
 }
 
 extern void __attribute__((naked)) switch_to(thread_t *p);
-extern void __attribute__((naked)) switch_debug(thread_t *p);
 
-static void preemptive_switch_isr_handler(struct regs *regs) {
-
-  hal_irq_send_eoi(TIMER_IRQ);
-
+void sched_tick(struct regs *r) {
   if (current == NULL) {
     current = sched_next();
   } else {
-    current->kernel_esp = (void *)regs;
+    current->kernel_esp = (void *)r;
   }
 
   thread_t *next = sched_next();
@@ -48,8 +40,4 @@ static void preemptive_switch_isr_handler(struct regs *regs) {
   switch_to(next);
 }
 
-void sched_init() {
-  // Enable keyboard interrupt (IRQ0)
-  hal_irq_enable(TIMER_IRQ);
-  isr_handler_register(TIMER_INTERRUPT, preemptive_switch_isr_handler);
-}
+void sched_init(void) { current = NULL; }

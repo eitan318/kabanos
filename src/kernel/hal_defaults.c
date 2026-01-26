@@ -28,6 +28,9 @@ bool weak hal_regs_from_user(const struct regs *regs) { return false; }
 void weak hal_interrupts_enable(void) {}
 void weak hal_interrupts_disable(void) {}
 int weak hal_interrupts_state_get() { return -1; }
+const char *weak hal_exception_name(int vector) {
+  return "hal_exception_name() not implemented";
+}
 
 // Debug
 void weak hal_serial_putc(const char c) {}
@@ -67,6 +70,3 @@ void *weak hal_build_initial_frame(void *kstack_top, uintptr_t entry,
                                    int interrupt_number) {
   return NULL;
 }
-
-// Syscall
-void weak hal_syscall_isr_handler(struct regs *r) {}
