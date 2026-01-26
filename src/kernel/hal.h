@@ -30,10 +30,10 @@ int hal_interrupts_state_get();
 void hal_serial_putc(const char c);
 
 // IO
-uint8_t io_read8(uint16_t port);
-uint16_t io_read16(uint16_t port);
-void io_write8(uint16_t port, uint8_t value);
-void io_write16(uint16_t port, uint16_t value);
+uint8_t hal_in8(uint16_t port);
+uint16_t hal_in16(uint16_t port);
+void hal_out8(uint16_t port, uint8_t value);
+void hal_out16(uint16_t port, uint16_t value);
 
 // IRQ
 void hal_irq_enable(int irq);
@@ -53,14 +53,14 @@ typedef uint32_t paddr_t;
 #define PD_ENTRIES PAGE_SIZE / sizeof(uint32_t)
 
 // VMM
-bool vm_map(page_dir_t *pd, vaddr_t va, paddr_t pa, uint32_t flags);
-bool vm_unmap(page_dir_t *pd, vaddr_t va);
-paddr_t virt_to_phys(page_dir_t *pd, vaddr_t va);
-bool vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
-                  size_t size, uint32_t flags);
-bool vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size);
-paddr_t vm_empty_pd_create();
-void vm_pd_destroy(page_dir_t *pd);
+bool hal_vm_map(page_dir_t *pd, vaddr_t va, paddr_t pa, uint32_t flags);
+bool hal_vm_unmap(page_dir_t *pd, vaddr_t va);
+paddr_t hal_vm_virt_to_phys(page_dir_t *pd, vaddr_t va);
+bool hal_vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
+                      size_t size, uint32_t flags);
+bool hal_vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size);
+paddr_t hal_vm_empty_pd_create();
+void hal_vm_pd_destroy(page_dir_t *pd);
 
 // Processes
 enum thread_mode { THREAD_MODE_KERNEL, THREAD_MODE_USER };
@@ -68,3 +68,6 @@ void hal_set_kernel_stack(int cpu_id, void *kstack_top);
 void *hal_build_initial_frame(void *kstack_top, uintptr_t entry,
                               uintptr_t user_stack, enum thread_mode mode,
                               int interrupt_number);
+
+// Syscall
+void hal_syscall_isr_handler(struct regs *r);

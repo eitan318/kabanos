@@ -2,24 +2,25 @@
 #include "hal.h"
 #include "kmalloc.h"
 #include "memory_management/memdefs.h"
+#include "memory_management/pmm.h"
 #include "string.h"
 #include "utils/math.h"
 #include "utils/range.h"
 #include <stddef.h>
 
 void kernel_vmspace_create(vmspace_t *vmspace, Range total_memory_range) {
-  vmspace->pd_phys = vm_empty_pd_create();
+  vmspace->pd_phys = hal_vm_empty_pd_create();
   if (!vmspace->pd_phys)
     return;
   vmspace->pd = (uint32_t *)vmspace->pd_phys;
 
   // Map to HIGHER HALF ONLY
-  vm_map_range(vmspace->pd, total_memory_range.start,
-               total_memory_range.start + KERNEL_BASE, total_memory_range.end,
-               PAGE_READWRITE);
+  hal_vm_map_range(vmspace->pd, total_memory_range.start,
+                   total_memory_range.start + KERNEL_BASE,
+                   total_memory_range.end, PAGE_READWRITE);
 
   // Map VGA buffer BEFORE switching
-  vm_map(vmspace->pd, VGA_SCREEN_BUF, VGA_SCREEN_BUF_PHYS, PAGE_READWRITE);
+  hal_vm_map(vmspace->pd, VGA_SCREEN_BUF, VGA_SCREEN_BUF_PHYS, PAGE_READWRITE);
   vmspace->pd = (uint32_t *)(vmspace->pd_phys + KERNEL_BASE);
 }
 
@@ -29,7 +30,7 @@ vmspace_t *vmspace_create() {
   if (!vmspace)
     return NULL;
 
-  vmspace->pd_phys = vm_empty_pd_create();
+  vmspace->pd_phys = hal_vm_empty_pd_create();
   if (!vmspace->pd_phys) {
     kfree(vmspace);
     return NULL;

@@ -14,14 +14,14 @@ bool va_alloc_region(page_dir_t *pd, uint32_t virt_start, size_t size,
     uint32_t phys = pmm_frame_alloc();
     if (!phys) {
       for (uint32_t j = 0; j < i; j++)
-        vm_unmap(pd, start + j * PAGE_SIZE);
+        hal_vm_unmap(pd, start + j * PAGE_SIZE);
       return false;
     }
 
-    if (!vm_map(pd, start + i * PAGE_SIZE, phys, flags)) {
+    if (!hal_vm_map(pd, start + i * PAGE_SIZE, phys, flags)) {
       pmm_frame_free(phys);
       for (uint32_t j = 0; j < i; j++)
-        vm_unmap(pd, start + j * PAGE_SIZE);
+        hal_vm_unmap(pd, start + j * PAGE_SIZE);
       return false;
     }
   }
@@ -34,11 +34,11 @@ void va_free_region(page_dir_t *pd, uint32_t virt_start, size_t size) {
   // Free physical frames before unmapping
   for (uint32_t i = 0; i < pages; i++) {
     uint32_t va = virt_start + i * PAGE_SIZE;
-    uint32_t phys = virt_to_phys(pd, va);
+    uint32_t phys = hal_vm_virt_to_phys(pd, va);
     if (phys) {
       pmm_frame_free(phys);
     }
   }
 
-  vm_unmap_range(pd, virt_start, size);
+  hal_vm_unmap_range(pd, virt_start, size);
 }

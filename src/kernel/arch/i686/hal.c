@@ -33,7 +33,7 @@ uintptr_t hal_regs_pc(struct regs *regs) {
   return r->eip;
 }
 
-void hal_serial_putc(const char c) { io_write8(0x3f8, c); }
+void hal_serial_putc(const char c) { hal_out8(0x3f8, c); }
 
 void hal_arch_init(void) {
   i686_gdt_init();
