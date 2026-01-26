@@ -18,7 +18,7 @@
 
 static void ata_delay_400ns(void) {
   for (int i = 0; i < 4; i++) {
-    io_read8(ATA_PRIMARY_STATUS);
+    hal_in8(ATA_PRIMARY_STATUS);
   }
 }
 
@@ -27,7 +27,7 @@ static int ata_wait_not_busy(void) {
   int timeout = 1000000;
 
   while (timeout--) {
-    status = io_read8(ATA_PRIMARY_STATUS);
+    status = hal_in8(ATA_PRIMARY_STATUS);
     if (!(status & ATA_STATUS_BSY)) {
       return 0;
     }
@@ -46,7 +46,7 @@ static int ata_wait_ready(void) {
   }
 
   while (timeout--) {
-    status = io_read8(ATA_PRIMARY_STATUS);
+    status = hal_in8(ATA_PRIMARY_STATUS);
     if (status & ATA_STATUS_RDY) {
       return 0;
     }
@@ -64,7 +64,7 @@ static int ata_wait_drq(void) {
   }
 
   while (timeout--) {
-    status = io_read8(ATA_PRIMARY_STATUS);
+    status = hal_in8(ATA_PRIMARY_STATUS);
     if (status & ATA_STATUS_DRQ) {
       return 0;
     }
@@ -87,19 +87,19 @@ void ata_read_sector(uint32_t lba, int count, uint8_t *buffer) {
   }
 
   // Select drive (master) and set LBA mode with highest 4 bits of LBA
-  io_write8(ATA_PRIMARY_DRIVE_HEAD, 0xE0 | ((lba >> 24) & 0x0F));
+  hal_out8(ATA_PRIMARY_DRIVE_HEAD, 0xE0 | ((lba >> 24) & 0x0F));
   ata_delay_400ns();
 
   // Send sector count (0 means 256 sectors)
-  io_write8(ATA_PRIMARY_SECCOUNT, count);
+  hal_out8(ATA_PRIMARY_SECCOUNT, count);
 
   // Send LBA address
-  io_write8(ATA_PRIMARY_LBA_LO, lba & 0xFF);
-  io_write8(ATA_PRIMARY_LBA_MID, (lba >> 8) & 0xFF);
-  io_write8(ATA_PRIMARY_LBA_HI, (lba >> 16) & 0xFF);
+  hal_out8(ATA_PRIMARY_LBA_LO, lba & 0xFF);
+  hal_out8(ATA_PRIMARY_LBA_MID, (lba >> 8) & 0xFF);
+  hal_out8(ATA_PRIMARY_LBA_HI, (lba >> 16) & 0xFF);
 
   // Send read command
-  io_write8(ATA_PRIMARY_COMMAND, ATA_CMD_READ_SECTORS);
+  hal_out8(ATA_PRIMARY_COMMAND, ATA_CMD_READ_SECTORS);
 
   // Read all sectors
   for (int i = 0; i < count; i++) {
@@ -111,7 +111,7 @@ void ata_read_sector(uint32_t lba, int count, uint8_t *buffer) {
     // Read 256 words (512 bytes)
     uint16_t *buf16 = (uint16_t *)(buffer + i * SECTOR_SIZE);
     for (int j = 0; j < 256; j++) {
-      buf16[j] = io_read16(
+      buf16[j] = hal_in16(
           ATA_PRIMARY_DATA); // FIXED: was io_read8, should be io_read16
     }
 
@@ -131,19 +131,19 @@ int ata_write_sector(uint32_t lba, int count, const uint8_t *buffer) {
   }
 
   // Select drive (master) and set LBA mode with highest 4 bits of LBA
-  io_write8(ATA_PRIMARY_DRIVE_HEAD, 0xE0 | ((lba >> 24) & 0x0F));
+  hal_out8(ATA_PRIMARY_DRIVE_HEAD, 0xE0 | ((lba >> 24) & 0x0F));
   ata_delay_400ns();
 
   // Send sector count (0 means 256 sectors)
-  io_write8(ATA_PRIMARY_SECCOUNT, count);
+  hal_out8(ATA_PRIMARY_SECCOUNT, count);
 
   // Send LBA address
-  io_write8(ATA_PRIMARY_LBA_LO, lba & 0xFF);
-  io_write8(ATA_PRIMARY_LBA_MID, (lba >> 8) & 0xFF);
-  io_write8(ATA_PRIMARY_LBA_HI, (lba >> 16) & 0xFF);
+  hal_out8(ATA_PRIMARY_LBA_LO, lba & 0xFF);
+  hal_out8(ATA_PRIMARY_LBA_MID, (lba >> 8) & 0xFF);
+  hal_out8(ATA_PRIMARY_LBA_HI, (lba >> 16) & 0xFF);
 
   // Send write command
-  io_write8(ATA_PRIMARY_COMMAND, ATA_CMD_WRITE_SECTORS);
+  hal_out8(ATA_PRIMARY_COMMAND, ATA_CMD_WRITE_SECTORS);
 
   // Write all sectors
   for (int i = 0; i < count; i++) {
@@ -155,14 +155,14 @@ int ata_write_sector(uint32_t lba, int count, const uint8_t *buffer) {
     // Write 256 words (512 bytes)
     const uint16_t *buf16 = (const uint16_t *)(buffer + i * SECTOR_SIZE);
     for (int j = 0; j < 256; j++) {
-      io_write16(ATA_PRIMARY_DATA, buf16[j]);
+      hal_out16(ATA_PRIMARY_DATA, buf16[j]);
     }
 
     ata_delay_400ns();
   }
 
   // Flush cache to ensure data is written to disk
-  io_write8(ATA_PRIMARY_COMMAND, ATA_CMD_CACHE_FLUSH);
+  hal_out8(ATA_PRIMARY_COMMAND, ATA_CMD_CACHE_FLUSH);
   ata_wait_not_busy();
   return 0;
 }
@@ -170,7 +170,7 @@ int ata_write_sector(uint32_t lba, int count, const uint8_t *buffer) {
 // Initialize ATA driver
 void ata_init(void) {
   // Select master drive
-  io_write8(ATA_PRIMARY_DRIVE_HEAD, 0xE0);
+  hal_out8(ATA_PRIMARY_DRIVE_HEAD, 0xE0);
   ata_delay_400ns();
 
   // Wait for drive to be ready

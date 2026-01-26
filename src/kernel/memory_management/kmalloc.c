@@ -53,7 +53,7 @@ static void *heap_page_alloc(void) {
 
   // Map it to virtual address
   uint32_t virtual = next_heap_addr;
-  if (!vm_map(kernel_page_directory, virtual, physical, PAGE_READWRITE)) {
+  if (!hal_vm_map(kernel_page_directory, virtual, physical, PAGE_READWRITE)) {
     pmm_frame_free(physical);
     return NULL;
   }
@@ -67,10 +67,10 @@ static void *heap_page_alloc(void) {
  */
 static void heap_page_free(void *ptr) {
   uint32_t virtual = (uint32_t)ptr;
-  uint32_t physical = virt_to_phys(kernel_page_directory, virtual);
+  uint32_t physical = hal_vm_virt_to_phys(kernel_page_directory, virtual);
 
   if (physical) {
-    vm_unmap(kernel_page_directory, virtual);
+    hal_vm_unmap(kernel_page_directory, virtual);
     pmm_frame_free(physical);
   }
 }

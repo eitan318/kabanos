@@ -28,8 +28,8 @@ static void *alloc_kernel_stack(uint32_t tid, page_dir_t *user_pd) {
   /* Map same physical pages into user page directory if provided */
   if (user_pd) {
     for (vaddr_t va = stack_bottom; va < stack_top; va += PAGE_SIZE) {
-      paddr_t phys = virt_to_phys(g_kernel_vmspace->pd, va);
-      if (!phys || !vm_map(user_pd, va, phys, PAGE_READWRITE)) {
+      paddr_t phys = hal_vm_virt_to_phys(g_kernel_vmspace->pd, va);
+      if (!phys || !hal_vm_map(user_pd, va, phys, PAGE_READWRITE)) {
         debugf("Failed to map kernel stack into user PD at 0x%x\n", va);
         va_free_region(g_kernel_vmspace->pd, stack_bottom,
                        PROCESS_KERNEL_STACK_SIZE);
@@ -103,7 +103,7 @@ void thread_destroy(thread_t *t) {
     if (t->mode == THREAD_MODE_USER && t->process && t->process->vmspace->pd) {
       for (vaddr_t va = stack_bottom; va < (vaddr_t)t->kstack_top;
            va += PAGE_SIZE) {
-        vm_unmap(t->process->vmspace->pd, va);
+        hal_vm_unmap(t->process->vmspace->pd, va);
       }
     }
   }

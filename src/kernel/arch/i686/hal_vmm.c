@@ -38,7 +38,7 @@ static inline uint32_t calc_remaining_in_pt(uint32_t pt_index) {
   return (PT_ENTRIES - pt_index) * PAGE_SIZE;
 }
 
-paddr_t virt_to_phys(page_dir_t *pd, vaddr_t va) {
+paddr_t hal_vm_virt_to_phys(page_dir_t *pd, vaddr_t va) {
   uint32_t pd_index = get_pd_index(va);
   uint32_t pt_index = get_pt_index(va);
 
@@ -184,8 +184,8 @@ static uint32_t calculate_map_size(uint32_t pt_index, vaddr_t va,
                                              : remaining_total;
 }
 
-bool vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
-                  size_t size, uint32_t flags) {
+bool hal_vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
+                      size_t size, uint32_t flags) {
   if (size == 0) {
     return true;
   }
@@ -225,7 +225,7 @@ bool vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
   return true;
 }
 
-bool vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size) {
+bool hal_vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size) {
   if (size == 0) {
     return true;
   }
@@ -268,16 +268,16 @@ bool vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size) {
 //
 // Single Page Operations
 //
-bool vm_map(page_dir_t *pd_virt, vaddr_t va, paddr_t pa, uint32_t flags) {
-  bool res = vm_map_range(pd_virt, pa, va, PAGE_SIZE, flags);
+bool hal_vm_map(page_dir_t *pd_virt, vaddr_t va, paddr_t pa, uint32_t flags) {
+  bool res = hal_vm_map_range(pd_virt, pa, va, PAGE_SIZE, flags);
   if (res) {
     tlb_flush(va);
   }
   return res;
 }
 
-bool vm_unmap(page_dir_t *pd_virt, vaddr_t virt_addr) {
-  bool res = vm_unmap_range(pd_virt, virt_addr, PAGE_SIZE);
+bool hal_vm_unmap(page_dir_t *pd_virt, vaddr_t virt_addr) {
+  bool res = hal_vm_unmap_range(pd_virt, virt_addr, PAGE_SIZE);
   if (res) {
     tlb_flush(virt_addr);
   }
@@ -288,7 +288,7 @@ bool vm_unmap(page_dir_t *pd_virt, vaddr_t virt_addr) {
 // Page Directory Lifetime
 //
 
-void vm_pd_destroy(page_dir_t *pd) {
+void hal_vm_pd_destroy(page_dir_t *pd) {
   for (int i = 0; i < KERNEL_PD_START; i++) {
     if (pd[i] & PD_PT_PRESENT) {
       paddr_t pt_phys = pd[i] & ~0xFFF;
@@ -297,4 +297,4 @@ void vm_pd_destroy(page_dir_t *pd) {
   }
 }
 
-paddr_t vm_empty_pd_create() { return allocate_page_table(); }
+paddr_t hal_vm_empty_pd_create() { return allocate_page_table(); }

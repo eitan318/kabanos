@@ -28,7 +28,7 @@ static int load_segment(page_dir_t *pd, vaddr_t va_start, size_t mem_size,
   size_t file_copied = 0;
   for (vaddr_t page_va = pages_start; page_va < pages_end;
        page_va += PAGE_SIZE) {
-    paddr_t phys = virt_to_phys(pd, page_va);
+    paddr_t phys = hal_vm_virt_to_phys(pd, page_va);
     ASSERT(phys);
 
     void *kva = kmap(phys);

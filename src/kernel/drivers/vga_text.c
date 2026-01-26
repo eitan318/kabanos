@@ -33,10 +33,10 @@ uint8_t vga_getcolor(int x, int y) {
 
 void vga_setcursor(int x, int y) {
   int pos = y * SCREEN_WIDTH + x;
-  io_write8(0x3D4, 0x0F);
-  io_write8(0x3D5, (uint8_t)(pos & 0xFF));
-  io_write8(0x3D4, 0x0E);
-  io_write8(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
+  hal_out8(0x3D4, 0x0F);
+  hal_out8(0x3D5, (uint8_t)(pos & 0xFF));
+  hal_out8(0x3D4, 0x0E);
+  hal_out8(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
 }
 
 void vga_scrollback(int lines) {
