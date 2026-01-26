@@ -2,15 +2,12 @@
 #include "drivers/vga_text.h"
 #include "fat/fat.h"
 #include "hal.h"
-#include "timer.h"
 #include "kernel_boot_info.h"
 #include "memory_management/kmalloc.h"
 #include "memory_management/memdefs.h"
 #include "memory_management/memory_map.h"
 #include "memory_management/pmm.h"
 #include "memory_management/vmspace.h"
-#include "modules/initrd.h"
-#include "modules/modules.h"
 #include "proc/exec.h"
 #include "sched/sched.h"
 #include "stdio.h"
@@ -18,7 +15,6 @@
 #include "ut/ata/ata_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
 #include "ut/keyboard_driver.h"
-#include "ut/paging/paging_ut_main.h"
 #include "utils/range.h"
 #include <stdbool.h>
 #include <stddef.h>
@@ -68,7 +64,6 @@ void kmain(uint32_t mb2_ptr) {
   kbd_init();
 
   hal_interrupts_enable();
-  timer_init();
   syscall_init();
   kmalloc_init();
   // ut_paging_main();
