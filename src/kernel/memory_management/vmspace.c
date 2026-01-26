@@ -4,7 +4,6 @@
 #include "memory_management/memdefs.h"
 #include "memory_management/pmm.h"
 #include "string.h"
-#include "utils/math.h"
 #include "utils/range.h"
 #include <stddef.h>
 

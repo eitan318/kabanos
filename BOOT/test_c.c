@@ -2,7 +2,7 @@
 
 void _start(void) {
   for (;;) {
-    char *str = "B";
+    char *str = "C";
     size_t len = 0;
     while (str[len]) {
       len++;

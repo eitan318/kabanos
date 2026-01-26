@@ -64,8 +64,8 @@ thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
   }
 
   /* Build interrupt frame */
-  void *kernel_esp = hal_build_initial_frame(kstack_top, entry, user_stack,
-                                             mode, PREEMPTIVE_INT);
+  void *kernel_esp =
+      hal_build_initial_frame(kstack_top, entry, user_stack, mode, 0);
 
   /* Set thread state */
   t->kstack_top = kstack_top;
