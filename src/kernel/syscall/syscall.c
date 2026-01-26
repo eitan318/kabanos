@@ -19,12 +19,13 @@ void syscall_isr_handler(struct regs *regs) {
 	switch (syscall_num)
 	{
 		case SYSCALL_NUMBERS_SYS_WRITE:
-			char *str = (char*)arg1;
+			char *str = (char*)arg1; 
 			size_t len = arg2;
 			
-			for (size_t i = 0; i < len; i++) {
-				debugc(str[i]);
-			}
+			// the error of 13 is here!!! im trying to get user memory but i cant!
+			// for (size_t i = 0; i < len; i++) {
+				// debugc(str[i]);
+			// }
 			break;
 		default:
 			break;
