@@ -3,7 +3,7 @@
 #include "sched/sched.h"
 
 #define TIMER_IRQ 0
-#define TIMER_VECTOR 32
+#define TIMER_INT 0x20
 
 static void timer_isr(struct regs *r) {
   hal_irq_send_eoi(TIMER_IRQ); // Works only with eoi before
@@ -11,6 +11,6 @@ static void timer_isr(struct regs *r) {
 }
 
 void i686_timer_init(void) {
-  isr_handler_register(TIMER_VECTOR, timer_isr);
+  isr_handler_register(TIMER_INT, timer_isr);
   hal_irq_enable(TIMER_IRQ);
 }
