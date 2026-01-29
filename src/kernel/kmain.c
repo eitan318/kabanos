@@ -84,8 +84,6 @@ void kmain(uint32_t mb2_ptr) {
   if (process_exec("test_c.elf") != 0)
     debugf("err\n\n");
 
-  asm volatile("int $45");
-
   for (;;) {
   }
 }
