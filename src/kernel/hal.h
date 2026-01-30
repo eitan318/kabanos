@@ -17,9 +17,10 @@ void hal_halt(void);
 void hal_trap();
 
 // Regs
-int hal_interrupt_number(struct regs *regs);
+int hal_regs_interrupt_number(struct regs *regs);
 uintptr_t hal_regs_pc(struct regs *regs);
 bool hal_regs_from_user(const struct regs *regs);
+unsigned hal_regs_max_get();
 
 // Interrupts
 void hal_interrupts_enable(void);

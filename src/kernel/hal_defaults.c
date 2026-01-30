@@ -20,9 +20,10 @@ void weak hal_halt(void) {}
 void weak hal_trap() {}
 
 // Regs
-int weak hal_interrupt_number(struct regs *regs) { return -1; }
+int weak hal_regs_interrupt_number(struct regs *regs) { return -1; }
 uintptr_t weak hal_regs_pc(struct regs *regs) { return NULL; }
 bool weak hal_regs_from_user(const struct regs *regs) { return false; }
+unsigned weak hal_regs_max_get() { return -1; }
 
 // Interrupts
 void weak hal_interrupts_enable(void) {}

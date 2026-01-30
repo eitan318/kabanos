@@ -65,7 +65,6 @@ void kmain(uint32_t mb2_ptr) {
 
   hal_interrupts_enable();
   kmalloc_init();
-  // ut_paging_main();
 
   if (!fat_initialize(34)) {
     debugf("Failed to initialize FAT\n");

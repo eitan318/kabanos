@@ -14,14 +14,15 @@ void __attribute__((noreturn)) panic_halt(const char *fmt, ...) {
 }
 
 void panic_from_regs(struct regs *regs) {
-  const char *names[14];
-  uintptr_t vals[14];
+  int max_regs = hal_regs_max_get();
+  const char *names[max_regs];
+  uintptr_t vals[max_regs];
 
-  int n = hal_describe_regs(regs, 14, names, vals);
+  int n = hal_describe_regs(regs, max_regs, names, vals);
   for (int i = 0; i < n; i++) {
-    printf("%s: 0x%lx, ", names[i], vals[i]);
+    debugf_and_printf("%s: 0x%lx, ", names[i], vals[i]);
   }
-  printf("\n");
+  debugf_and_printf("\n");
 
   uintptr_t pc = hal_regs_pc(regs);
 
@@ -38,8 +39,9 @@ void panic_from_regs(struct regs *regs) {
   uintptr_t backtrace_pc;
 
   while ((backtrace_pc = hal_backtrace(&state, regs)) != 0) {
-    printf(" 0x%lx", backtrace_pc);
+    debugf(" 0x%lx", backtrace_pc);
   }
 
-  printf("\n");
+  debugf("\n");
+  panic_halt("");
 }

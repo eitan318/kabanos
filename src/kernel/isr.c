@@ -12,9 +12,9 @@ void isr_handler_register(uint32_t interrupt_num, interrupt_handler_t handler) {
 }
 
 void isr_dispatch(struct regs *regs) {
-  int hal_interrupt_number(struct regs * regs);
+  int hal_regs_interrupt_number(struct regs * regs);
   uintptr_t hal_regs_pc(struct regs * regs);
-  int interrupt_num = hal_interrupt_number(regs);
+  int interrupt_num = hal_regs_interrupt_number(regs);
   if (g_isr_handlers[interrupt_num]) {
     g_isr_handlers[interrupt_num](regs);
     return;
