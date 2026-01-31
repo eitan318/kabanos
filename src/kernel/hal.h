@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
 struct arch_regs;
 typedef void (*interrupt_handler_t)(struct arch_regs *r);
 

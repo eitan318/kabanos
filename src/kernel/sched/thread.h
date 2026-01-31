@@ -1,5 +1,4 @@
 #pragma once
-#include "arch/i686/types.h"
 #include "hal.h"
 #include "proc/proc.h"
 #include <stdint.h>
@@ -8,7 +7,7 @@ typedef struct thread {
   uint32_t tid;
   process_t *process; // Parent process (contains CR3)
 
-  arch_thread_t arch;
+  arch_thread_t *arch;
 
   enum thread_state { THREAD_READY, THREAD_RUNNING } state;
   enum thread_mode mode;
