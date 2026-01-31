@@ -1,4 +1,5 @@
 #pragma once
+#include "arch/types.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

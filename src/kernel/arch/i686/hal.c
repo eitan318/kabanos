@@ -2,7 +2,6 @@
 #include "arch/i686/gdt.h"
 #include "arch/i686/interrupts.h"
 #include "arch/i686/pic.h"
-#include "arch/i686/regs.h"
 #include "arch/i686/syscall.h"
 #include "arch/i686/timer.h"
 #include "assert.h"
@@ -21,11 +20,11 @@ int hal_interrupts_state_get() {
   return eflags & 0x200;
 }
 int hal_regs_interrupt_number(struct regs *regs) {
-  i686_regs_t *r = regs;
+  i686_regs_t *r = (i686_regs_t *)regs;
   return r->interrupt;
 }
 uintptr_t hal_regs_pc(struct regs *regs) {
-  i686_regs_t *r = regs;
+  i686_regs_t *r = (i686_regs_t *)regs;
   return r->eip;
 }
 
@@ -44,12 +43,13 @@ void hal_arch_init(void) {
 unsigned hal_regs_max_get() { return i686_MAX_REGS; }
 
 bool hal_regs_from_user(const struct regs *regs) {
-  i686_regs_t *r = regs;
+  i686_regs_t *r = (i686_regs_t *)regs;
   return (r->cs & 0x3) != 0;
 }
 
-int hal_describe_regs(i686_regs_t *regs, int max_regs, const char **names,
+int hal_describe_regs(struct regs *r, int max_regs, const char **names,
                       uintptr_t *values) {
+  i686_regs_t *regs = (i686_regs_t *)r;
   if (max_regs != i686_MAX_REGS)
     return -1;
   if (!regs)

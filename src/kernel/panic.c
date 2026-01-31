@@ -1,4 +1,3 @@
-#include "arch/i686/regs.h"
 #include "hal.h"
 #include "stdio.h"
 
