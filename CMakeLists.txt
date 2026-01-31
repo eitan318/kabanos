@@ -1,6 +1,7 @@
 # main cmake lists
 cmake_minimum_required(VERSION 3.16)
 project(myos C ASM_NASM)
+set(ARCH i686) 
 # Enable languages
 enable_language(C ASM_NASM)
 
