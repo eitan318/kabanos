@@ -77,8 +77,8 @@ void hal_set_kernel_stack(int cpu_id, void *kstack_top);
 
 // Thread
 void hal_thread_save(arch_thread_t *thread, void *context);
-void hal_thread_switch(arch_thread_t *next);
 int hal_thread_init(thread_t *t, uintptr_t entry, uintptr_t user_stack);
+void hal_thread_switch(thread_t *next);
 
 // Timer
 void hal_timer_enable();

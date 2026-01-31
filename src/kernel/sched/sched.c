@@ -1,5 +1,4 @@
 #include "sched/sched.h"
-#include "arch/types.h"
 #include "hal.h"
 #include "isr.h"
 #include "sched/thread.h"
@@ -30,13 +29,12 @@ void sched_yield() {
 
   current = next; // Make sure 'current' is updated before the jump!
   hal_vm_arch_load(next->process->vmspace->arch);
-  hal_thread_switch(next->arch);
+  hal_thread_switch(next);
 }
 
 void ticker(struct arch_regs *r) { sched_tick(r); }
 
 void sched_tick(void *context) {
-  hal_interrupts_disable();
   if (current != NULL) {
     hal_thread_save(current->arch, context);
   }
@@ -50,9 +48,7 @@ void sched_tick(void *context) {
 
   int cpu_id = 0;
   hal_set_kernel_stack(cpu_id, next->kstack_top);
-  hal_vm_arch_load(next->process->vmspace->arch);
-  hal_interrupts_enable();
-  hal_thread_switch(next->arch);
+  hal_thread_switch(next);
 }
 
 void sched_init(void) {

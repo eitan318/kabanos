@@ -5,19 +5,30 @@ bits 32
 ;
 global thread_switch_to
 thread_switch_to:
+    ; Standard C Calling Convention (cdecl):
+    ; [esp + 8] : pd_phys
     ; [esp + 4] : kernel_esp 
     ; [esp + 0] : Return Address 
+
+    ; 1. Switch Page Directory (CR3) before we lose access to this stack
+    mov eax, [esp + 8]
+    mov cr3, eax
+
+    ; 2. Switch to the new thread's stack
     mov eax, [esp + 4]
-    mov esp, eax  ; esp = kernel_esp 
+    mov esp, eax  
 
-    ; This was pushed by 'hal_build_initial_frame' and common interrupt stub
-
+    ; 3. Restore Segments (Order: DS, ES, FS, GS)
     pop ds
     pop es
     pop fs
     pop gs
-    popa ; general purpuse regs
-    add esp, 8 ;'int_no' and 'err_code'
 
-    ; Pops EIP, CS, EFLAGS (and SS/ESP if returning to user mode)
+    ; 4. Restore General Purpose Registers
+    popa 
+
+    ; 5. Clean up interrupt stub data (int_no and err_code)
+    add esp, 8
+
+    ; 6. The jump to the thread
     iret
