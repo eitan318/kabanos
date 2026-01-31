@@ -294,80 +294,22 @@ bool hal_vm_unmap(arch_vm_t *vm, vaddr_t virt_addr) {
   return res;
 }
 
-static arch_vm_t k_arch_ctx;
-
-arch_vm_t *hal_vm_context_create() {
-  // 1. Allocate the container struct
-  // If kmalloc isn't ready, we use our static kernel container
-  static bool k_ctx_used = false;
-  arch_vm_t *ctx;
-
-  if (!k_ctx_used) {
-    ctx = &k_arch_ctx;
-    k_ctx_used = true;
-  } else {
-    ctx = kmalloc(sizeof(arch_vm_t));
-  }
-
-  if (!ctx)
-    return NULL;
-
-  // 2. Allocate the actual Physical Page Directory (1 frame)
-  paddr_t pd_phys = pmm_frame_alloc();
-  if (!pd_phys)
-    return NULL;
-
-  ctx->pd_phys = pd_phys;
-
-  // 3. Map the PD into virtual memory so we can zero it
-  // Use KERNEL_BASE if you are in a higher-half kernel
-  ctx->pd = (uint32_t *)(pd_phys + KERNEL_BASE);
-  memset(ctx->pd, 0, 4096);
-
-  return ctx;
+bool hal_vm_empty_arch_vm_create(arch_vm_t *kernel_arch_vm) {
+  kernel_arch_vm->pd_phys = allocate_page_table();
+  if (!kernel_arch_vm->pd_phys)
+    return false;
+  kernel_arch_vm->pd = (uint32_t *)(kernel_arch_vm->pd_phys + KERNEL_BASE);
 }
 
-arch_vm_t *hal_vm_context_clone_kernel() {
-  // This is called for new processes. kmalloc IS ready now.
-  arch_vm_t *new_ctx = kmalloc(sizeof(arch_vm_t));
-  if (!new_ctx)
-    return NULL;
+//
+// Page Directory Lifetime
+//
 
-  paddr_t pd_phys = pmm_frame_alloc();
-  if (!pd_phys) {
-    kfree(new_ctx);
-    return NULL;
+void hal_vm_pd_destroy(page_dir_t *pd) {
+  for (int i = 0; i < KERNEL_PD_START; i++) {
+    if (pd[i] & PD_PT_PRESENT) {
+      paddr_t pt_phys = pd[i] & ~0xFFF;
+      pmm_frame_free(pt_phys);
+    }
   }
-
-  new_ctx->pd_phys = pd_phys;
-  new_ctx->pd = (uint32_t *)(pd_phys + KERNEL_BASE);
-
-  // Copy the top 512 entries (2GB to 4GB)
-  for (int i = 512; i < 1024; i++) {
-    new_ctx->pd[i] = k_arch_ctx.pd[i];
-  }
-
-  return new_ctx;
-}
-
-void hal_vm_load_context(arch_vm_t *ctx) {
-  if (!ctx)
-    return;
-  // The actual hardware switch
-  asm volatile("mov %0, %%cr3" ::"r"(ctx->pd_phys));
-}
-
-void hal_vm_context_destroy(arch_vm_t *ctx) {
-  if (!ctx)
-    return;
-
-  // Never destroy the static kernel context
-  if (ctx == &k_arch_ctx)
-    return;
-
-  // Free the physical frame of the PD
-  pmm_frame_free(ctx->pd_phys);
-
-  // Free the container
-  kfree(ctx);
 }

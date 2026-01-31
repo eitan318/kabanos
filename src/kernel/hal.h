@@ -3,7 +3,6 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
-
 struct arch_regs;
 typedef void (*interrupt_handler_t)(struct arch_regs *r);
 
@@ -66,10 +65,7 @@ bool hal_vm_map_range(arch_vm_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
 bool hal_vm_unmap_range(arch_vm_t *pd_virt, vaddr_t va_start, size_t size);
 
 //  - context
-arch_vm_t *hal_vm_context_create();
-arch_vm_t *hal_vm_context_clone_kernel();
-void hal_vm_context_destroy(arch_vm_t *ctx);
-void hal_vm_load_context(arch_vm_t *ctx);
+bool hal_vm_empty_arch_vm_create(arch_vm_t *kernel_arch_vm);
 
 // Processes
 enum thread_mode { THREAD_MODE_KERNEL, THREAD_MODE_USER };
