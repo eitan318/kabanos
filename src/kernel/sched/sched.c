@@ -25,7 +25,7 @@ void sched_tick(struct arch_regs *r) {
   if (current == NULL) {
     current = sched_next();
   } else {
-    current->kernel_esp = (void *)r;
+    current->arch.kernel_esp = (void *)r;
   }
 
   thread_t *next = sched_next();

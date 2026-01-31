@@ -69,7 +69,7 @@ thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
 
   /* Set thread state */
   t->kstack_top = kstack_top;
-  t->kernel_esp = kernel_esp;
+  t->arch.kernel_esp = kernel_esp;
 
   /* Add to process and scheduler */
   if (proc && !proc->main_thread) {

@@ -4,6 +4,7 @@
 #include "arch/i686/pic.h"
 #include "arch/i686/syscall.h"
 #include "arch/i686/timer.h"
+#include "arch/i686/types.h"
 #include "assert.h"
 #include "panic.h"
 #include "string.h"
@@ -20,13 +21,9 @@ int hal_interrupts_state_get() {
   return eflags & 0x200;
 }
 int hal_regs_interrupt_number(struct arch_regs *regs) {
-  i686_regs_t *r = (i686_regs_t *)regs;
-  return r->interrupt;
+  return regs->interrupt;
 }
-uintptr_t hal_regs_pc(struct arch_regs *regs) {
-  i686_regs_t *r = (i686_regs_t *)regs;
-  return r->eip;
-}
+uintptr_t hal_regs_pc(struct arch_regs *regs) { return regs->eip; }
 
 void hal_serial_putc(const char c) { hal_out8(0x3f8, c); }
 
@@ -43,13 +40,11 @@ void hal_arch_init(void) {
 unsigned hal_regs_max_get() { return i686_MAX_REGS; }
 
 bool hal_regs_from_user(const struct arch_regs *regs) {
-  i686_regs_t *r = (i686_regs_t *)regs;
-  return (r->cs & 0x3) != 0;
+  return (regs->cs & 0x3) != 0;
 }
 
-int hal_describe_regs(struct arch_regs *r, int max_regs, const char **names,
+int hal_describe_regs(struct arch_regs *regs, int max_regs, const char **names,
                       uintptr_t *values) {
-  i686_regs_t *regs = (i686_regs_t *)r;
   if (max_regs != i686_MAX_REGS)
     return -1;
   if (!regs)
@@ -83,10 +78,9 @@ int hal_describe_regs(struct arch_regs *r, int max_regs, const char **names,
 }
 
 uintptr_t hal_backtrace(uintptr_t *data, struct arch_regs *regs) {
-  i686_regs_t *arch_regs = regs;
   if (*data == 0) {
     if (regs)
-      *data = arch_regs->ebp;
+      *data = regs->ebp;
     else
       __asm__ volatile("mov %%ebp, %0" : "=r"(*data));
   }

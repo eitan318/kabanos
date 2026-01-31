@@ -1,4 +1,5 @@
 #include "syscall/syscall.h"
+#include "arch/i686/types.h"
 #include "hal.h"
 #include "isr.h"
 
