@@ -44,7 +44,6 @@ void hal_irq_enable(int irq);
 void hal_irq_disable(int irq);
 void hal_irq_send_eoi(uint8_t irq);
 
-typedef uint32_t page_dir_t;
 typedef uint32_t vaddr_t;
 typedef uint32_t paddr_t;
 
@@ -55,16 +54,22 @@ typedef uint32_t paddr_t;
 #define PAGE_SIZE 4096
 
 #define PD_ENTRIES PAGE_SIZE / sizeof(uint32_t)
-
+//
 // VMM
-bool hal_vm_map(page_dir_t *pd, vaddr_t va, paddr_t pa, uint32_t flags);
-bool hal_vm_unmap(page_dir_t *pd, vaddr_t va);
-paddr_t hal_vm_virt_to_phys(page_dir_t *pd, vaddr_t va);
-bool hal_vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
+//
+//  - mappings
+bool hal_vm_map(arch_vm_t *pd, vaddr_t va, paddr_t pa, uint32_t flags);
+bool hal_vm_unmap(arch_vm_t *pd, vaddr_t va);
+paddr_t hal_vm_virt_to_phys(arch_vm_t *pd, vaddr_t va);
+bool hal_vm_map_range(arch_vm_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
                       size_t size, uint32_t flags);
-bool hal_vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size);
-paddr_t hal_vm_empty_pd_create();
-void hal_vm_pd_destroy(page_dir_t *pd);
+bool hal_vm_unmap_range(arch_vm_t *pd_virt, vaddr_t va_start, size_t size);
+
+//  - context
+arch_vm_t *hal_vm_context_create();
+arch_vm_t *hal_vm_context_clone_kernel();
+void hal_vm_context_destroy(arch_vm_t *ctx);
+void hal_vm_load_context(arch_vm_t *ctx);
 
 // Processes
 enum thread_mode { THREAD_MODE_KERNEL, THREAD_MODE_USER };

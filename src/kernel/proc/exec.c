@@ -13,14 +13,14 @@ int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
   size_t size;
 
   fat_read_file(path, &data, &size);
-  int r = elf_load(vm->pd, data, size, entry);
+  int r = elf_load(vm->arch, data, size, entry);
   kfree(data);
   return r;
 }
 
 // Return top of stack
 uintptr_t setup_user_stack(vmspace_t *vm) {
-  if (!va_alloc_region(vm->pd, USER_STACK_BOTTOM + 1, USER_STACK_SIZE,
+  if (!va_alloc_region(vm->arch, USER_STACK_BOTTOM + 1, USER_STACK_SIZE,
                        PAGE_USER | PAGE_READWRITE)) {
     return -1;
   }

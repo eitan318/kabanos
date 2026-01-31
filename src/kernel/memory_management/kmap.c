@@ -9,7 +9,8 @@ extern vmspace_t *g_kernel_vmspace;
 
 void *kmap(uint32_t phys_addr) {
   // Map physical page into kernel PD
-  if (!hal_vm_map(g_kernel_vmspace->pd, kmap_temp, phys_addr, PAGE_READWRITE)) {
+  if (!hal_vm_map(g_kernel_vmspace->arch, kmap_temp, phys_addr,
+                  PAGE_READWRITE)) {
     debugf("kmap: failed to map phys 0x%x\n", phys_addr);
     return NULL;
   }
@@ -19,5 +20,5 @@ void *kmap(uint32_t phys_addr) {
 
 void kunmap(void) {
   // Unmap the page
-  hal_vm_unmap(g_kernel_vmspace->pd, kmap_temp);
+  hal_vm_unmap(g_kernel_vmspace->arch, kmap_temp);
 }

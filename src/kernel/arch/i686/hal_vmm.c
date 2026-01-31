@@ -1,5 +1,8 @@
+#include "arch/i686/types.h"
+#include "arch/types.h"
 #include "assert.h"
 #include "hal.h"
+#include "memory_management/kmalloc.h"
 #include "memory_management/memdefs.h"
 #include "memory_management/pmm.h"
 #include "stdio.h"
@@ -8,6 +11,8 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+
+typedef uint32_t page_dir_t;
 
 #define KERNEL_PD_START (KERNEL_BASE / (4 * 1024 * 1024))
 #define PD_PT_PRESENT PAGE_PRESENT
@@ -38,7 +43,8 @@ static inline uint32_t calc_remaining_in_pt(uint32_t pt_index) {
   return (PT_ENTRIES - pt_index) * PAGE_SIZE;
 }
 
-paddr_t hal_vm_virt_to_phys(page_dir_t *pd, vaddr_t va) {
+paddr_t hal_vm_virt_to_phys(arch_vm_t *vm, vaddr_t va) {
+  page_dir_t *pd = vm->pd;
   uint32_t pd_index = get_pd_index(va);
   uint32_t pt_index = get_pt_index(va);
 
@@ -184,8 +190,11 @@ static uint32_t calculate_map_size(uint32_t pt_index, vaddr_t va,
                                              : remaining_total;
 }
 
-bool hal_vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
+bool hal_vm_map_range(arch_vm_t *vm, paddr_t pa_start, vaddr_t va_start,
                       size_t size, uint32_t flags) {
+
+  page_dir_t *pd_virt = vm->pd;
+
   if (size == 0) {
     return true;
   }
@@ -225,10 +234,11 @@ bool hal_vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
   return true;
 }
 
-bool hal_vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size) {
+bool hal_vm_unmap_range(arch_vm_t *vm, vaddr_t va_start, size_t size) {
   if (size == 0) {
     return true;
   }
+  page_dir_t *pd_virt = vm->pd;
 
   ASSERT(is_aligned(va_start, PAGE_SIZE));
   ASSERT(is_aligned(size, PAGE_SIZE));
@@ -268,33 +278,96 @@ bool hal_vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size) {
 //
 // Single Page Operations
 //
-bool hal_vm_map(page_dir_t *pd_virt, vaddr_t va, paddr_t pa, uint32_t flags) {
-  bool res = hal_vm_map_range(pd_virt, pa, va, PAGE_SIZE, flags);
+bool hal_vm_map(arch_vm_t *vm, vaddr_t va, paddr_t pa, uint32_t flags) {
+  bool res = hal_vm_map_range(vm, pa, va, PAGE_SIZE, flags);
   if (res) {
     tlb_flush(va);
   }
   return res;
 }
 
-bool hal_vm_unmap(page_dir_t *pd_virt, vaddr_t virt_addr) {
-  bool res = hal_vm_unmap_range(pd_virt, virt_addr, PAGE_SIZE);
+bool hal_vm_unmap(arch_vm_t *vm, vaddr_t virt_addr) {
+  bool res = hal_vm_unmap_range(vm, virt_addr, PAGE_SIZE);
   if (res) {
     tlb_flush(virt_addr);
   }
   return res;
 }
 
-//
-// Page Directory Lifetime
-//
+static arch_vm_t k_arch_ctx;
 
-void hal_vm_pd_destroy(page_dir_t *pd) {
-  for (int i = 0; i < KERNEL_PD_START; i++) {
-    if (pd[i] & PD_PT_PRESENT) {
-      paddr_t pt_phys = pd[i] & ~0xFFF;
-      pmm_frame_free(pt_phys);
-    }
+arch_vm_t *hal_vm_context_create() {
+  // 1. Allocate the container struct
+  // If kmalloc isn't ready, we use our static kernel container
+  static bool k_ctx_used = false;
+  arch_vm_t *ctx;
+
+  if (!k_ctx_used) {
+    ctx = &k_arch_ctx;
+    k_ctx_used = true;
+  } else {
+    ctx = kmalloc(sizeof(arch_vm_t));
   }
+
+  if (!ctx)
+    return NULL;
+
+  // 2. Allocate the actual Physical Page Directory (1 frame)
+  paddr_t pd_phys = pmm_frame_alloc();
+  if (!pd_phys)
+    return NULL;
+
+  ctx->pd_phys = pd_phys;
+
+  // 3. Map the PD into virtual memory so we can zero it
+  // Use KERNEL_BASE if you are in a higher-half kernel
+  ctx->pd = (uint32_t *)(pd_phys + KERNEL_BASE);
+  memset(ctx->pd, 0, 4096);
+
+  return ctx;
 }
 
-paddr_t hal_vm_empty_pd_create() { return allocate_page_table(); }
+arch_vm_t *hal_vm_context_clone_kernel() {
+  // This is called for new processes. kmalloc IS ready now.
+  arch_vm_t *new_ctx = kmalloc(sizeof(arch_vm_t));
+  if (!new_ctx)
+    return NULL;
+
+  paddr_t pd_phys = pmm_frame_alloc();
+  if (!pd_phys) {
+    kfree(new_ctx);
+    return NULL;
+  }
+
+  new_ctx->pd_phys = pd_phys;
+  new_ctx->pd = (uint32_t *)(pd_phys + KERNEL_BASE);
+
+  // Copy the top 512 entries (2GB to 4GB)
+  for (int i = 512; i < 1024; i++) {
+    new_ctx->pd[i] = k_arch_ctx.pd[i];
+  }
+
+  return new_ctx;
+}
+
+void hal_vm_load_context(arch_vm_t *ctx) {
+  if (!ctx)
+    return;
+  // The actual hardware switch
+  asm volatile("mov %0, %%cr3" ::"r"(ctx->pd_phys));
+}
+
+void hal_vm_context_destroy(arch_vm_t *ctx) {
+  if (!ctx)
+    return;
+
+  // Never destroy the static kernel context
+  if (ctx == &k_arch_ctx)
+    return;
+
+  // Free the physical frame of the PD
+  pmm_frame_free(ctx->pd_phys);
+
+  // Free the container
+  kfree(ctx);
+}

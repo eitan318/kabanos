@@ -1,11 +1,11 @@
 #pragma once
+#include "arch/types.h"
 #include "hal.h"
 #include "utils/range.h"
 #include <stdint.h>
 
 typedef struct vmspace_t {
-  uint32_t *pd;
-  paddr_t pd_phys;
+  arch_vm_t *arch;
 } vmspace_t;
 
 // Create initial virtual memory space for kernel
