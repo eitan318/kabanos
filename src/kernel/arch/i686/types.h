@@ -1,10 +1,5 @@
 #pragma once
 #include "hal.h"
-
-typedef struct arch_thread_t {
-  void *kernel_esp; // On x86, we just need to save the stack pointer
-} arch_thread_t;
-
 typedef struct arch_regs {
   // in the reverse order they are pushed:
   uint32_t ds; // data segment pushed by us

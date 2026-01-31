@@ -108,7 +108,7 @@ void i686_isr_init(void) {
   int count = sizeof(stubs) / sizeof(stubs[0]);
   for (int i = 0; i < count; i++) {
     uint32_t flags = IDT_FLAGS_RING0 | IDT_FLAGS_GATE_TRAP_32b;
-    if (i == 0x80 || i == 45) // Syscall
+    if (i == 0x80 || i == 0x45) // Syscall
       flags = IDT_FLAGS_RING3 | IDT_FLAGS_GATE_TRAP_32b;
     i686_idt_gate_set(i, stubs[i], i686_GDT_KERNEL_CS_SEL, flags);
     i686_idt_gate_enable(i);

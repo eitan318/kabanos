@@ -42,7 +42,6 @@ static void *alloc_kernel_stack(uint32_t tid, arch_vm_t *user_vm) {
   return (void *)stack_top;
 }
 
-// Generic thread creation (works for both kernel and user threads)
 thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
                         enum thread_mode mode) {
   thread_t *t = kmalloc(sizeof(*t));
@@ -55,22 +54,29 @@ thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
   t->state = THREAD_READY;
   t->mode = mode;
 
-  /* Allocate kernel stack (mapped to user PD if user mode) */
-  arch_vm_t *user_vm =
-      (mode == THREAD_MODE_USER && proc) ? proc->vmspace->arch : NULL;
-  void *kstack_top = alloc_kernel_stack(t->tid, user_vm);
-  if (!kstack_top) {
+  // Allocate the arch-specific part (if it's a pointer)
+  t->arch = kmalloc(sizeof(*t->arch));
+  if (!t->arch) {
     kfree(t);
     return NULL;
   }
 
-  /* Build interrupt frame */
-  void *kernel_esp =
-      hal_build_initial_frame(kstack_top, entry, user_stack, mode, 0);
-
-  /* Set thread state */
+  // 1. Allocate kernel stack (still generic logic)
+  arch_vm_t *user_vm =
+      (mode == THREAD_MODE_USER && proc) ? proc->vmspace->arch : NULL;
+  void *kstack_top = alloc_kernel_stack(t->tid, user_vm);
+  if (!kstack_top) {
+    kfree(t->arch);
+    kfree(t);
+    return NULL;
+  }
   t->kstack_top = kstack_top;
-  t->arch.kernel_esp = kernel_esp;
+
+  if (hal_thread_init(t, entry, user_stack) != 0) {
+    kfree(t->arch);
+    kfree(t);
+    return NULL;
+  }
 
   /* Add to process and scheduler */
   if (proc && !proc->main_thread) {
@@ -80,7 +86,6 @@ thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
 
   return t;
 }
-
 thread_t *thread_create_user(process_t *proc, uintptr_t entry,
                              uintptr_t user_stack) {
   return thread_create(proc, entry, user_stack, THREAD_MODE_USER);

@@ -3,26 +3,21 @@ bits 32
 ;
 ; This should match the isr.asm common_isr for preeamptive switching
 ;
-global switch_to
-switch_to:
-    ; Input: [esp + 4] = thread_t *next
-    mov eax, [esp + 4]          ; EAX = next thread
-    
-    ; Get process from thread
-    mov ebx, [eax + 4]          ; EBX = next->process
-    
-    ; Load CR3 from process->page_dir
-    mov ecx, [ebx + 4]          ; ECX = process->(vmspace*)
-    mov ecx, [ecx]          ; ECX = process->vmspace->(arch_vm*) 
-    mov ecx, [ecx + 4]          ; ECX = process->vmspace->(arch_vm*).pd_phys 
-    mov cr3, ecx                ; Switch address space
-    
-    ; Load kernel ESP (points to saved interrupt frame)
-    mov esp, [eax + 8]          ; ESP = next->kernel_esp
-    
-    ; Restore CPU state from interrupt frame
-    pop ds                      
-    popa                        
-    add esp, 8                  ; Skip error code + interrupt number
-    iret                        
+global thread_switch_to
+thread_switch_to:
+    ; [esp + 4] : kernel_esp 
+    ; [esp + 0] : Return Address 
+    mov eax, [esp + 4]
+    mov esp, eax  ; esp = kernel_esp 
 
+    ; This was pushed by 'hal_build_initial_frame' and common interrupt stub
+
+    pop ds
+    pop es
+    pop fs
+    pop gs
+    popa ; general purpuse regs
+    add esp, 8 ;'int_no' and 'err_code'
+
+    ; Pops EIP, CS, EFLAGS (and SS/ESP if returning to user mode)
+    iret

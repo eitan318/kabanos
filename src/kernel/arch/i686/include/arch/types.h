@@ -5,11 +5,12 @@
 typedef uint32_t arch_vaddr_t;
 typedef uint32_t arch_paddr_t;
 
-// TODO: make ddefinition hidden
+typedef struct arch_thread_t {
+  void *kernel_esp; // On x86, we just need to save the stack pointer
+} arch_thread_t;
+
+// TODO: make definition hidden
 typedef struct arch_vm_t {
   uint32_t *pd;         // Pointer to Page Directory
   arch_paddr_t pd_phys; // Physical address (to load into CR3)
 } arch_vm_t;
-
-typedef struct arch_thread_t arch_thread_t;
-typedef struct arch_regs arch_regs;

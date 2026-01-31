@@ -1,7 +1,8 @@
 #pragma once
-#include "hal.h"
 #include "proc/proc.h"
 #include <stdint.h>
+
+enum thread_mode { THREAD_MODE_KERNEL, THREAD_MODE_USER };
 
 typedef struct thread {
   uint32_t tid;

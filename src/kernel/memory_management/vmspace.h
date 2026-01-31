@@ -1,6 +1,5 @@
 #pragma once
 #include "arch/types.h"
-#include "hal.h"
 #include "utils/range.h"
 #include <stdint.h>
 

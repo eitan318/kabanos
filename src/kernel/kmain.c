@@ -64,8 +64,6 @@ void kmain(uint32_t mb2_ptr) {
   vga_setcursor(0, 0);
   kbd_init();
 
-  hal_interrupts_enable();
-
   if (!fat_initialize(34)) {
     debugf("Failed to initialize FAT\n");
     for (;;) {
@@ -74,14 +72,26 @@ void kmain(uint32_t mb2_ptr) {
 
   debugf("Testing Proc\n");
   sched_init();
-  if (process_exec("test_a.elf") != 0)
+  // if (process_exec("test_a.elf") != 0)
+  //   debugf("err\n\n");
+  //
+  // if (process_exec("test_b.elf") != 0)
+  //   debugf("err\n\n");
+  //
+  // if (process_exec("test_c.elf") != 0)
+  //   debugf("err\n\n");
+  //
+  //
+  if (process_exec("test_d.elf") != 0)
     debugf("err\n\n");
 
-  if (process_exec("test_b.elf") != 0)
+  if (process_exec("test_e.elf") != 0)
     debugf("err\n\n");
 
-  if (process_exec("test_c.elf") != 0)
-    debugf("err\n\n");
+  hal_interrupts_enable();
+
+  asm volatile("int $0x45");
+  // hal_timer_enable();
 
   for (;;) {
   }

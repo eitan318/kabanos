@@ -1,10 +1,11 @@
 #pragma once
 #include "arch/types.h"
+#include "sched/thread.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
-struct arch_regs;
+typedef struct arch_regs arch_regs;
 typedef void (*interrupt_handler_t)(struct arch_regs *r);
 
 // Init
@@ -72,8 +73,12 @@ void hal_vm_arch_load(arch_vm_t *arch_vm);
 void hal_vm_arch_destroy(arch_vm_t *vm);
 
 // Processes
-enum thread_mode { THREAD_MODE_KERNEL, THREAD_MODE_USER };
 void hal_set_kernel_stack(int cpu_id, void *kstack_top);
-void *hal_build_initial_frame(void *kstack_top, uintptr_t entry,
-                              uintptr_t user_stack, enum thread_mode mode,
-                              int interrupt_number);
+
+// Thread
+void hal_thread_save(arch_thread_t *thread, void *context);
+void hal_thread_switch(arch_thread_t *next);
+int hal_thread_init(thread_t *t, uintptr_t entry, uintptr_t user_stack);
+
+// Timer
+void hal_timer_enable();
