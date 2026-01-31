@@ -14,7 +14,7 @@ typedef struct arch_vm_t {
   arch_paddr_t pd_phys; // Physical address (to load into CR3)
 } vm_context_t;
 
-typedef struct regs {
+typedef struct arch_regs {
   // in the reverse order they are pushed:
   uint32_t ds; // data segment pushed by us
   uint32_t edi, esi, ebp, esp_dummy, ebx, edx, ecx, eax; // pusha

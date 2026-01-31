@@ -19,11 +19,11 @@ int hal_interrupts_state_get() {
   __asm__ volatile("pushf; pop %0" : "=r"(eflags));
   return eflags & 0x200;
 }
-int hal_regs_interrupt_number(struct regs *regs) {
+int hal_regs_interrupt_number(struct arch_regs *regs) {
   i686_regs_t *r = (i686_regs_t *)regs;
   return r->interrupt;
 }
-uintptr_t hal_regs_pc(struct regs *regs) {
+uintptr_t hal_regs_pc(struct arch_regs *regs) {
   i686_regs_t *r = (i686_regs_t *)regs;
   return r->eip;
 }
@@ -42,12 +42,12 @@ void hal_arch_init(void) {
 #define i686_MAX_REGS 16
 unsigned hal_regs_max_get() { return i686_MAX_REGS; }
 
-bool hal_regs_from_user(const struct regs *regs) {
+bool hal_regs_from_user(const struct arch_regs *regs) {
   i686_regs_t *r = (i686_regs_t *)regs;
   return (r->cs & 0x3) != 0;
 }
 
-int hal_describe_regs(struct regs *r, int max_regs, const char **names,
+int hal_describe_regs(struct arch_regs *r, int max_regs, const char **names,
                       uintptr_t *values) {
   i686_regs_t *regs = (i686_regs_t *)r;
   if (max_regs != i686_MAX_REGS)
@@ -82,7 +82,7 @@ int hal_describe_regs(struct regs *r, int max_regs, const char **names,
   return 16;
 }
 
-uintptr_t hal_backtrace(uintptr_t *data, struct regs *regs) {
+uintptr_t hal_backtrace(uintptr_t *data, struct arch_regs *regs) {
   i686_regs_t *arch_regs = regs;
   if (*data == 0) {
     if (regs)

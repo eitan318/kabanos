@@ -8,11 +8,11 @@
 void weak hal_arch_init(void) {}
 
 // Panic
-int weak hal_describe_regs(struct regs *regs, int max, const char **names,
+int weak hal_describe_regs(struct arch_regs *regs, int max, const char **names,
                            uintptr_t *values) {
   return -1;
 }
-uintptr_t weak hal_backtrace(uintptr_t *data, struct regs *regs) {
+uintptr_t weak hal_backtrace(uintptr_t *data, struct arch_regs *regs) {
   return NULL;
 }
 
@@ -20,9 +20,9 @@ void weak hal_halt(void) {}
 void weak hal_trap() {}
 
 // Regs
-int weak hal_regs_interrupt_number(struct regs *regs) { return -1; }
-uintptr_t weak hal_regs_pc(struct regs *regs) { return NULL; }
-bool weak hal_regs_from_user(const struct regs *regs) { return false; }
+int weak hal_regs_interrupt_number(struct arch_regs *regs) { return -1; }
+uintptr_t weak hal_regs_pc(struct arch_regs *regs) { return NULL; }
+bool weak hal_regs_from_user(const struct arch_regs *regs) { return false; }
 unsigned weak hal_regs_max_get() { return -1; }
 
 // Interrupts

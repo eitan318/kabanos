@@ -4,23 +4,23 @@
 #include <stddef.h>
 #include <stdint.h>
 
-struct regs;
-typedef void (*interrupt_handler_t)(struct regs *r);
+struct arch_regs;
+typedef void (*interrupt_handler_t)(struct arch_regs *r);
 
 // Init
 void hal_arch_init(void);
 
 // Panic
-int hal_describe_regs(struct regs *regs, int max, const char **names,
+int hal_describe_regs(struct arch_regs *regs, int max, const char **names,
                       uintptr_t *values);
-uintptr_t hal_backtrace(uintptr_t *data, struct regs *regs);
+uintptr_t hal_backtrace(uintptr_t *data, struct arch_regs *regs);
 void hal_halt(void);
 void hal_trap();
 
 // Regs
-int hal_regs_interrupt_number(struct regs *regs);
-uintptr_t hal_regs_pc(struct regs *regs);
-bool hal_regs_from_user(const struct regs *regs);
+int hal_regs_interrupt_number(struct arch_regs *regs);
+uintptr_t hal_regs_pc(struct arch_regs *regs);
+bool hal_regs_from_user(const struct arch_regs *regs);
 unsigned hal_regs_max_get();
 
 // Interrupts

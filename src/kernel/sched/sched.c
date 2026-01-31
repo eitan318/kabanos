@@ -21,7 +21,7 @@ static thread_t *sched_next(void) {
 
 extern void __attribute__((naked)) switch_to(thread_t *p);
 
-void sched_tick(struct regs *r) {
+void sched_tick(struct arch_regs *r) {
   if (current == NULL) {
     current = sched_next();
   } else {

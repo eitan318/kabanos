@@ -4,7 +4,7 @@
 
 #define SYSCALL_INTERRUPT 0x80
 
-static void syscall_isr_handler(struct regs *r) {
+static void syscall_isr_handler(struct arch_regs *r) {
   syscall_frame_t frame = {
       .num = r->eax, .args = {r->ebx, r->ecx, r->edx, r->esi, r->edi, r->ebp}};
 

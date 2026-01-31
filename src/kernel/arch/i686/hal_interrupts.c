@@ -125,5 +125,5 @@ void hal_irq_send_eoi(uint8_t irq) { i686_pic_send_eoi(irq); }
 //
 // ISR glue
 //
-extern void isr_dispatch(struct regs *);
-void i686_isr_handler(struct regs *regs) { isr_dispatch(regs); }
+extern void isr_dispatch(struct arch_regs *);
+void i686_isr_handler(struct arch_regs *regs) { isr_dispatch(regs); }
