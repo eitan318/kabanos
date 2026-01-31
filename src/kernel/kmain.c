@@ -56,6 +56,7 @@ void kmain(uint32_t mb2_ptr) {
 
   // From now on no lower half mapping
   vmspace_switch(g_kernel_vmspace);
+  kmalloc_init();
 
   // Init hardware
   hal_arch_init();
@@ -64,7 +65,6 @@ void kmain(uint32_t mb2_ptr) {
   kbd_init();
 
   hal_interrupts_enable();
-  kmalloc_init();
 
   if (!fat_initialize(34)) {
     debugf("Failed to initialize FAT\n");

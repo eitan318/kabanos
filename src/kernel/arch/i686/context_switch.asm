@@ -13,7 +13,8 @@ switch_to:
     
     ; Load CR3 from process->page_dir
     mov ecx, [ebx + 4]          ; ECX = process->(vmspace*)
-    mov ecx, [ecx + 4]          ; ECX = process->vmspace->pd_phys 
+    mov ecx, [ecx]          ; ECX = process->vmspace->(arch_vm*) 
+    mov ecx, [ecx + 4]          ; ECX = process->vmspace->(arch_vm*).pd_phys 
     mov cr3, ecx                ; Switch address space
     
     ; Load kernel ESP (points to saved interrupt frame)

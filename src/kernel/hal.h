@@ -66,6 +66,9 @@ bool hal_vm_unmap_range(arch_vm_t *pd_virt, vaddr_t va_start, size_t size);
 
 //  - context
 bool hal_vm_empty_arch_vm_create(arch_vm_t *kernel_arch_vm);
+void hal_vm_arch_clone(arch_vm_t *dst, arch_vm_t *src);
+void hal_vm_arch_load(arch_vm_t *arch_vm);
+void hal_vm_arch_destroy(arch_vm_t *vm);
 
 // Processes
 enum thread_mode { THREAD_MODE_KERNEL, THREAD_MODE_USER };

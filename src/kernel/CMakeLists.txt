@@ -56,6 +56,6 @@ target_include_directories(kernel.elf PRIVATE
 )
 
 # 6. Options and Linker (Unchanged)
-target_compile_options(kernel.elf PRIVATE -ffreestanding -nostdlib -g -O0)
+target_compile_options(kernel.elf PRIVATE -ffreestanding -nostdlib -g -g3 -O0 -fno-omit-frame-pointer -fno-inline)
 target_link_options(kernel.elf PRIVATE -nostdlib LINKER:-m,${LINKER_TARGET} LINKER:-T,${CMAKE_CURRENT_SOURCE_DIR}/arch/${ARCH}/linker.ld)
 

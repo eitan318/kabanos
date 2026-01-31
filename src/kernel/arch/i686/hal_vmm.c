@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 typedef uint32_t page_dir_t;
 
@@ -299,17 +300,27 @@ bool hal_vm_empty_arch_vm_create(arch_vm_t *kernel_arch_vm) {
   if (!kernel_arch_vm->pd_phys)
     return false;
   kernel_arch_vm->pd = (uint32_t *)(kernel_arch_vm->pd_phys + KERNEL_BASE);
+  return true;
+}
+
+void hal_vm_arch_clone(arch_vm_t *dst, arch_vm_t *src) {
+  memcpy(dst->pd, src->pd, PAGE_SIZE);
+}
+
+void hal_vm_arch_load(arch_vm_t *arch_vm) {
+  asm volatile("mov %0, %%cr3" ::"r"(arch_vm->pd_phys));
 }
 
 //
 // Page Directory Lifetime
 //
 
-void hal_vm_pd_destroy(page_dir_t *pd) {
+void hal_vm_arch_destroy(arch_vm_t *vm) {
   for (int i = 0; i < KERNEL_PD_START; i++) {
-    if (pd[i] & PD_PT_PRESENT) {
-      paddr_t pt_phys = pd[i] & ~0xFFF;
+    if (vm->pd[i] & PD_PT_PRESENT) {
+      paddr_t pt_phys = vm->pd[i] & ~0xFFF;
       pmm_frame_free(pt_phys);
     }
   }
+  pmm_frame_free(vm->pd_phys);
 }

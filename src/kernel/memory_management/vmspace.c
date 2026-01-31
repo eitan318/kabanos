@@ -36,17 +36,14 @@ vmspace_t *vmspace_create() {
     kfree(vmspace);
     return NULL;
   }
-  // Copy kernel mappings while we're still in kernel's CR3
-  extern vmspace_t *g_kernel_vmspace;
-  memcpy(vmspace->pd, g_kernel_vmspace->pd, PAGE_SIZE);
 
-  vmspace->pd = temp_pd;
+  extern vmspace_t *g_kernel_vmspace;
+  hal_vm_arch_clone(vmspace->arch, g_kernel_vmspace->arch);
+
   return vmspace;
 }
 
-void vmspace_switch(vmspace_t *vmspace) {
-  asm volatile("mov %0, %%cr3" ::"r"(vmspace->pd_phys));
-}
+void vmspace_switch(vmspace_t *vmspace) { hal_vm_arch_load(vmspace->arch); }
 
 void vmspace_destroy(vmspace_t *vmspace) {
   if (!vmspace)
@@ -54,9 +51,10 @@ void vmspace_destroy(vmspace_t *vmspace) {
   extern vmspace_t *g_kernel_vmspace;
 
   // kernel vmspace shall not be freed because it is early-kernel-allocated
-  if (vmspace->pd == g_kernel_vmspace->pd)
+  if (vmspace->arch == g_kernel_vmspace->arch)
     return;
 
-  pmm_frame_free(vmspace->pd_phys);
+  hal_vm_arch_destroy(vmspace->arch);
+  kfree(vmspace->arch);
   kfree(vmspace);
 }
