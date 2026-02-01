@@ -38,13 +38,31 @@ void sched_add(thread_t *t) {
 }
 
 static thread_t *sched_next(void) {
-	if (tasks_list == NULL) {
-		return NULL;
-	}
+	if (!tasks_list || !current_node) {
+        return NULL;
+    }
 
-	// Move to next node in circular list
-	current_node = current_node->next;
-	return current_node->thread;
+    task_node_t *start = current_node;
+
+    do {
+        current_node = current_node->next;
+
+        if (current_node->thread->state == THREAD_REALTIME) {
+            return current_node->thread;
+        }
+
+    } while (current_node != start);
+	
+    do {
+        current_node = current_node->next;
+
+        if (current_node->thread->state == THREAD_READY) {
+            return current_node->thread;
+        }
+
+    } while (current_node != start);
+
+    return NULL;  
 }
 
 extern void __attribute__((naked)) switch_to(thread_t *p);
@@ -52,6 +70,9 @@ extern void __attribute__((naked)) switch_to(thread_t *p);
 void sched_tick(struct regs *r) {
   if (current == NULL) {
     current = sched_next();
+	if (!current) {
+        current = &kernel_task;
+    }
   } else {
     current->kernel_esp = (void *)r;
   }
@@ -60,11 +81,16 @@ void sched_tick(struct regs *r) {
   if (!next) {
     next = &kernel_task;
   }
+  
+  if (current->state == THREAD_RUN) {
+    current->state = THREAD_READY;
+  }
   current = next;
 
   uint32_t cpu_id = 0;
   hal_set_kernel_stack(cpu_id, next->kstack_top);
 
+  next->state = THREAD_RUN;
   switch_to(next);
 }
 

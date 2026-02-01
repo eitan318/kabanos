@@ -1,4 +1,5 @@
 #include "proc/proc.h"
+#include "sched/thread.h"
 #include "memory_management/kmalloc.h"
 #include "memory_management/vmspace.h"
 #include "string.h"
@@ -17,6 +18,7 @@ process_t *process_create(void) {
 }
 
 void process_destroy(process_t *proc) {
+  proc->main_thread->state = THREAD_DEAD;
   vmspace_destroy(proc->vmspace);
   kfree(proc);
 }
