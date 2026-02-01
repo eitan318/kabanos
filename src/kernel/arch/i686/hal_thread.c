@@ -15,7 +15,7 @@ void hal_thread_switch(thread_t *next) {
                    next->process->vmspace->arch->pd_phys);
 }
 
-// Build initial interrupt frame on kernel stack
+// Build initial interrupt frame on kernel stack, should match isr_common
 void *build_initial_frame(void *kstack_top, uintptr_t entry,
                           uintptr_t user_stack, enum thread_mode mode,
                           int interrupt_number) {
@@ -43,9 +43,9 @@ void *build_initial_frame(void *kstack_top, uintptr_t entry,
   /* Segment registers */
   uint32_t ds = (mode == THREAD_MODE_USER) ? i686_GDT_USER_DS_SEL
                                            : i686_GDT_KERNEL_DS_SEL;
-  // *(--sp) = ds; // GS
-  // *(--sp) = ds; // FS
-  // *(--sp) = ds; // ES
+  *(--sp) = ds; // GS
+  *(--sp) = ds; // FS
+  *(--sp) = ds; // ES
   *(--sp) = ds; // DS
 
   return sp;

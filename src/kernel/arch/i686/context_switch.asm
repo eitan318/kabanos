@@ -1,7 +1,7 @@
 bits 32
 
 ;
-; This should match the isr.asm common_isr for preeamptive switching
+; This should match the interrupt.asm isr_common and arch_regs
 ;
 global thread_switch_to
 thread_switch_to:
@@ -12,9 +12,9 @@ thread_switch_to:
     mov cr3, eax 
     ; Restore Segments (Order: DS, ES, FS, GS)
     pop ds
-    ; pop es
-    ; pop fs
-    ; pop gs
+    pop es
+    pop fs
+    pop gs
     ;
     ; 4. Restore General Purpose Registers
     popa 
