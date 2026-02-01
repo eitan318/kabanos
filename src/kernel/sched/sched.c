@@ -76,6 +76,19 @@ void sched_tick(struct regs *r) {
   } else {
     current->kernel_esp = (void *)r;
   }
+  
+  // Let THREAD_REALTIME run twice 
+  if (current &&
+	  current->state == THREAD_REALTIME &&
+	  current->rt_ticks == 0) {
+	  current->rt_ticks = 1;
+	  return;   
+  }
+
+  // Reset after second tick 
+  if (current && current->state == THREAD_REALTIME) {
+	  current->rt_ticks = 0;
+  }
 
   thread_t *next = sched_next();
   if (!next) {

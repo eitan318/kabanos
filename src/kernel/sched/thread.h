@@ -8,7 +8,8 @@ typedef struct thread {
   process_t *process; // Parent process (contains CR3)
 
   void *kernel_esp;
-
+  
+  uint8_t rt_ticks;
   enum thread_state { THREAD_READY, THREAD_RUN, THREAD_SLEEP, THREAD_DEAD, THREAD_REALTIME } state;
   enum thread_mode mode;
 
