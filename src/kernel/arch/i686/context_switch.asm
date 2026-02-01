@@ -1,0 +1,26 @@
+bits 32
+
+;
+; This should match the interrupt.asm isr_common and arch_regs
+;
+global thread_switch_to
+thread_switch_to:
+    mov edx, [esp + 4]    ; edx = new_thread->esp
+    mov eax, [esp + 8]    ; eax = new_thread->cr3
+
+    mov esp, edx          
+    mov cr3, eax 
+    ; Restore Segments (Order: DS, ES, FS, GS)
+    pop ds
+    pop es
+    pop fs
+    pop gs
+    ;
+    ; 4. Restore General Purpose Registers
+    popa 
+
+    ; 5. Clean up interrupt stub data (int_no and err_code)
+    add esp, 8
+
+    ; 6. The jump to the thread
+    iret

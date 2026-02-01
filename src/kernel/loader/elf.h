@@ -1,4 +1,5 @@
 #pragma once
+#include "arch/types.h"
 #include "hal.h"
 #include <stdbool.h>
 #include <stdint.h>
@@ -83,5 +84,4 @@ enum ELFProgramFlags {
   ELF_PROGRAM_FLAG_READABLE = 0x4,
 };
 
-int elf_load(page_dir_t *page_dir, void *elf_data, uint32_t size,
-             uintptr_t *entry);
+int elf_load(arch_vm_t *vm, void *elf_data, uint32_t size, uintptr_t *entry);

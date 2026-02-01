@@ -1,14 +1,15 @@
 #include "sched/sched.h"
 #include "hal.h"
+#include "isr.h"
 #include "sched/thread.h"
 #include <stddef.h>
 #include <stdint.h>
 
 extern vmspace_t *g_kernel_vmspace; // global
 
-static thread_t *tasks[3];
+static thread_t *tasks[10];
 static int task_count = 0;
-static int current_index = 0;
+static int current_index = 3;
 static thread_t kernel_task;
 thread_t *current = NULL;
 
@@ -19,13 +20,11 @@ static thread_t *sched_next(void) {
   return tasks[current_index];
 }
 
-extern void __attribute__((naked)) switch_to(thread_t *p);
+void debug_ticker(struct arch_regs *r) { sched_tick(r); }
 
-void sched_tick(struct regs *r) {
-  if (current == NULL) {
-    current = sched_next();
-  } else {
-    current->kernel_esp = (void *)r;
+void sched_tick(void *context) {
+  if (current != NULL) {
+    hal_thread_save(current->arch, context);
   }
 
   thread_t *next = sched_next();
@@ -34,10 +33,12 @@ void sched_tick(struct regs *r) {
   }
   current = next;
 
-  uint32_t cpu_id = 0;
+  int cpu_id = 0;
   hal_set_kernel_stack(cpu_id, next->kstack_top);
-
-  switch_to(next);
+  hal_thread_switch(next);
 }
 
-void sched_init(void) { current = NULL; }
+void sched_init(void) {
+  isr_handler_register(0x45, debug_ticker);
+  current = NULL;
+}
