@@ -2,13 +2,12 @@
 #include "hal.h"
 #include "isr.h"
 #include "sched/thread.h"
-#include "stdio.h"
 #include <stddef.h>
 #include <stdint.h>
 
 extern vmspace_t *g_kernel_vmspace; // global
 
-static thread_t *tasks[4];
+static thread_t *tasks[10];
 static int task_count = 0;
 static int current_index = 3;
 static thread_t kernel_task;
@@ -21,25 +20,13 @@ static thread_t *sched_next(void) {
   return tasks[current_index];
 }
 
-// Generic Kernel Code
-void sched_yield() {
-  thread_t *old = current;
-  thread_t *next = sched_next();
-  debugf("SWITCH: %d -> %d\n", old->tid, next->tid);
-
-  current = next; // Make sure 'current' is updated before the jump!
-  hal_vm_arch_load(next->process->vmspace->arch);
-  hal_thread_switch(next);
-}
-
-void ticker(struct arch_regs *r) { sched_tick(r); }
+void debug_ticker(struct arch_regs *r) { sched_tick(r); }
 
 void sched_tick(void *context) {
   if (current != NULL) {
     hal_thread_save(current->arch, context);
   }
 
-  // 2. Pick the next thread
   thread_t *next = sched_next();
   if (!next) {
     next = &kernel_task;
@@ -52,6 +39,6 @@ void sched_tick(void *context) {
 }
 
 void sched_init(void) {
-  isr_handler_register(0x45, ticker);
+  isr_handler_register(0x45, debug_ticker);
   current = NULL;
 }
