@@ -43,9 +43,9 @@ void *build_initial_frame(void *kstack_top, uintptr_t entry,
   /* Segment registers */
   uint32_t ds = (mode == THREAD_MODE_USER) ? i686_GDT_USER_DS_SEL
                                            : i686_GDT_KERNEL_DS_SEL;
-  *(--sp) = ds; // GS
-  *(--sp) = ds; // FS
-  *(--sp) = ds; // ES
+  // *(--sp) = ds; // GS
+  // *(--sp) = ds; // FS
+  // *(--sp) = ds; // ES
   *(--sp) = ds; // DS
 
   return sp;

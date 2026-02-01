@@ -10,7 +10,7 @@ extern vmspace_t *g_kernel_vmspace; // global
 
 static thread_t *tasks[4];
 static int task_count = 0;
-static int current_index = 0;
+static int current_index = 3;
 static thread_t kernel_task;
 thread_t *current = NULL;
 

@@ -85,6 +85,12 @@ void kmain(uint32_t mb2_ptr) {
   if (process_exec("test_d.elf") != 0)
     debugf("err\n\n");
 
+  if (process_exec("test_d.elf") != 0)
+    debugf("err\n\n");
+
+  if (process_exec("test_e.elf") != 0)
+    debugf("err\n\n");
+
   if (process_exec("test_e.elf") != 0)
     debugf("err\n\n");
 

@@ -29,17 +29,13 @@ uintptr_t setup_user_stack(vmspace_t *vm) {
 
 int process_exec(const char *path) {
   process_t *proc = process_create();
-  vmspace_t *vm = vmspace_create();
-
-  proc->vmspace = vm;
-
   uintptr_t entry;
-  if (exec_load_elf(vm, path, &entry) < 0) {
+  if (exec_load_elf(proc->vmspace, path, &entry) < 0) {
     process_destroy(proc);
     return -1;
   }
 
-  uintptr_t user_stack = setup_user_stack(vm);
+  uintptr_t user_stack = setup_user_stack(proc->vmspace);
   thread_t *t = thread_create_user(proc, entry, user_stack);
   return 0;
 }

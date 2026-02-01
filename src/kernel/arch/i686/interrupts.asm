@@ -69,6 +69,7 @@ isr_common:
     mov ax, ds
     push eax
 
+
     mov ax, 0x10        ; use kernel data segment
     mov ds, ax
     mov es, ax

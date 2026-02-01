@@ -5,25 +5,17 @@ bits 32
 ;
 global thread_switch_to
 thread_switch_to:
-    ; Standard C Calling Convention (cdecl):
-    ; [esp + 8] : pd_phys
-    ; [esp + 4] : kernel_esp 
-    ; [esp + 0] : Return Address 
+    mov edx, [esp + 4]    ; edx = new_thread->esp
+    mov eax, [esp + 8]    ; eax = new_thread->cr3
 
-    ; 1. Switch Page Directory (CR3) before we lose access to this stack
-    mov eax, [esp + 8]
-    mov cr3, eax
-
-    ; 2. Switch to the new thread's stack
-    mov eax, [esp + 4]
-    mov esp, eax  
-
-    ; 3. Restore Segments (Order: DS, ES, FS, GS)
+    mov esp, edx          
+    mov cr3, eax 
+    ; Restore Segments (Order: DS, ES, FS, GS)
     pop ds
-    pop es
-    pop fs
-    pop gs
-
+    ; pop es
+    ; pop fs
+    ; pop gs
+    ;
     ; 4. Restore General Purpose Registers
     popa 
 
