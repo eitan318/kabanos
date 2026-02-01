@@ -1,22 +1,50 @@
 #include "sched/sched.h"
 #include "hal.h"
 #include "sched/thread.h"
+#include "memory_management/kmalloc.h"
 #include <stddef.h>
 #include <stdint.h>
 
 extern vmspace_t *g_kernel_vmspace; // global
 
-static thread_t *tasks[3];
-static int task_count = 0;
-static int current_index = 0;
+typedef struct task_node {
+  thread_t *thread;
+  struct task_node *next;
+} task_node_t;
+
+static task_node_t *tasks_list = NULL; 
+static task_node_t *current_node = NULL;
 static thread_t kernel_task;
 thread_t *current = NULL;
 
-void sched_add(thread_t *t) { tasks[task_count++] = t; }
+void sched_add(thread_t *t) { 
+	task_node_t *new_node = (task_node_t *)kmalloc(sizeof(task_node_t));
+	new_node->thread = t;
+  
+	if (tasks_list == NULL) {
+		// First node - points to itself (circular)
+		new_node->next = new_node;
+		tasks_list = new_node;
+		current_node = new_node;
+	} else {
+		// Insert at the end and maintain circular structure
+		task_node_t *tail = tasks_list;
+		while (tail->next != tasks_list) {
+		  tail = tail->next;
+		}
+		new_node->next = tasks_list;
+		tail->next = new_node;
+	}
+}
 
 static thread_t *sched_next(void) {
-  current_index = (current_index + 1) % task_count;
-  return tasks[current_index];
+	if (tasks_list == NULL) {
+		return NULL;
+	}
+
+	// Move to next node in circular list
+	current_node = current_node->next;
+	return current_node->thread;
 }
 
 extern void __attribute__((naked)) switch_to(thread_t *p);
