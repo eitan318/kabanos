@@ -1,5 +1,8 @@
+#include "arch/i686/types.h"
+#include "arch/types.h"
 #include "assert.h"
 #include "hal.h"
+#include "memory_management/kmalloc.h"
 #include "memory_management/memdefs.h"
 #include "memory_management/pmm.h"
 #include "stdio.h"
@@ -8,6 +11,9 @@
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
+
+typedef uint32_t page_dir_t;
 
 #define KERNEL_PD_START (KERNEL_BASE / (4 * 1024 * 1024))
 #define PD_PT_PRESENT PAGE_PRESENT
@@ -38,7 +44,8 @@ static inline uint32_t calc_remaining_in_pt(uint32_t pt_index) {
   return (PT_ENTRIES - pt_index) * PAGE_SIZE;
 }
 
-paddr_t hal_vm_virt_to_phys(page_dir_t *pd, vaddr_t va) {
+paddr_t hal_vm_virt_to_phys(arch_vm_t *vm, vaddr_t va) {
+  page_dir_t *pd = vm->pd;
   uint32_t pd_index = get_pd_index(va);
   uint32_t pt_index = get_pt_index(va);
 
@@ -184,8 +191,11 @@ static uint32_t calculate_map_size(uint32_t pt_index, vaddr_t va,
                                              : remaining_total;
 }
 
-bool hal_vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
+bool hal_vm_map_range(arch_vm_t *vm, paddr_t pa_start, vaddr_t va_start,
                       size_t size, uint32_t flags) {
+
+  page_dir_t *pd_virt = vm->pd;
+
   if (size == 0) {
     return true;
   }
@@ -225,10 +235,11 @@ bool hal_vm_map_range(page_dir_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
   return true;
 }
 
-bool hal_vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size) {
+bool hal_vm_unmap_range(arch_vm_t *vm, vaddr_t va_start, size_t size) {
   if (size == 0) {
     return true;
   }
+  page_dir_t *pd_virt = vm->pd;
 
   ASSERT(is_aligned(va_start, PAGE_SIZE));
   ASSERT(is_aligned(size, PAGE_SIZE));
@@ -268,33 +279,48 @@ bool hal_vm_unmap_range(page_dir_t *pd_virt, vaddr_t va_start, size_t size) {
 //
 // Single Page Operations
 //
-bool hal_vm_map(page_dir_t *pd_virt, vaddr_t va, paddr_t pa, uint32_t flags) {
-  bool res = hal_vm_map_range(pd_virt, pa, va, PAGE_SIZE, flags);
+bool hal_vm_map(arch_vm_t *vm, vaddr_t va, paddr_t pa, uint32_t flags) {
+  bool res = hal_vm_map_range(vm, pa, va, PAGE_SIZE, flags);
   if (res) {
     tlb_flush(va);
   }
   return res;
 }
 
-bool hal_vm_unmap(page_dir_t *pd_virt, vaddr_t virt_addr) {
-  bool res = hal_vm_unmap_range(pd_virt, virt_addr, PAGE_SIZE);
+bool hal_vm_unmap(arch_vm_t *vm, vaddr_t virt_addr) {
+  bool res = hal_vm_unmap_range(vm, virt_addr, PAGE_SIZE);
   if (res) {
     tlb_flush(virt_addr);
   }
   return res;
 }
 
+bool hal_vm_empty_arch_vm_create(arch_vm_t *kernel_arch_vm) {
+  kernel_arch_vm->pd_phys = allocate_page_table();
+  if (!kernel_arch_vm->pd_phys)
+    return false;
+  kernel_arch_vm->pd = (uint32_t *)(kernel_arch_vm->pd_phys + KERNEL_BASE);
+  return true;
+}
+
+void hal_vm_arch_clone(arch_vm_t *dst, arch_vm_t *src) {
+  memcpy(dst->pd, src->pd, PAGE_SIZE);
+}
+
+void hal_vm_arch_load(arch_vm_t *arch_vm) {
+  asm volatile("mov %0, %%cr3" ::"r"(arch_vm->pd_phys));
+}
+
 //
 // Page Directory Lifetime
 //
 
-void hal_vm_pd_destroy(page_dir_t *pd) {
+void hal_vm_arch_destroy(arch_vm_t *vm) {
   for (int i = 0; i < KERNEL_PD_START; i++) {
-    if (pd[i] & PD_PT_PRESENT) {
-      paddr_t pt_phys = pd[i] & ~0xFFF;
+    if (vm->pd[i] & PD_PT_PRESENT) {
+      paddr_t pt_phys = vm->pd[i] & ~0xFFF;
       pmm_frame_free(pt_phys);
     }
   }
+  pmm_frame_free(vm->pd_phys);
 }
-
-paddr_t hal_vm_empty_pd_create() { return allocate_page_table(); }

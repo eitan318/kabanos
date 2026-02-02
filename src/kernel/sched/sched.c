@@ -1,6 +1,7 @@
 #include "sched/sched.h"
 #include "sched/spinlock.h"
 #include "hal.h"
+#include "isr.h"
 #include "sched/thread.h"
 #include "memory_management/kmalloc.h"
 #include <stddef.h>
@@ -8,6 +9,7 @@
 
 extern vmspace_t *g_kernel_vmspace; // global
 
+<<<<<<< src/kernel/sched/sched.c
 typedef struct task_node {
   thread_t *thread;
   struct task_node *next;
@@ -15,6 +17,7 @@ typedef struct task_node {
 
 static task_node_t *tasks_list = NULL; 
 static task_node_t *current_node = NULL;
+
 static thread_t kernel_task;
 thread_t *current = NULL;
 static spinlock_t ready_lock = SPINLOCK_RELEASED; 
@@ -121,18 +124,13 @@ static thread_t *sched_next(void) {
     return NULL;  
 }
 
-extern void __attribute__((naked)) switch_to(thread_t *p);
+void debug_ticker(struct arch_regs *r) { sched_tick(r); }
 
-void sched_tick(struct regs *r) {
-  if (current == NULL) {
-    current = sched_next();
-	if (!current) {
-        current = &kernel_task;
-    }
-  } else {
-    current->kernel_esp = (void *)r;
+void sched_tick(void *context) {
+  if (current != NULL) {
+    hal_thread_save(current->arch, context);
   }
-  
+
   // Let THREAD_REALTIME run twice 
   if (current &&
 	  current->state == THREAD_REALTIME &&
@@ -156,11 +154,13 @@ void sched_tick(struct regs *r) {
   }
   current = next;
 
-  uint32_t cpu_id = 0;
+  int cpu_id = 0;
   hal_set_kernel_stack(cpu_id, next->kstack_top);
-
   next->state = THREAD_RUN;
-  switch_to(next);
+  hal_thread_switch(next);
 }
 
-void sched_init(void) { current = NULL; }
+void sched_init(void) {
+  isr_handler_register(0x45, debug_ticker);
+  current = NULL;
+}

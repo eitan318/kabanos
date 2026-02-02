@@ -1,6 +1,7 @@
 # main cmake lists
 cmake_minimum_required(VERSION 3.16)
 project(myos C ASM_NASM)
+set(ARCH i686) 
 # Enable languages
 enable_language(C ASM_NASM)
 
@@ -27,7 +28,6 @@ if(NOT "${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
     )
 endif()
 
-file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated")
 set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
 set(OUT_DIR "${CMAKE_BINARY_DIR}/out")
 set(BOOTLOADER_OUT_DIR ${OUT_DIR}/bootloader)
@@ -55,7 +55,6 @@ set(MAKE_INITRD_PY "${CMAKE_SOURCE_DIR}/scripts/create_initrd.py")
 file(GLOB_RECURSE INITRD_FILES "${INITRD_DIR}/*")
 
 # Custom command to create initrd.img from initrd_files directory
-
 add_custom_command(
   OUTPUT ${INITRD_IMG}
   COMMAND ${Python_EXECUTABLE} ${MAKE_INITRD_PY}

@@ -1,4 +1,5 @@
 #include "kmalloc.h"
+#include "arch/types.h"
 #include "memory_management/memdefs.h"
 #include "memory_management/pmm.h"
 #include "memory_management/vmspace.h"
@@ -35,7 +36,7 @@ static kmalloc_stats_t stats = {0};
 
 static uint32_t next_heap_addr = KERNEL_HEAP_START;
 
-page_dir_t *kernel_page_directory;
+arch_vm_t *kernel_arch_vm;
 
 /**
  * Allocate a page from the kernel heap
@@ -53,7 +54,7 @@ static void *heap_page_alloc(void) {
 
   // Map it to virtual address
   uint32_t virtual = next_heap_addr;
-  if (!hal_vm_map(kernel_page_directory, virtual, physical, PAGE_READWRITE)) {
+  if (!hal_vm_map(kernel_arch_vm, virtual, physical, PAGE_READWRITE)) {
     pmm_frame_free(physical);
     return NULL;
   }
@@ -67,10 +68,10 @@ static void *heap_page_alloc(void) {
  */
 static void heap_page_free(void *ptr) {
   uint32_t virtual = (uint32_t)ptr;
-  uint32_t physical = hal_vm_virt_to_phys(kernel_page_directory, virtual);
+  uint32_t physical = hal_vm_virt_to_phys(kernel_arch_vm, virtual);
 
   if (physical) {
-    hal_vm_unmap(kernel_page_directory, virtual);
+    hal_vm_unmap(kernel_arch_vm, virtual);
     pmm_frame_free(physical);
   }
 }
@@ -180,7 +181,7 @@ void kmalloc_init() {
   }
 
   extern vmspace_t *g_kernel_vmspace;
-  kernel_page_directory = g_kernel_vmspace->pd;
+  kernel_arch_vm = g_kernel_vmspace->arch;
 }
 
 /**
