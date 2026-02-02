@@ -125,4 +125,4 @@ add_custom_target(bootloader_stage2 ALL
     DEPENDS ${STAGE2_BIN} ${STAGE2_SECTORS_ASM_HEADER}
 )
 
-add_dependencies(bootloader_stage2 kernel)
+add_dependencies(bootloader_stage2 kernel.elf)
