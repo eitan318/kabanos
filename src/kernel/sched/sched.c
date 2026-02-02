@@ -69,8 +69,8 @@ void sched_remove(thread_t *t) {
   if (node->next == node) {
     tasks_list = NULL;
     current_node = NULL;
-    if (current == t) {
-      current = NULL;
+    if (g_current_thread == t) {
+      g_current_thread = NULL;
     }
     kfree(node);
     return;
@@ -87,8 +87,8 @@ void sched_remove(thread_t *t) {
   }
 
   /* Fix current running thread */
-  if (current == t) {
-    current = NULL; // scheduler will pick next on tick
+  if (g_current_thread == t) {
+    g_current_thread = NULL; // scheduler will pick next on tick
   }
 
   /* Unlink */
@@ -133,22 +133,23 @@ void sched_tick(void *context) {
   }
 
   // Let THREAD_REALTIME run twice
-  if (current && current->state == THREAD_REALTIME && current->rt_ticks == 0) {
-    current->rt_ticks = 1;
+  if (g_current_thread && g_current_thread->state == THREAD_REALTIME &&
+      g_current_thread->rt_ticks == 0) {
+    g_current_thread->rt_ticks = 1;
     return;
   }
 
   // Reset after second tick
-  if (current && current->state == THREAD_REALTIME) {
-    current->rt_ticks = 0;
+  if (g_current_thread && g_current_thread->state == THREAD_REALTIME) {
+    g_current_thread->rt_ticks = 0;
   }
 
   thread_t *next = sched_next();
   if (!next) {
     next = &kernel_task;
   }
-  if (current->state == THREAD_RUN) {
-    current->state = THREAD_READY;
+  if (g_current_thread->state == THREAD_RUN) {
+    g_current_thread->state = THREAD_READY;
   }
   g_current_thread = next;
 
