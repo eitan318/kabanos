@@ -10,7 +10,7 @@ typedef struct thread {
   void *kernel_esp;
   
   uint8_t rt_ticks;
-  enum thread_state { THREAD_READY, THREAD_RUN, THREAD_SLEEP, THREAD_DEAD, THREAD_REALTIME } state;
+  enum thread_state { THREAD_NORMAL, THREAD_ABOVE_NORMAL, THREAD_HIGH, THREAD_REALTIME, THREAD_DEAD } state;
   enum thread_mode mode;
 
   /* Stack tracking (for cleanup only) */

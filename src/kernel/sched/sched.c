@@ -1,4 +1,5 @@
 #include "sched/sched.h"
+#include "sched/spinlock.h"
 #include "hal.h"
 #include "sched/thread.h"
 #include "memory_management/kmalloc.h"
@@ -16,6 +17,7 @@ static task_node_t *tasks_list = NULL;
 static task_node_t *current_node = NULL;
 static thread_t kernel_task;
 thread_t *current = NULL;
+static spinlock_t ready_lock = SPINLOCK_RELEASED; 
 
 void sched_add(thread_t *t) { 
 	task_node_t *new_node = (task_node_t *)kmalloc(sizeof(task_node_t));
@@ -35,6 +37,60 @@ void sched_add(thread_t *t) {
 		new_node->next = tasks_list;
 		tail->next = new_node;
 	}
+}
+
+void sched_remove(thread_t *t) {
+	if (!tasks_list || !t) {
+        return;
+    }
+
+    task_node_t *prev = tasks_list;
+    task_node_t *node = tasks_list;
+
+    /* Find node to remove */
+    do {
+        if (node->thread == t) {
+            break;
+        }
+        prev = node;
+        node = node->next;
+    } while (node != tasks_list);
+
+    /* Not found */
+    if (node->thread != t) {
+        return;
+    }
+
+    /* Single-node list */
+    if (node->next == node) {
+        tasks_list = NULL;
+        current_node = NULL;
+        if (current == t) {
+            current = NULL;
+        }
+        kfree(node);
+        return;
+    }
+
+    /* Fix head if needed */
+    if (node == tasks_list) {
+        tasks_list = node->next;
+    }
+
+    /* Fix current_node if needed */
+    if (node == current_node) {
+        current_node = node->next;
+    }
+
+    /* Fix current running thread */
+    if (current == t) {
+        current = NULL;  // scheduler will pick next on tick
+    }
+
+    /* Unlink */
+    prev->next = node->next;
+
+    kfree(node);
 }
 
 static thread_t *sched_next(void) {
