@@ -4,12 +4,13 @@
 #include "sched/thread.h"
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 extern vmspace_t *g_kernel_vmspace; // global
 
 static thread_t *tasks[10];
 static int task_count = 0;
-static int current_index = 3;
+static int current_index = 0;
 static thread_t kernel_task;
 thread_t *g_current_thread = NULL; // will be replaced in a multicore setup
 

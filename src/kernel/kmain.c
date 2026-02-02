@@ -80,7 +80,6 @@ void kmain(uint32_t mb2_ptr) {
 
   hal_interrupts_enable();
 
-  // asm volatile("int $0x45");
   hal_timer_enable();
 
   for (;;) {

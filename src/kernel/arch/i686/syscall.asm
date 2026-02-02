@@ -37,4 +37,5 @@ _sysenter_handler_entry:
     pop ecx             ; Restore User ESP into ECX
     add esp, 4          ; Skip SS
 
-    sysexit
+    sti ; set interrupts because sysenter disables them
+    sysexi 
