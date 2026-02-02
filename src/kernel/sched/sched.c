@@ -6,8 +6,11 @@
 #include "sched/thread.h"
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 extern vmspace_t *g_kernel_vmspace; // global
+
+thread_t *g_current_thread = NULL; // will be replaced in a multicore setup
 
 typedef struct task_node {
   thread_t *thread;
@@ -18,7 +21,6 @@ static task_node_t *tasks_list = NULL;
 static task_node_t *current_node = NULL;
 
 static thread_t kernel_task;
-thread_t *current = NULL;
 static spinlock_t ready_lock = SPINLOCK_RELEASED;
 
 void sched_add(thread_t *t) {
@@ -126,8 +128,8 @@ static thread_t *sched_next(void) {
 void debug_ticker(struct arch_regs *r) { sched_tick(r); }
 
 void sched_tick(void *context) {
-  if (current != NULL) {
-    hal_thread_save(current->arch, context);
+  if (g_current_thread != NULL) {
+    hal_thread_save(g_current_thread->arch, context);
   }
 
   // Let THREAD_REALTIME run twice
@@ -145,19 +147,18 @@ void sched_tick(void *context) {
   if (!next) {
     next = &kernel_task;
   }
-
   if (current->state == THREAD_RUN) {
     current->state = THREAD_READY;
   }
-  current = next;
+  g_current_thread = next;
 
   int cpu_id = 0;
-  hal_set_kernel_stack(cpu_id, next->kstack_top);
+  hal_update_kernel_stack(cpu_id, next->kstack_top);
   next->state = THREAD_RUN;
   hal_thread_switch(next);
 }
 
 void sched_init(void) {
   isr_handler_register(0x45, debug_ticker);
-  current = NULL;
+  g_current_thread = NULL;
 }

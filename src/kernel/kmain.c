@@ -78,9 +78,6 @@ void kmain(uint32_t mb2_ptr) {
   if (process_exec("test_b.elf") != 0)
     debugf("err\n\n");
 
-  if (process_exec("test_c.elf") != 0)
-    debugf("err\n\n");
-
   hal_interrupts_enable();
 
   hal_timer_enable();

@@ -7,6 +7,7 @@ b kmain
 c
 lay src
 
+
 # to use:
 #  gdb -x scripts/gdb_kernel.gdb 
 

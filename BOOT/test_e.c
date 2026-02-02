@@ -1,3 +1,4 @@
+#include "syscall.h"
 #include <stddef.h>
 
 void _start(void) {
@@ -7,7 +8,7 @@ void _start(void) {
     while (str[len]) {
       len++;
     }
-    asm volatile("int $0x80" : : "a"(1), "b"(str), "c"(len) : "memory");
+    _syscall6(SYSCALL_NUMBERS_SYS_WRITE, str, len, 0, 0, 0, 0);
     asm volatile("int $0x45");
   }
 }

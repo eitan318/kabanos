@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 
+// This corresponds to syscall entry
 typedef struct {
   uint32_t num;
   uint32_t args[6];

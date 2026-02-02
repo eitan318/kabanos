@@ -1,6 +1,4 @@
 #include "syscall.h"
-#include "hal.h"
-#include "isr.h"
 #include "stdio.h"
 #include <stddef.h>
 
