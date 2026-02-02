@@ -38,4 +38,4 @@ _sysenter_handler_entry:
     add esp, 4          ; Skip SS
 
     sti ; set interrupts because sysenter disables them
-    sysexi 
+    sysexit 

@@ -1,3 +1,4 @@
+#include "sched/thread.h"
 #include "arch/types.h"
 #include "hal.h"
 #include "memory_management/kmalloc.h"
@@ -51,7 +52,7 @@ thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
   memset(t, 0, sizeof(*t));
   t->tid = alloc_tid();
   t->process = proc;
-  t->state = THREAD_NORMAL;
+  t->state = THREAD_NEW;
   t->mode = mode;
 
   // Allocate the arch-specific part (if it's a pointer)

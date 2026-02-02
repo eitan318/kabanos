@@ -9,8 +9,13 @@ typedef struct thread {
   process_t *process; // Parent process (contains CR3)
 
   uint8_t rt_ticks;
-  enum thread_state { THREAD_NORMAL, THREAD_ABOVE_NORMAL, THREAD_HIGH, THREAD_REALTIME, THREAD_DEAD } state;
-
+  enum thread_state {
+    THREAD_NEW,
+    THREAD_READY,
+    THREAD_RUNNING,
+    THREAD_SLEEPING,
+    THREAD_DEAD
+  } state;
   arch_thread_t *arch;
   enum thread_mode mode;
 
