@@ -2,7 +2,7 @@
 #include "arch/i686/gdt.h"
 #include "arch/i686/interrupts.h"
 #include "arch/i686/pic.h"
-#include "arch/i686/syscall.h"
+#include "arch/i686/sysenter.h"
 #include "arch/i686/timer.h"
 #include "arch/i686/types.h"
 #include "assert.h"
@@ -33,7 +33,7 @@ void hal_arch_init(void) {
   i686_isr_init();
   i686_pic_init();
   i686_timer_init();
-  i686_syscall_init();
+  i686_sysenter_init();
 }
 
 #define i686_MAX_REGS 16

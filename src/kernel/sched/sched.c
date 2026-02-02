@@ -11,7 +11,7 @@ static thread_t *tasks[10];
 static int task_count = 0;
 static int current_index = 3;
 static thread_t kernel_task;
-thread_t *current = NULL;
+thread_t *g_current_thread = NULL; // will be replaced in a multicore setup
 
 void sched_add(thread_t *t) { tasks[task_count++] = t; }
 
@@ -23,22 +23,22 @@ static thread_t *sched_next(void) {
 void debug_ticker(struct arch_regs *r) { sched_tick(r); }
 
 void sched_tick(void *context) {
-  if (current != NULL) {
-    hal_thread_save(current->arch, context);
+  if (g_current_thread != NULL) {
+    hal_thread_save(g_current_thread->arch, context);
   }
 
   thread_t *next = sched_next();
   if (!next) {
     next = &kernel_task;
   }
-  current = next;
+  g_current_thread = next;
 
   int cpu_id = 0;
-  hal_set_kernel_stack(cpu_id, next->kstack_top);
+  hal_update_kernel_stack(cpu_id, next->kstack_top);
   hal_thread_switch(next);
 }
 
 void sched_init(void) {
   isr_handler_register(0x45, debug_ticker);
-  current = NULL;
+  g_current_thread = NULL;
 }

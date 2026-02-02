@@ -12,7 +12,9 @@ int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
   void *data;
   size_t size;
 
-  fat_read_file(path, &data, &size);
+  if (fat_read_file(path, &data, &size) < 0) {
+    return -1;
+  }
   int r = elf_load(vm->arch, data, size, entry);
   kfree(data);
   return r;
