@@ -1,8 +1,19 @@
-#include "isr.h"
-#define SYSCALL_INTERRUPT 0x80
+#include "syscall.h"
+#include "stdio.h"
+#include <stddef.h>
 
-void syscall_isr_handler(struct regs *regs) {}
+typedef enum { SYSCALL_NUMBERS_SYS_WRITE = 1 } SYSCALL_NUMBERS;
 
-void syscall_init() {
-  isr_handler_register(SYSCALL_INTERRUPT, syscall_isr_handler);
+static long sys_write(const char *str, size_t len) {
+  printf("%s", str);
+  return 1;
+}
+
+long syscall_dispatch(const syscall_frame_t *f) {
+  switch (f->num) {
+  case SYSCALL_NUMBERS_SYS_WRITE:
+    return sys_write((const char *)f->args[0], f->args[1]);
+  default:
+    return -1;
+  }
 }

@@ -1,4 +1,5 @@
 #include "loader/elf.h"
+#include "arch/types.h"
 #include "assert.h"
 #include "fat/fat.h"
 #include "hal.h"
@@ -16,9 +17,9 @@
 // Load segment: allocate, zero, and copy from file data
 // currently menually touch frame alloc and page_map
 // In future will be with VMA of process
-static int load_segment(page_dir_t *pd, vaddr_t va_start, size_t mem_size,
+static int load_segment(arch_vm_t *vm, vaddr_t va_start, size_t mem_size,
                         void *file_data, size_t file_size, uint32_t flags) {
-  if (!va_alloc_region(pd, va_start, mem_size, flags)) {
+  if (!va_alloc_region(vm, va_start, mem_size, flags)) {
     return -1;
   }
 
@@ -28,7 +29,7 @@ static int load_segment(page_dir_t *pd, vaddr_t va_start, size_t mem_size,
   size_t file_copied = 0;
   for (vaddr_t page_va = pages_start; page_va < pages_end;
        page_va += PAGE_SIZE) {
-    paddr_t phys = virt_to_phys(pd, page_va);
+    paddr_t phys = hal_vm_virt_to_phys(vm, page_va);
     ASSERT(phys);
 
     void *kva = kmap(phys);
@@ -64,9 +65,9 @@ static int load_segment(page_dir_t *pd, vaddr_t va_start, size_t mem_size,
 }
 
 // Load ELF file
-int elf_load(page_dir_t *pd, void *elf_data, uint32_t elf_size,
+int elf_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
              uintptr_t *entry) {
-  ASSERT(pd && elf_data && entry);
+  ASSERT(vm && elf_data && entry);
 
   if (elf_size < sizeof(ELFHeader)) {
     debugf("ELF: File too small\n");
@@ -118,7 +119,7 @@ int elf_load(page_dir_t *pd, void *elf_data, uint32_t elf_size,
     void *file_data =
         (ph->FileSize > 0) ? ((uint8_t *)elf_data + ph->Offset) : NULL;
 
-    if (load_segment(pd, ph->VirtualAddress, ph->MemorySize, file_data,
+    if (load_segment(vm, ph->VirtualAddress, ph->MemorySize, file_data,
                      ph->FileSize, flags) != 0) {
       debugf("ELF: Failed to load segment %u\n", i);
       return -1;

@@ -1,16 +1,17 @@
+#include "arch/types.h"
 #include "boot/bootparams.h"
 #include "hal.h"
 #include "memory_management/pmm.h"
 #include "memory_management/vmspace.h"
 #include "ut/ut_framework.h"
 
-static page_dir_t *g_pd;
+static arch_vm_t *g_vm;
 static vmspace_t *g_test_vmspace;
 
 int ut_simple_mapping(void) {
-  if (!vm_map(g_pd, 0x400000, 0x200000, PAGE_READWRITE))
+  if (!hal_vm_map(g_vm, 0x400000, 0x200000, PAGE_READWRITE))
     return UT_FAIL;
-  return (virt_to_phys(g_pd, 0x400000) == 0x200000) ? UT_PASS : UT_FAIL;
+  return (hal_vm_virt_to_phys(g_vm, 0x400000) == 0x200000) ? UT_PASS : UT_FAIL;
 }
 
 int ut_multiple_mappings(void) {
@@ -23,22 +24,22 @@ int ut_multiple_mappings(void) {
   int n = sizeof(map) / sizeof(map[0]);
 
   for (int i = 0; i < n; i++)
-    if (!vm_map(g_pd, map[i][0], map[i][1], PAGE_READWRITE))
+    if (!hal_vm_map(g_vm, map[i][0], map[i][1], PAGE_READWRITE))
       return UT_FAIL;
 
   for (int i = 0; i < n; i++)
-    if (virt_to_phys(g_pd, map[i][0]) != map[i][1])
+    if (hal_vm_virt_to_phys(g_vm, map[i][0]) != map[i][1])
       return UT_FAIL;
 
   return UT_PASS;
 }
 
 int ut_unmapping(void) {
-  if (!vm_map(g_pd, 0x400000, 0x200000, PAGE_READWRITE))
+  if (!hal_vm_map(g_vm, 0x400000, 0x200000, PAGE_READWRITE))
     return UT_FAIL;
-  if (!vm_unmap(g_pd, 0x400000))
+  if (!hal_vm_unmap(g_vm, 0x400000))
     return UT_FAIL;
-  return (virt_to_phys(g_pd, 0x400000) == 0) ? UT_PASS : UT_FAIL;
+  return (hal_vm_virt_to_phys(g_vm, 0x400000) == 0) ? UT_PASS : UT_FAIL;
 }
 
 int ut_identity_mapping(void) {
@@ -46,13 +47,13 @@ int ut_identity_mapping(void) {
 
   for (uint32_t i = 0; i < n; i++) {
     uint32_t addr = i * PAGE_SIZE;
-    if (!vm_map(g_pd, addr, addr, PAGE_READWRITE))
+    if (!hal_vm_map(g_vm, addr, addr, PAGE_READWRITE))
       return UT_FAIL;
   }
 
   for (uint32_t i = 0; i < n; i += 100) {
     uint32_t addr = i * PAGE_SIZE;
-    if (virt_to_phys(g_pd, addr) != addr)
+    if (hal_vm_virt_to_phys(g_vm, addr) != addr)
       return UT_FAIL;
   }
 
@@ -60,45 +61,45 @@ int ut_identity_mapping(void) {
 }
 
 int ut_page_offset_preservation(void) {
-  if (!vm_map(g_pd, 0x400000, 0x200000, PAGE_READWRITE))
+  if (!hal_vm_map(g_vm, 0x400000, 0x200000, PAGE_READWRITE))
     return UT_FAIL;
 
   uint32_t off[] = {0, 1, 0x100, 0x500, 0xFFF};
   for (int i = 0; i < 5; i++)
-    if (virt_to_phys(g_pd, 0x400000 + off[i]) != 0x200000 + off[i])
+    if (hal_vm_virt_to_phys(g_vm, 0x400000 + off[i]) != 0x200000 + off[i])
       return UT_FAIL;
 
   return UT_PASS;
 }
 
 int ut_unmap_nonexistent(void) {
-  vm_unmap(g_pd, 0x400000);
-  return (virt_to_phys(g_pd, 0x400000) == 0) ? UT_PASS : UT_FAIL;
+  hal_vm_unmap(g_vm, 0x400000);
+  return (hal_vm_virt_to_phys(g_vm, 0x400000) == 0) ? UT_PASS : UT_FAIL;
 }
 
 int ut_remap_page(void) {
-  if (!vm_map(g_pd, 0x400000, 0x200000, PAGE_READWRITE))
+  if (!hal_vm_map(g_vm, 0x400000, 0x200000, PAGE_READWRITE))
     return UT_FAIL;
-  if (!vm_map(g_pd, 0x400000, 0x300000, PAGE_READWRITE))
+  if (!hal_vm_map(g_vm, 0x400000, 0x300000, PAGE_READWRITE))
     return UT_FAIL;
-  return (virt_to_phys(g_pd, 0x400000) == 0x300000) ? UT_PASS : UT_FAIL;
+  return (hal_vm_virt_to_phys(g_vm, 0x400000) == 0x300000) ? UT_PASS : UT_FAIL;
 }
 
 int ut_different_page_tables(void) {
-  if (!vm_map(g_pd, 0x400000, 0x100000, PAGE_READWRITE))
+  if (!hal_vm_map(g_vm, 0x400000, 0x100000, PAGE_READWRITE))
     return UT_FAIL;
-  if (!vm_map(g_pd, 0x800000, 0x200000, PAGE_READWRITE))
+  if (!hal_vm_map(g_vm, 0x800000, 0x200000, PAGE_READWRITE))
     return UT_FAIL;
 
-  uint32_t r1 = virt_to_phys(g_pd, 0x400000);
-  uint32_t r2 = virt_to_phys(g_pd, 0x800000);
+  uint32_t r1 = hal_vm_virt_to_phys(g_vm, 0x400000);
+  uint32_t r2 = hal_vm_virt_to_phys(g_vm, 0x800000);
   return (r1 == 0x100000 && r2 == 0x200000) ? UT_PASS : UT_FAIL;
 }
 
 static int suite_setup() {
   g_test_vmspace = vmspace_create();
-  g_pd = g_test_vmspace->pd;
-  if (!g_pd)
+  g_vm = g_test_vmspace->arch;
+  if (!g_vm)
     return UT_FAIL;
 
   vmspace_switch(g_test_vmspace);

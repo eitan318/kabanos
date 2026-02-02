@@ -1,26 +1,27 @@
 #include "vmspace.h"
+#include "arch/types.h"
 #include "hal.h"
 #include "kmalloc.h"
 #include "memory_management/memdefs.h"
+#include "memory_management/pmm.h"
 #include "string.h"
-#include "utils/math.h"
 #include "utils/range.h"
 #include <stddef.h>
 
+static arch_vm_t kernel_arch_vm;
+
 void kernel_vmspace_create(vmspace_t *vmspace, Range total_memory_range) {
-  vmspace->pd_phys = vm_empty_pd_create();
-  if (!vmspace->pd_phys)
-    return;
-  vmspace->pd = (uint32_t *)vmspace->pd_phys;
+  hal_vm_empty_arch_vm_create(&kernel_arch_vm);
+  vmspace->arch = &kernel_arch_vm;
 
   // Map to HIGHER HALF ONLY
-  vm_map_range(vmspace->pd, total_memory_range.start,
-               total_memory_range.start + KERNEL_BASE, total_memory_range.end,
-               PAGE_READWRITE);
+  hal_vm_map_range(vmspace->arch, total_memory_range.start,
+                   total_memory_range.start + KERNEL_BASE,
+                   total_memory_range.end, PAGE_READWRITE);
 
   // Map VGA buffer BEFORE switching
-  vm_map(vmspace->pd, VGA_SCREEN_BUF, VGA_SCREEN_BUF_PHYS, PAGE_READWRITE);
-  vmspace->pd = (uint32_t *)(vmspace->pd_phys + KERNEL_BASE);
+  hal_vm_map(vmspace->arch, VGA_SCREEN_BUF, VGA_SCREEN_BUF_PHYS,
+             PAGE_READWRITE);
 }
 
 // Create virtual memory space for user processes
@@ -28,27 +29,21 @@ vmspace_t *vmspace_create() {
   vmspace_t *vmspace = kmalloc(sizeof(*vmspace));
   if (!vmspace)
     return NULL;
-
-  vmspace->pd_phys = vm_empty_pd_create();
-  if (!vmspace->pd_phys) {
+  vmspace->arch = kmalloc(sizeof(*vmspace->arch));
+  bool res = hal_vm_empty_arch_vm_create(vmspace->arch);
+  if (!res) {
+    kfree(vmspace->arch);
     kfree(vmspace);
     return NULL;
   }
 
-  // Temporarily map the new PD in current address space to initialize it
-  uint32_t *temp_pd = (uint32_t *)(vmspace->pd_phys + KERNEL_BASE);
-
-  // Copy kernel mappings while we're still in kernel's CR3
   extern vmspace_t *g_kernel_vmspace;
-  memcpy(temp_pd, g_kernel_vmspace->pd, PAGE_SIZE);
+  hal_vm_arch_clone(vmspace->arch, g_kernel_vmspace->arch);
 
-  vmspace->pd = temp_pd;
   return vmspace;
 }
 
-void vmspace_switch(vmspace_t *vmspace) {
-  asm volatile("mov %0, %%cr3" ::"r"(vmspace->pd_phys));
-}
+void vmspace_switch(vmspace_t *vmspace) { hal_vm_arch_load(vmspace->arch); }
 
 void vmspace_destroy(vmspace_t *vmspace) {
   if (!vmspace)
@@ -56,9 +51,10 @@ void vmspace_destroy(vmspace_t *vmspace) {
   extern vmspace_t *g_kernel_vmspace;
 
   // kernel vmspace shall not be freed because it is early-kernel-allocated
-  if (vmspace->pd == g_kernel_vmspace->pd)
+  if (vmspace->arch == g_kernel_vmspace->arch)
     return;
 
-  pmm_frame_free(vmspace->pd_phys);
+  hal_vm_arch_destroy(vmspace->arch);
+  kfree(vmspace->arch);
   kfree(vmspace);
 }

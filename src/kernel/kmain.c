@@ -8,8 +8,6 @@
 #include "memory_management/memory_map.h"
 #include "memory_management/pmm.h"
 #include "memory_management/vmspace.h"
-#include "modules/initrd.h"
-#include "modules/modules.h"
 #include "proc/exec.h"
 #include "sched/sched.h"
 #include "stdio.h"
@@ -17,7 +15,6 @@
 #include "ut/ata/ata_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
 #include "ut/keyboard_driver.h"
-#include "ut/paging/paging_ut_main.h"
 #include "utils/range.h"
 #include <stdbool.h>
 #include <stddef.h>
@@ -59,17 +56,13 @@ void kmain(uint32_t mb2_ptr) {
 
   // From now on no lower half mapping
   vmspace_switch(g_kernel_vmspace);
+  kmalloc_init();
 
   // Init hardware
   hal_arch_init();
   vga_clrscr();
   vga_setcursor(0, 0);
   kbd_init();
-
-  hal_interrupts_enable();
-
-  kmalloc_init();
-  // ut_paging_main();
 
   if (!fat_initialize(34)) {
     debugf("Failed to initialize FAT\n");
@@ -85,7 +78,9 @@ void kmain(uint32_t mb2_ptr) {
   if (process_exec("test_b.elf") != 0)
     debugf("err\n\n");
 
-  asm volatile("int $45");
+  hal_interrupts_enable();
+
+  hal_timer_enable();
 
   for (;;) {
   }

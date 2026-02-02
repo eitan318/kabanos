@@ -2,7 +2,9 @@
 #include "arch/i686/gdt.h"
 #include "arch/i686/interrupts.h"
 #include "arch/i686/pic.h"
-#include "arch/i686/regs.h"
+#include "arch/i686/sysenter.h"
+#include "arch/i686/timer.h"
+#include "arch/i686/types.h"
 #include "assert.h"
 #include "panic.h"
 #include "string.h"
@@ -18,33 +20,32 @@ int hal_interrupts_state_get() {
   __asm__ volatile("pushf; pop %0" : "=r"(eflags));
   return eflags & 0x200;
 }
-
-bool hal_regs_from_user(const struct regs *regs) {
-  i686_regs_t *r = regs;
-  return (r->cs & 0x3) != 0;
+int hal_regs_interrupt_number(struct arch_regs *regs) {
+  return regs->interrupt;
 }
+uintptr_t hal_regs_pc(struct arch_regs *regs) { return regs->eip; }
 
-int hal_interrupt_number(struct regs *regs) {
-  i686_regs_t *r = regs;
-  return r->interrupt;
-}
-uintptr_t hal_regs_pc(struct regs *regs) {
-  i686_regs_t *r = regs;
-  return r->eip;
-}
-
-void hal_serial_putc(const char c) { io_write8(0x3f8, c); }
+void hal_serial_putc(const char c) { hal_out8(0x3f8, c); }
 
 void hal_arch_init(void) {
   i686_gdt_init();
   i686_idt_init();
   i686_isr_init();
   i686_pic_init();
+  i686_timer_init();
+  i686_sysenter_init();
 }
 
-int describe_regs(i686_regs_t *regs, int max, const char **names,
-                  uintptr_t *values) {
-  if (max < 16)
+#define i686_MAX_REGS 16
+unsigned hal_regs_max_get() { return i686_MAX_REGS; }
+
+bool hal_regs_from_user(const struct arch_regs *regs) {
+  return (regs->cs & 0x3) != 0;
+}
+
+int hal_describe_regs(struct arch_regs *regs, int max_regs, const char **names,
+                      uintptr_t *values) {
+  if (max_regs != i686_MAX_REGS)
     return -1;
   if (!regs)
     panic_halt("describe_regs(NULL)!");
@@ -52,7 +53,8 @@ int describe_regs(i686_regs_t *regs, int max, const char **names,
   static const char *_names[] = {"eax", "ecx", "edx", "ebx",    "esi", "edi",
                                  "eip", "ebp", "esp", "eflags", "cs",  "U-esp",
                                  "cr0", "cr2", "cr3", "cr4"};
-  memcpy((uint8_t *)names, (uint8_t *)_names, sizeof(const char *) * 16);
+  memcpy((uint8_t *)names, (uint8_t *)_names,
+         sizeof(const char *) * i686_MAX_REGS);
 
   values[0] = regs->eax;
   values[1] = regs->ecx;
@@ -75,19 +77,18 @@ int describe_regs(i686_regs_t *regs, int max, const char **names,
   return 16;
 }
 
-uintptr_t backtrace(uintptr_t *data, struct regs *regs) {
-  i686_regs_t *arch_regs = regs;
+uintptr_t hal_backtrace(uintptr_t *data, struct arch_regs *regs) {
   if (*data == 0) {
     if (regs)
-      *data = arch_regs->ebp;
+      *data = regs->ebp;
     else
       __asm__ volatile("mov %%ebp, %0" : "=r"(*data));
   }
 
-  uintptr_t ip = *(uintptr_t *)(*data + 4);
-  *data = *(uintptr_t *)*data;
+  uintptr_t past_instruction_ptr = *(uintptr_t *)(*data + 4);
+  *data = *(uintptr_t *)(*data - sizeof(uint32_t));
 
   if (*data == 0)
     return 0;
-  return ip;
+  return past_instruction_ptr;
 }

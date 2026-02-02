@@ -98,3 +98,50 @@ B+> 0xc0101000 <e9_putc>    add    eax,DWORD PTR [eax]       │
 │    0xc0101004 <e9_putc+4>  add    edx,DWORD PTR [eax]       │
 │    0xc0101006 <e9_putc+6>  and    BYTE PTR [eax],al         │
 │ 
+
+
+
+(gdb) p/x stack_bottom
+$6 = 0xf1004000
+(gdb)
+
+
+
+thread_switch_to () at /home/magshimim/repos/1001_myos/src/kernel/arch/i686/context_switch.
+asm:31
+(gdb) x/5wx $esp
+0xf1007fec:     0x08049000      0x0000001b      0x00000202      0xbffff000
+0xf1007ffc:     0x00000023
+(gdb)
+
+before esp change in cs
+
+edx            0x27000             159744
+ebx            0x7a000             499712
+esp            0xc0141fa4          0xc0141fa4 <stack_bottom+16036>
+ebp            0xc0141fc0          0xc0141fc0 <stack_bottom+16064>
+esi            0x100024            1048612
+edi            0xf3d0              62416
+eip            0xc0108eb7          0xc0108eb7 <thread_switch_to+7>
+eflags         0x282               [ IOPL=0 IF SF ]
+cs             0x8                 8
+ss             0x10                16
+ds             0x10                16
+es             0x10                16
+--Type <RET> for more, q to quit, c to continue without paging--
+
+after esp change in cs
+ecx            0x4                 4
+edx            0x27000             159744
+ebx            0x7a000             499712
+esp            0xf1005fc0          0xf1005fc0
+ebp            0xc0141fc0          0xc0141fc0 <stack_bottom+16064>
+esi            0x100024            1048612
+edi            0xf3d0              62416
+eip            0xc0108ebd          0xc0108ebd <thread_switch_to+13>
+eflags         0x282               [ IOPL=0 IF SF ]
+cs             0x8                 8
+ss             0x10                16
+ds             0x10                16
+es             0x10                16
+--Type <RET> for more, q to quit, c to continue without paging--

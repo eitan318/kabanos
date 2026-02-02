@@ -65,9 +65,10 @@ ISR_NOERRORCODE i
 isr_common:
     pusha               ; pushes in order: eax, ecx, edx, ebx, esp, ebp, esi, edi
 
-    xor eax, eax        ; push ds
-    mov ax, ds
-    push eax
+    push ds
+    push es
+    push fs
+    push gs
 
     mov ax, 0x10        ; use kernel data segment
     mov ds, ax
@@ -80,11 +81,10 @@ isr_common:
     add esp, 4
 
 
-    pop eax             ; restore old segment
-    mov ds, ax
-    mov es, ax
-    mov fs, ax
-    mov gs, ax
+    pop gs
+    pop fs
+    pop es
+    pop ds
 
     popa                ; pop what we pushed with pusha
     add esp, 8          ; remove error code and interrupt number

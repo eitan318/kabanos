@@ -1,8 +1,7 @@
 #include "proc/proc.h"
 #include "sched/thread.h"
 
-#define PREEMPTIVE_INT 45
-
-thread_t *sched_next(void);
 void sched_add(thread_t *t);
+void sched_remove(thread_t *t);
+void sched_tick(void *context);
 void sched_init();

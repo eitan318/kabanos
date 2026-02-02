@@ -11,11 +11,11 @@ static uintptr_t early_alloc(unsigned len) {
   static uint8_t buf[EARLYALLOC_SIZE];
   static unsigned idx = 0;
 
-  if (idx + len >= EARLYALLOC_SIZE)
+  if (idx + len >= EARLYALLOC_SIZE) {
     /* Return NULL on failure. It's too early in the boot process to give out a
        diagnostic.*/
     return NULL;
-
+  }
   uint8_t *ptr = &buf[idx];
   idx += len;
 

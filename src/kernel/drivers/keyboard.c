@@ -38,8 +38,8 @@ static char scancode_to_ascii_shift[128] = {
     'J', 'K', 'L',  ':',  '"',  '~', 0,   '|', 'Z', 'X', 'C', 'V',
     'B', 'N', 'M',  '<',  '>',  '?', 0,   '*', 0,   ' ', 0};
 
-static void keyboard_isr_handler(struct regs *regs) {
-  uint8_t scancode = io_read8(KEYBOARD_PORT);
+static void keyboard_isr_handler(struct arch_regs *regs) {
+  uint8_t scancode = hal_in8(KEYBOARD_PORT);
 
   // Handle key release
   int key_released = scancode & MAX_PRESS_SCANCODE;
