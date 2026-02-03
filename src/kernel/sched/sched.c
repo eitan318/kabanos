@@ -1,6 +1,7 @@
 #include "sched/sched.h"
 #include "sched/spinlock.h"
 #include "hal.h"
+#include "stdio.h"
 #include "memory_management/kmalloc.h"
 #include <stdio.h>
 
@@ -53,6 +54,86 @@ static long quantom_time_get(enum thread_priority p) {
 	  default:                  
 		return QUANTOM_TIME_NORMAL;
   }	
+}
+
+// Remove t from its current priority list without touching state
+static void priority_list_remove(thread_t *t) {
+  thread_t **list = list_for_priority(t->priority);
+  *list = list_remove(*list, t);
+  t->next = NULL;
+}
+
+// Push t onto the front of its current priority list without touching state
+static void priority_list_add(thread_t *t) {
+  thread_t **list = list_for_priority(t->priority);
+  t->next = *list;
+  *list   = t;
+}
+
+// Returns the priority one level above p, or p if already at the cap
+static enum thread_priority priority_up(enum thread_priority p) {
+  switch (p) {
+    case THREAD_NORMAL:        
+		return THREAD_ABOVE_NORMAL;
+    case THREAD_ABOVE_NORMAL:  
+		return THREAD_HIGH;
+    case THREAD_HIGH:          
+		return THREAD_REALTIME;
+    default:                   
+		return THREAD_REALTIME;   
+  }
+}
+
+// Returns the priority one level below p, or p if already at floor
+static enum thread_priority priority_down(enum thread_priority p) {
+  switch (p) {
+    case THREAD_REALTIME:      
+		return THREAD_HIGH;
+    case THREAD_HIGH:         
+		return THREAD_ABOVE_NORMAL;
+    case THREAD_ABOVE_NORMAL:  
+		return THREAD_NORMAL;
+    default:                   
+		return THREAD_NORMAL;   
+  }
+}
+
+static void aging_and_demotion(void) {
+  thread_t **list_ptrs[] = { &normal_list, &above_normal_list, &high_list, &realtime_list };
+
+  for (int i = 0; i < 4; i++) {
+    thread_t *t = *list_ptrs[i];
+    while (t) {
+      thread_t *next = t->next;   
+
+      if (t->state == THREAD_READY) {
+        /* --- AGING --- */
+        t->wait_ticks++;
+        t->time_at_priority++;
+
+        if (t->wait_ticks >= AGING_THRESHOLD && t->priority < AGING_LIMIT) {
+          priority_list_remove(t);
+          t->priority   = priority_up(t->priority);
+          t->wait_ticks = 0;
+          priority_list_add(t);
+        }
+
+      } else if (t->state == THREAD_RUNNING) {
+        /* --- DEMOTION --- */
+        t->wait_ticks = 0;   
+        t->time_at_priority++;
+
+        if (t->time_at_priority >= DEMOTION_THRESHOLD && t->priority > t->base_priority) {
+          priority_list_remove(t);
+          t->priority = priority_down(t->priority);
+          t->time_at_priority = 0;
+          priority_list_add(t);
+        }
+      }
+
+      t = next;
+    }
+  }
 }
 
 void sched_remove(thread_t *t) {
@@ -163,6 +244,50 @@ static thread_t *sched_next(void) {
   return &kernel_idle_task;
 }
 
+static void debug_print_all_threads(void) {
+  // Debug: print all threads
+  debugf("\n=== Thread List ===\n");
+  
+  if (realtime_list) {
+    debugf("REALTIME queue:\n");
+    thread_t *t = realtime_list;
+    while (t) {
+      debugf("  TID=%u PRI=%d STATE=%d\n", t->tid, t->priority, t->state);
+      t = t->next;
+    }
+  }
+  
+  if (high_list) {
+    debugf("HIGH queue:\n");
+    thread_t *t = high_list;
+    while (t) {
+      debugf("  TID=%u PRI=%d STATE=%d\n", t->tid, t->priority, t->state);
+      t = t->next;
+    }
+  }
+  
+  if (above_normal_list) {
+    debugf("ABOVE_NORMAL queue:\n");
+    thread_t *t = above_normal_list;
+    while (t) {
+      debugf("  TID=%u PRI=%d STATE=%d\n", t->tid, t->priority, t->state);
+      t = t->next;
+    }
+  }
+  
+  if (normal_list) {
+    debugf("NORMAL queue:\n");
+    thread_t *t = normal_list;
+    while (t) {
+      debugf("  TID=%u PRI=%d STATE=%d\n", t->tid, t->priority, t->state);
+      t = t->next;
+    }
+  }
+  
+  debugf("Current: TID=%u PRI=%d\n", g_current_thread->tid, g_current_thread->priority);
+  debugf("==================\n");
+}
+
 void sched_tick(void *context) {
   spinlock_acquire(&sched_lock);
   
@@ -170,6 +295,7 @@ void sched_tick(void *context) {
   if (g_current_thread && g_current_thread != &kernel_idle_task) {
     if (g_current_thread->rt_ticks < quantom_time_get(g_current_thread->priority)) {
       g_current_thread->rt_ticks++;
+	  aging_and_demotion();
       spinlock_release(&sched_lock);
       return;
     } else {
@@ -182,12 +308,16 @@ void sched_tick(void *context) {
     }
   }
 
+  aging_and_demotion();
+
   // 2. Pick next
   thread_t *next = sched_next();
 
   // 3. Prepare for switch
   g_current_thread = next;
   next->state = THREAD_RUNNING;
+  
+  debug_print_all_threads();
   
   spinlock_release(&sched_lock);
   

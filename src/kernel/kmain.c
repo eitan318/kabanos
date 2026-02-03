@@ -76,7 +76,10 @@ void kmain(uint32_t mb2_ptr) {
   if (process_exec("test_a.elf", THREAD_NORMAL) != 0)
     debugf("err\n\n");
 
-  if (process_exec("test_b.elf", THREAD_REALTIME) != 0)
+  if (process_exec("test_b.elf", THREAD_ABOVE_NORMAL) != 0)
+    debugf("err\n\n");
+
+  if (process_exec("test_c.elf", THREAD_HIGH) != 0)
     debugf("err\n\n");
 
   hal_interrupts_enable();
