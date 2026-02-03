@@ -42,6 +42,19 @@ static thread_t **list_for_priority(enum thread_priority p) {
   }
 }
 
+static long quantom_time_get(enum thread_priority p) { 
+	switch (p) {
+	  case THREAD_REALTIME:     
+		return QUANTOM_TIME_REALTIME;
+	  case THREAD_HIGH:         
+		return QUANTOM_TIME_HIGH;
+	  case THREAD_ABOVE_NORMAL: 
+		return QUANTOM_TIME_ABOVE_NORMAL;
+	  default:                  
+		return QUANTOM_TIME_NORMAL;
+  }	
+}
+
 void sched_remove(thread_t *t) {
   if (!t) {
     return;
@@ -155,6 +168,14 @@ void sched_tick(void *context) {
   
   // 1. Save current state
   if (g_current_thread && g_current_thread != &kernel_idle_task) {
+    if (g_current_thread->rt_ticks < quantom_time_get(g_current_thread->priority)) {
+      g_current_thread->rt_ticks++;
+      spinlock_release(&sched_lock);
+      return;
+    } else {
+	  g_current_thread->rt_ticks = 0;
+	}
+	  
     hal_thread_save(g_current_thread->arch, context);
     if (g_current_thread->state == THREAD_RUNNING) {
       g_current_thread->state = THREAD_READY;

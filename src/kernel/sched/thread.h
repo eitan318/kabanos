@@ -8,7 +8,7 @@ typedef struct thread {
   uint32_t tid;
   process_t *process; // Parent process (contains CR3)
 
-  uint8_t rt_ticks;
+  long rt_ticks;
   
   enum thread_state {
     THREAD_NEW,
