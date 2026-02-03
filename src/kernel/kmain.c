@@ -73,10 +73,10 @@ void kmain(uint32_t mb2_ptr) {
 
   debugf("Testing Proc\n");
   sched_init();
-  if (process_exec("test_a.elf") != 0)
+  if (process_exec("test_a.elf", THREAD_NORMAL) != 0)
     debugf("err\n\n");
 
-  if (process_exec("test_b.elf") != 0)
+  if (process_exec("test_b.elf", THREAD_REALTIME) != 0)
     debugf("err\n\n");
 
   hal_interrupts_enable();

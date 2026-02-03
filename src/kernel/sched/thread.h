@@ -35,6 +35,6 @@ typedef struct thread {
 } thread_t;
 
 thread_t *thread_create_user(process_t *proc, uintptr_t entry,
-                             uintptr_t user_stack);
+                             uintptr_t user_stack, enum thread_priority p);
 
 thread_t *thread_create_kernel(process_t *proc, uintptr_t entry);

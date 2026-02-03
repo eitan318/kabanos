@@ -29,7 +29,7 @@ uintptr_t setup_user_stack(vmspace_t *vm) {
   return (uintptr_t)(USER_STACK_BOTTOM + USER_STACK_SIZE);
 }
 
-int process_exec(const char *path) {
+int process_exec(const char *path, enum thread_priority p) {
   process_t *proc = process_create();
   uintptr_t entry;
   if (exec_load_elf(proc->vmspace, path, &entry) < 0) {
@@ -38,6 +38,6 @@ int process_exec(const char *path) {
   }
 
   uintptr_t user_stack = setup_user_stack(proc->vmspace);
-  thread_t *t = thread_create_user(proc, entry, user_stack);
+  thread_t *t = thread_create_user(proc, entry, user_stack, p);
   return 0;
 }
