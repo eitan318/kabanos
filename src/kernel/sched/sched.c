@@ -1,84 +1,158 @@
 #include "sched/sched.h"
+#include "sched/spinlock.h"
 #include "hal.h"
 #include "memory_management/kmalloc.h"
 #include <stdio.h>
 
-static thread_t *ready_list = NULL;
+static thread_t *normal_list = NULL;
+static thread_t *above_normal_list = NULL;
+static thread_t *high_list = NULL;
+static thread_t *realtime_list = NULL;
 thread_t *g_current_thread = NULL;
 static thread_t kernel_idle_task;
+static spinlock_t sched_lock = SPINLOCK_RELEASED;
+
+static thread_t *list_remove(thread_t *head, thread_t *t) {
+  if (head == t) {
+    return t->next;
+  }
+
+  thread_t *curr = head;
+  while (curr->next != NULL && curr->next != t) {
+    curr = curr->next;
+  }
+
+  if (curr->next == t) {
+    curr->next = t->next;
+  }
+
+  return head;
+}
+
+static thread_t **list_for_priority(enum thread_priority p) {
+  switch (p) {
+	  case THREAD_REALTIME:     
+		return &realtime_list;
+	  case THREAD_HIGH:         
+		return &high_list;
+	  case THREAD_ABOVE_NORMAL: 
+		return &above_normal_list;
+	  default:                  
+		return &normal_list;
+  }
+}
 
 void sched_remove(thread_t *t) {
-  if (!t || !ready_list)
+  if (!t) {
     return;
-
-  // Case 1: The thread to remove is at the head of the list
-  if (ready_list == t) {
-    ready_list = t->next;
-  } else {
-    // Case 2: Walk the list to find the thread
-    thread_t *curr = ready_list;
-    while (curr->next && curr->next != t) {
-      curr = curr->next;
-    }
-
-    // If found, unlink it
-    if (curr->next == t) {
-      curr->next = t->next;
-    }
   }
+  
+  spinlock_acquire(&sched_lock);
+
+  thread_t **list = list_for_priority(t->priority);
+  *list = list_remove(*list, t);
 
   t->state = THREAD_DEAD;
-  t->next = NULL;
+  t->next  = NULL;
 
-  // If we just removed the thread that was currently running,
-  // we must immediately trigger a reschedule.
   if (g_current_thread == t) {
-    // In some kernels, you'd call yield() or force a timer interrupt here
     g_current_thread = NULL;
   }
+  
+  spinlock_release(&sched_lock);
 }
 
 void sched_add(thread_t *t) {
-  if (!t)
+  if (!t) {
     return;
+  }
+  
+  spinlock_acquire(&sched_lock);
+  
   t->state = THREAD_READY;
 
-  // Simple push to front of list
-  t->next = ready_list;
-  ready_list = t;
+  thread_t **list = list_for_priority(t->priority);
+
+  /* Push to front of the correct priority list */
+  t->next = *list;
+  *list = t;
+  
+  spinlock_release(&sched_lock);
 }
 
-static thread_t *sched_next(void) {
-  if (!ready_list)
-    return &kernel_idle_task;
+static thread_t *roundrobin_pick(thread_t **list_head) {
+  thread_t *list = *list_head;
 
-  // 1. If there's only one thread, just return it
-  if (ready_list->next == NULL) {
-    return (ready_list->state == THREAD_READY) ? ready_list : &kernel_idle_task;
+  /* Empty list - nothing to pick. */
+  if (!list) {
+    return NULL;
   }
 
-  // 2. Rotate the list: Take the current head and move it to the tail
-  thread_t *prev_head = ready_list;
-  ready_list = ready_list->next; // New head
-  prev_head->next = NULL;
+  /* Single thread - no rotation needed. */
+  if (!list->next) {
+    return (list->state == THREAD_READY || list->state == THREAD_RUNNING) ? list : NULL;
+  }
 
-  // Find the current tail to attach the old head
-  thread_t *tail = ready_list;
+  /* Rotate: move current head to tail. */
+  thread_t *old_head = list;
+  *list_head = list->next;  
+  old_head->next = NULL;
+
+  /* Walk to tail and append old head. */
+  thread_t *tail = *list_head;
   while (tail->next != NULL) {
     tail = tail->next;
   }
-  tail->next = prev_head;
+  tail->next = old_head;
 
-  // 3. Return the new head (if it's ready to run)
-  if (ready_list->state == THREAD_READY ||
-      ready_list->state == THREAD_RUNNING) {
-    return ready_list;
+  /* Return new head only if it is schedulable. */
+  thread_t *candidate = *list_head;
+  if (candidate->state == THREAD_READY || candidate->state == THREAD_RUNNING) {
+    return candidate;
+  }
+
+  return NULL;
+}
+
+static thread_t *normal_list_pick(void) {
+	return roundrobin_pick(&normal_list);
+}
+
+static thread_t *above_normal_list_pick(void) {
+	return roundrobin_pick(&above_normal_list);
+}
+
+static thread_t *high_list_pick(void) {
+	return roundrobin_pick(&high_list);
+}
+
+static thread_t *realtime_list_pick(void) {
+	return roundrobin_pick(&realtime_list);
+}
+
+static thread_t *sched_next(void) {
+  thread_t *t;
+
+  // Walk priority levels from highest to lowest.
+  if ((t = realtime_list_pick()) != NULL) {
+    return t;
+  }
+  if ((t = high_list_pick()) != NULL) {
+    return t;
+  }
+  if ((t = above_normal_list_pick()) != NULL) {
+    return t;
+  }
+  if ((t = normal_list_pick()) != NULL) {
+    return t;
   }
 
   return &kernel_idle_task;
 }
 
 void sched_tick(void *context) {
+  spinlock_acquire(&sched_lock);
+  
   // 1. Save current state
   if (g_current_thread && g_current_thread != &kernel_idle_task) {
     hal_thread_save(g_current_thread->arch, context);
@@ -93,7 +167,9 @@ void sched_tick(void *context) {
   // 3. Prepare for switch
   g_current_thread = next;
   next->state = THREAD_RUNNING;
-
+  
+  spinlock_release(&sched_lock);
+  
   // Update TSS/MSR so sysenter/interrupts land on the correct kernel stack
   hal_update_kernel_stack(0, next->kstack_top);
 

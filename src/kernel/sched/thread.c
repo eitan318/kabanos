@@ -53,6 +53,7 @@ thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
   t->tid = alloc_tid();
   t->process = proc;
   t->state = THREAD_NEW;
+  t->priority = THREAD_NORMAL;
   t->mode = mode;
 
   // Allocate the arch-specific part (if it's a pointer)
@@ -97,10 +98,11 @@ thread_t *thread_create_kernel(process_t *proc, uintptr_t entry) {
 }
 
 void thread_destroy(thread_t *t) {
-  t->state = THREAD_DEAD;
-  sched_remove(t);
   if (!t)
     return;
+
+  t->state = THREAD_DEAD;
+  sched_remove(t);
 
   if (t->kstack_top) {
     vaddr_t stack_bottom = (vaddr_t)t->kstack_top - PROCESS_KERNEL_STACK_SIZE;

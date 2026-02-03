@@ -10,6 +10,7 @@
 #include "memory_management/vmspace.h"
 #include "proc/exec.h"
 #include "sched/sched.h"
+#include "sched/thread.h"
 #include "stdio.h"
 #include "string.h"
 #include "ut/ata/ata_ut_main.h"

@@ -11,6 +11,9 @@ void spinlock_acquire(spinlock_t *lock) {
 }
 
 void spinlock_release(spinlock_t *lock) {
+  int interrupts = lock->interrupts;
   while (__sync_bool_compare_and_swap(&lock->val, 1, 0) == 0) { }
-  __asm__ volatile("sti");
+  if (interrupts) {
+    __asm__ volatile("sti");
+  }
 }
