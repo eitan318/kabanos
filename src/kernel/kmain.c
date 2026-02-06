@@ -1,4 +1,5 @@
 #include "boot/bootparams.h"
+#include "device.h"
 #include "drivers/vga_text.h"
 #include "fat/fat.h"
 #include "hal.h"
@@ -9,6 +10,7 @@
 #include "memory_management/pmm.h"
 #include "memory_management/vmspace.h"
 #include "proc/exec.h"
+#include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
 #include "stdio.h"
@@ -65,24 +67,34 @@ void kmain(uint32_t mb2_ptr) {
   vga_setcursor(0, 0);
   kbd_init();
 
+  hal_interrupts_enable();
+
   if (!fat_initialize(34)) {
     debugf("Failed to initialize FAT\n");
     for (;;) {
     }
   }
 
-  debugf("Testing Proc\n");
   sched_init();
-  if (process_exec("test_a.elf", THREAD_NORMAL) != 0)
-    debugf("err\n\n");
 
-  if (process_exec("test_b.elf", THREAD_ABOVE_NORMAL) != 0)
-    debugf("err\n\n");
+  // Load your processes into the scheduler's queue
+  process_exec("test_a.elf", THREAD_NORMAL);
+  process_exec("test_b.elf", THREAD_ABOVE_NORMAL);
+  process_exec("test_c.elf", THREAD_HIGH);
 
-  if (process_exec("test_c.elf", THREAD_HIGH) != 0)
-    debugf("err\n\n");
+  // 1. Ask the scheduler for the first thread in the FIFO queue
+  thread_t *first = sched_pick_next();
 
-  hal_interrupts_enable();
+  if (first) {
+    debugf("Starting first thread: TID %u\n", first->tid);
+
+    // 2. Use the dispatcher to jump into the thread
+    // Note: dispatch_start_first doesn't return!
+    dispatch_start_first(first);
+  } else {
+    debugf("No threads to run!\n");
+  }
+
   hal_timer_enable();
 
   for (;;) {
