@@ -83,10 +83,7 @@ void kmain(uint32_t mb2_ptr) {
     debugf("err\n\n");
 
   hal_interrupts_enable();
-  
-  __asm__ volatile("int $0x45");
-  
-  //hal_timer_enable();
+  hal_timer_enable();
 
   for (;;) {
   }

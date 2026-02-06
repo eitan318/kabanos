@@ -1,8 +1,8 @@
 #include "sched/sched.h"
-#include "sched/spinlock.h"
 #include "hal.h"
-#include "stdio.h"
 #include "memory_management/kmalloc.h"
+#include "sched/spinlock.h"
+#include "stdio.h"
 #include <stdio.h>
 
 static thread_t *normal_list = NULL;
@@ -32,28 +32,28 @@ static thread_t *list_remove(thread_t *head, thread_t *t) {
 
 static thread_t **list_for_priority(enum thread_priority p) {
   switch (p) {
-	  case THREAD_REALTIME:     
-		return &realtime_list;
-	  case THREAD_HIGH:         
-		return &high_list;
-	  case THREAD_ABOVE_NORMAL: 
-		return &above_normal_list;
-	  default:                  
-		return &normal_list;
+  case THREAD_REALTIME:
+    return &realtime_list;
+  case THREAD_HIGH:
+    return &high_list;
+  case THREAD_ABOVE_NORMAL:
+    return &above_normal_list;
+  default:
+    return &normal_list;
   }
 }
 
-static long quantom_time_get(enum thread_priority p) { 
-	switch (p) {
-	  case THREAD_REALTIME:     
-		return QUANTOM_TIME_REALTIME;
-	  case THREAD_HIGH:         
-		return QUANTOM_TIME_HIGH;
-	  case THREAD_ABOVE_NORMAL: 
-		return QUANTOM_TIME_ABOVE_NORMAL;
-	  default:                  
-		return QUANTOM_TIME_NORMAL;
-  }	
+static long quantom_time_get(enum thread_priority p) {
+  switch (p) {
+  case THREAD_REALTIME:
+    return QUANTOM_TIME_REALTIME;
+  case THREAD_HIGH:
+    return QUANTOM_TIME_HIGH;
+  case THREAD_ABOVE_NORMAL:
+    return QUANTOM_TIME_ABOVE_NORMAL;
+  default:
+    return QUANTOM_TIME_NORMAL;
+  }
 }
 
 // Remove t from its current priority list without touching state
@@ -67,44 +67,45 @@ static void priority_list_remove(thread_t *t) {
 static void priority_list_add(thread_t *t) {
   thread_t **list = list_for_priority(t->priority);
   t->next = *list;
-  *list   = t;
+  *list = t;
 }
 
 // Returns the priority one level above p, or p if already at the cap
 static enum thread_priority priority_up(enum thread_priority p) {
   switch (p) {
-    case THREAD_NORMAL:        
-		return THREAD_ABOVE_NORMAL;
-    case THREAD_ABOVE_NORMAL:  
-		return THREAD_HIGH;
-    case THREAD_HIGH:          
-		return THREAD_REALTIME;
-    default:                   
-		return THREAD_REALTIME;   
+  case THREAD_NORMAL:
+    return THREAD_ABOVE_NORMAL;
+  case THREAD_ABOVE_NORMAL:
+    return THREAD_HIGH;
+  case THREAD_HIGH:
+    return THREAD_REALTIME;
+  default:
+    return THREAD_REALTIME;
   }
 }
 
 // Returns the priority one level below p, or p if already at floor
 static enum thread_priority priority_down(enum thread_priority p) {
   switch (p) {
-    case THREAD_REALTIME:      
-		return THREAD_HIGH;
-    case THREAD_HIGH:         
-		return THREAD_ABOVE_NORMAL;
-    case THREAD_ABOVE_NORMAL:  
-		return THREAD_NORMAL;
-    default:                   
-		return THREAD_NORMAL;   
+  case THREAD_REALTIME:
+    return THREAD_HIGH;
+  case THREAD_HIGH:
+    return THREAD_ABOVE_NORMAL;
+  case THREAD_ABOVE_NORMAL:
+    return THREAD_NORMAL;
+  default:
+    return THREAD_NORMAL;
   }
 }
 
 static void aging_and_demotion(void) {
-  thread_t **list_ptrs[] = { &normal_list, &above_normal_list, &high_list, &realtime_list };
+  thread_t **list_ptrs[] = {&normal_list, &above_normal_list, &high_list,
+                            &realtime_list};
 
   for (int i = 0; i < 4; i++) {
     thread_t *t = *list_ptrs[i];
     while (t) {
-      thread_t *next = t->next;   
+      thread_t *next = t->next;
 
       if (t->state == THREAD_READY) {
         /* --- AGING --- */
@@ -113,17 +114,18 @@ static void aging_and_demotion(void) {
 
         if (t->wait_ticks >= AGING_THRESHOLD && t->priority < AGING_LIMIT) {
           priority_list_remove(t);
-          t->priority   = priority_up(t->priority);
+          t->priority = priority_up(t->priority);
           t->wait_ticks = 0;
           priority_list_add(t);
         }
 
       } else if (t->state == THREAD_RUNNING) {
         /* --- DEMOTION --- */
-        t->wait_ticks = 0;   
+        t->wait_ticks = 0;
         t->time_at_priority++;
 
-        if (t->time_at_priority >= DEMOTION_THRESHOLD && t->priority > t->base_priority) {
+        if (t->time_at_priority >= DEMOTION_THRESHOLD &&
+            t->priority > t->base_priority) {
           priority_list_remove(t);
           t->priority = priority_down(t->priority);
           t->time_at_priority = 0;
@@ -140,19 +142,19 @@ void sched_remove(thread_t *t) {
   if (!t) {
     return;
   }
-  
+
   spinlock_acquire(&sched_lock);
 
   thread_t **list = list_for_priority(t->priority);
   *list = list_remove(*list, t);
 
   t->state = THREAD_DEAD;
-  t->next  = NULL;
+  t->next = NULL;
 
   if (g_current_thread == t) {
     g_current_thread = NULL;
   }
-  
+
   spinlock_release(&sched_lock);
 }
 
@@ -160,9 +162,9 @@ void sched_add(thread_t *t) {
   if (!t) {
     return;
   }
-  
+
   spinlock_acquire(&sched_lock);
-  
+
   t->state = THREAD_READY;
 
   thread_t **list = list_for_priority(t->priority);
@@ -170,7 +172,7 @@ void sched_add(thread_t *t) {
   /* Push to front of the correct priority list */
   t->next = *list;
   *list = t;
-  
+
   spinlock_release(&sched_lock);
 }
 
@@ -184,12 +186,14 @@ static thread_t *roundrobin_pick(thread_t **list_head) {
 
   /* Single thread - no rotation needed. */
   if (!list->next) {
-    return (list->state == THREAD_READY || list->state == THREAD_RUNNING) ? list : NULL;
+    return (list->state == THREAD_READY || list->state == THREAD_RUNNING)
+               ? list
+               : NULL;
   }
 
   /* Rotate: move current head to tail. */
   thread_t *old_head = list;
-  *list_head = list->next;  
+  *list_head = list->next;
   old_head->next = NULL;
 
   /* Walk to tail and append old head. */
@@ -205,29 +209,21 @@ static thread_t *roundrobin_pick(thread_t **list_head) {
     return candidate;
   }
 
-        if (current_node->thread->state == THREAD_READY) {
-            return current_node->thread;
-        }
-
-    } while (current_node != start);
-
-    return NULL;  
+  return NULL;
 }
 
 static thread_t *normal_list_pick(void) {
-	return roundrobin_pick(&normal_list);
+  return roundrobin_pick(&normal_list);
 }
 
 static thread_t *above_normal_list_pick(void) {
-	return roundrobin_pick(&above_normal_list);
+  return roundrobin_pick(&above_normal_list);
 }
 
-static thread_t *high_list_pick(void) {
-	return roundrobin_pick(&high_list);
-}
+static thread_t *high_list_pick(void) { return roundrobin_pick(&high_list); }
 
 static thread_t *realtime_list_pick(void) {
-	return roundrobin_pick(&realtime_list);
+  return roundrobin_pick(&realtime_list);
 }
 
 static thread_t *sched_next(void) {
@@ -253,7 +249,7 @@ static thread_t *sched_next(void) {
 static void debug_print_all_threads(void) {
   // Debug: print all threads
   debugf("\n=== Thread List ===\n");
-  
+
   if (realtime_list) {
     debugf("REALTIME queue:\n");
     thread_t *t = realtime_list;
@@ -262,7 +258,7 @@ static void debug_print_all_threads(void) {
       t = t->next;
     }
   }
-  
+
   if (high_list) {
     debugf("HIGH queue:\n");
     thread_t *t = high_list;
@@ -271,7 +267,7 @@ static void debug_print_all_threads(void) {
       t = t->next;
     }
   }
-  
+
   if (above_normal_list) {
     debugf("ABOVE_NORMAL queue:\n");
     thread_t *t = above_normal_list;
@@ -280,7 +276,7 @@ static void debug_print_all_threads(void) {
       t = t->next;
     }
   }
-  
+
   if (normal_list) {
     debugf("NORMAL queue:\n");
     thread_t *t = normal_list;
@@ -289,25 +285,27 @@ static void debug_print_all_threads(void) {
       t = t->next;
     }
   }
-  
-  debugf("Current: TID=%u PRI=%d\n", g_current_thread->tid, g_current_thread->priority);
+
+  debugf("Current: TID=%u PRI=%d\n", g_current_thread->tid,
+         g_current_thread->priority);
   debugf("==================\n");
 }
 
 void sched_tick(void *context) {
   spinlock_acquire(&sched_lock);
-  
+
   // 1. Save current state
   if (g_current_thread && g_current_thread != &kernel_idle_task) {
-    if (g_current_thread->rt_ticks < quantom_time_get(g_current_thread->priority)) {
+    if (g_current_thread->rt_ticks <
+        quantom_time_get(g_current_thread->priority)) {
       g_current_thread->rt_ticks++;
-	  aging_and_demotion();
+      aging_and_demotion();
       spinlock_release(&sched_lock);
       return;
     } else {
-	  g_current_thread->rt_ticks = 0;
-	}
-	  
+      g_current_thread->rt_ticks = 0;
+    }
+
     hal_thread_save(g_current_thread->arch, context);
     if (g_current_thread->state == THREAD_RUNNING) {
       g_current_thread->state = THREAD_READY;
@@ -322,11 +320,11 @@ void sched_tick(void *context) {
   // 3. Prepare for switch
   g_current_thread = next;
   next->state = THREAD_RUNNING;
-  
+
   debug_print_all_threads();
-  
+
   spinlock_release(&sched_lock);
-  
+
   // Update TSS/MSR so sysenter/interrupts land on the correct kernel stack
   hal_update_kernel_stack(0, next->kstack_top);
 

@@ -1,8 +1,0 @@
-#include "syscall.h"
-#include <stddef.h>
-
-void _start(void) {
-  for (;;) {
-    _syscall6(0xDDD, 0xD1, 0xD2, 0xD3, 0xD4, 0xD5, 0xD6);
-  }
-}
