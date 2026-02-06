@@ -1,3 +1,4 @@
+#include "sched/thread.h"
 #include "arch/types.h"
 #include "hal.h"
 #include "memory_management/kmalloc.h"
@@ -43,7 +44,7 @@ static void *alloc_kernel_stack(uint32_t tid, arch_vm_t *user_vm) {
 }
 
 thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
-                        enum thread_mode mode) {
+                        enum thread_mode mode, enum thread_priority p) {
   thread_t *t = kmalloc(sizeof(*t));
   if (!t)
     return NULL;
@@ -51,7 +52,12 @@ thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
   memset(t, 0, sizeof(*t));
   t->tid = alloc_tid();
   t->process = proc;
-  t->state = THREAD_NORMAL;
+  t->state = THREAD_NEW;
+  t->priority = p;
+  t->base_priority = BASE_THREAD_PRIORITY;
+  t->rt_ticks = 0;
+  t->wait_ticks = 0;
+  t->time_at_priority = 0;
   t->mode = mode;
 
   // Allocate the arch-specific part (if it's a pointer)
@@ -86,20 +92,22 @@ thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
 
   return t;
 }
+
 thread_t *thread_create_user(process_t *proc, uintptr_t entry,
-                             uintptr_t user_stack) {
-  return thread_create(proc, entry, user_stack, THREAD_MODE_USER);
+                             uintptr_t user_stack, enum thread_priority p) {
+  return thread_create(proc, entry, user_stack, THREAD_MODE_USER, p);
 }
 
 thread_t *thread_create_kernel(process_t *proc, uintptr_t entry) {
-  return thread_create(proc, entry, 0, THREAD_MODE_KERNEL);
+  return thread_create(proc, entry, 0, THREAD_MODE_KERNEL, THREAD_NORMAL);
 }
 
 void thread_destroy(thread_t *t) {
-  t->state = THREAD_DEAD;
-  sched_remove(t);
   if (!t)
     return;
+
+  t->state = THREAD_DEAD;
+  sched_remove(t);
 
   if (t->kstack_top) {
     vaddr_t stack_bottom = (vaddr_t)t->kstack_top - PROCESS_KERNEL_STACK_SIZE;

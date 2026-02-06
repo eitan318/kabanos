@@ -8,9 +8,26 @@ typedef struct thread {
   uint32_t tid;
   process_t *process; // Parent process (contains CR3)
 
-  uint8_t rt_ticks;
-  enum thread_state { THREAD_RUN, THREAD_READY, THREAD_NORMAL, THREAD_ABOVE_NORMAL, THREAD_HIGH, THREAD_REALTIME, THREAD_DEAD } state;
-
+  long rt_ticks;
+  long wait_ticks;          // Ticks spent waiting in THREAD_READY (for aging)
+  long time_at_priority;    // Total ticks spent at current priority (for demotion)
+  
+  enum thread_state {
+    THREAD_NEW,
+    THREAD_READY,
+    THREAD_RUNNING,
+    THREAD_DEAD
+  } state;
+  
+  enum thread_priority {
+    THREAD_NORMAL,
+    THREAD_ABOVE_NORMAL,
+	THREAD_HIGH,
+    THREAD_REALTIME
+  } priority;
+  
+  enum thread_priority base_priority; // Original priority — demotion floor
+  
   arch_thread_t *arch;
   enum thread_mode mode;
 
@@ -22,6 +39,6 @@ typedef struct thread {
 } thread_t;
 
 thread_t *thread_create_user(process_t *proc, uintptr_t entry,
-                             uintptr_t user_stack);
+                             uintptr_t user_stack, enum thread_priority p);
 
 thread_t *thread_create_kernel(process_t *proc, uintptr_t entry);

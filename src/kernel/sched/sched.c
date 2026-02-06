@@ -1,116 +1,209 @@
 #include "sched/sched.h"
 #include "sched/spinlock.h"
 #include "hal.h"
-#include "sched/thread.h"
+#include "stdio.h"
 #include "memory_management/kmalloc.h"
-#include <stddef.h>
-#include <stdint.h>
+#include <stdio.h>
 
-extern vmspace_t *g_kernel_vmspace; // global
-
-typedef struct task_node {
-  thread_t *thread;
-  struct task_node *next;
-} task_node_t;
-
-static task_node_t *tasks_list = NULL; 
-static task_node_t *current_node = NULL;
-static thread_t kernel_task;
+static thread_t *normal_list = NULL;
+static thread_t *above_normal_list = NULL;
+static thread_t *high_list = NULL;
+static thread_t *realtime_list = NULL;
 thread_t *g_current_thread = NULL;
-static spinlock_t ready_lock = SPINLOCK_RELEASED; 
+static thread_t kernel_idle_task;
+static spinlock_t sched_lock = SPINLOCK_RELEASED;
 
-void sched_add(thread_t *t) { 
-	task_node_t *new_node = (task_node_t *)kmalloc(sizeof(task_node_t));
-	new_node->thread = t;
-  
-	if (tasks_list == NULL) {
-		// First node - points to itself (circular)
-		new_node->next = new_node;
-		tasks_list = new_node;
-		current_node = new_node;
-	} else {
-		// Insert at the end and maintain circular structure
-		task_node_t *tail = tasks_list;
-		while (tail->next != tasks_list) {
-		  tail = tail->next;
-		}
-		new_node->next = tasks_list;
-		tail->next = new_node;
-	}
+static thread_t *list_remove(thread_t *head, thread_t *t) {
+  if (head == t) {
+    return t->next;
+  }
+
+  thread_t *curr = head;
+  while (curr->next != NULL && curr->next != t) {
+    curr = curr->next;
+  }
+
+  if (curr->next == t) {
+    curr->next = t->next;
+  }
+
+  return head;
+}
+
+static thread_t **list_for_priority(enum thread_priority p) {
+  switch (p) {
+	  case THREAD_REALTIME:     
+		return &realtime_list;
+	  case THREAD_HIGH:         
+		return &high_list;
+	  case THREAD_ABOVE_NORMAL: 
+		return &above_normal_list;
+	  default:                  
+		return &normal_list;
+  }
+}
+
+static long quantom_time_get(enum thread_priority p) { 
+	switch (p) {
+	  case THREAD_REALTIME:     
+		return QUANTOM_TIME_REALTIME;
+	  case THREAD_HIGH:         
+		return QUANTOM_TIME_HIGH;
+	  case THREAD_ABOVE_NORMAL: 
+		return QUANTOM_TIME_ABOVE_NORMAL;
+	  default:                  
+		return QUANTOM_TIME_NORMAL;
+  }	
+}
+
+// Remove t from its current priority list without touching state
+static void priority_list_remove(thread_t *t) {
+  thread_t **list = list_for_priority(t->priority);
+  *list = list_remove(*list, t);
+  t->next = NULL;
+}
+
+// Push t onto the front of its current priority list without touching state
+static void priority_list_add(thread_t *t) {
+  thread_t **list = list_for_priority(t->priority);
+  t->next = *list;
+  *list   = t;
+}
+
+// Returns the priority one level above p, or p if already at the cap
+static enum thread_priority priority_up(enum thread_priority p) {
+  switch (p) {
+    case THREAD_NORMAL:        
+		return THREAD_ABOVE_NORMAL;
+    case THREAD_ABOVE_NORMAL:  
+		return THREAD_HIGH;
+    case THREAD_HIGH:          
+		return THREAD_REALTIME;
+    default:                   
+		return THREAD_REALTIME;   
+  }
+}
+
+// Returns the priority one level below p, or p if already at floor
+static enum thread_priority priority_down(enum thread_priority p) {
+  switch (p) {
+    case THREAD_REALTIME:      
+		return THREAD_HIGH;
+    case THREAD_HIGH:         
+		return THREAD_ABOVE_NORMAL;
+    case THREAD_ABOVE_NORMAL:  
+		return THREAD_NORMAL;
+    default:                   
+		return THREAD_NORMAL;   
+  }
+}
+
+static void aging_and_demotion(void) {
+  thread_t **list_ptrs[] = { &normal_list, &above_normal_list, &high_list, &realtime_list };
+
+  for (int i = 0; i < 4; i++) {
+    thread_t *t = *list_ptrs[i];
+    while (t) {
+      thread_t *next = t->next;   
+
+      if (t->state == THREAD_READY) {
+        /* --- AGING --- */
+        t->wait_ticks++;
+        t->time_at_priority++;
+
+        if (t->wait_ticks >= AGING_THRESHOLD && t->priority < AGING_LIMIT) {
+          priority_list_remove(t);
+          t->priority   = priority_up(t->priority);
+          t->wait_ticks = 0;
+          priority_list_add(t);
+        }
+
+      } else if (t->state == THREAD_RUNNING) {
+        /* --- DEMOTION --- */
+        t->wait_ticks = 0;   
+        t->time_at_priority++;
+
+        if (t->time_at_priority >= DEMOTION_THRESHOLD && t->priority > t->base_priority) {
+          priority_list_remove(t);
+          t->priority = priority_down(t->priority);
+          t->time_at_priority = 0;
+          priority_list_add(t);
+        }
+      }
+
+      t = next;
+    }
+  }
 }
 
 void sched_remove(thread_t *t) {
-	if (!tasks_list || !t) {
-        return;
-    }
+  if (!t) {
+    return;
+  }
+  
+  spinlock_acquire(&sched_lock);
 
-    task_node_t *prev = tasks_list;
-    task_node_t *node = tasks_list;
+  thread_t **list = list_for_priority(t->priority);
+  *list = list_remove(*list, t);
 
-    /* Find node to remove */
-    do {
-        if (node->thread == t) {
-            break;
-        }
-        prev = node;
-        node = node->next;
-    } while (node != tasks_list);
+  t->state = THREAD_DEAD;
+  t->next  = NULL;
 
-    /* Not found */
-    if (node->thread != t) {
-        return;
-    }
-
-    /* Single-node list */
-    if (node->next == node) {
-        tasks_list = NULL;
-        current_node = NULL;
-        if (g_current_thread == t) {
-            g_current_thread = NULL;
-        }
-        kfree(node);
-        return;
-    }
-
-    /* Fix head if needed */
-    if (node == tasks_list) {
-        tasks_list = node->next;
-    }
-
-    /* Fix current_node if needed */
-    if (node == current_node) {
-        current_node = node->next;
-    }
-
-    /* Fix current running thread */
-    if (g_current_thread == t) {
-        g_current_thread = NULL;  // scheduler will pick next on tick
-    }
-
-    /* Unlink */
-    prev->next = node->next;
-
-    kfree(node);
+  if (g_current_thread == t) {
+    g_current_thread = NULL;
+  }
+  
+  spinlock_release(&sched_lock);
 }
 
-static thread_t *sched_next(void) {
-	if (!tasks_list || !current_node) {
-        return NULL;
-    }
+void sched_add(thread_t *t) {
+  if (!t) {
+    return;
+  }
+  
+  spinlock_acquire(&sched_lock);
+  
+  t->state = THREAD_READY;
 
-    task_node_t *start = current_node;
+  thread_t **list = list_for_priority(t->priority);
 
-    do {
-        current_node = current_node->next;
+  /* Push to front of the correct priority list */
+  t->next = *list;
+  *list = t;
+  
+  spinlock_release(&sched_lock);
+}
 
-        if (current_node->thread->state == THREAD_REALTIME) {
-            return current_node->thread;
-        }
+static thread_t *roundrobin_pick(thread_t **list_head) {
+  thread_t *list = *list_head;
 
-    } while (current_node != start);
-	
-    do {
-        current_node = current_node->next;
+  /* Empty list - nothing to pick. */
+  if (!list) {
+    return NULL;
+  }
+
+  /* Single thread - no rotation needed. */
+  if (!list->next) {
+    return (list->state == THREAD_READY || list->state == THREAD_RUNNING) ? list : NULL;
+  }
+
+  /* Rotate: move current head to tail. */
+  thread_t *old_head = list;
+  *list_head = list->next;  
+  old_head->next = NULL;
+
+  /* Walk to tail and append old head. */
+  thread_t *tail = *list_head;
+  while (tail->next != NULL) {
+    tail = tail->next;
+  }
+  tail->next = old_head;
+
+  /* Return new head only if it is schedulable. */
+  thread_t *candidate = *list_head;
+  if (candidate->state == THREAD_READY || candidate->state == THREAD_RUNNING) {
+    return candidate;
+  }
 
         if (current_node->thread->state == THREAD_READY) {
             return current_node->thread;
@@ -121,49 +214,130 @@ static thread_t *sched_next(void) {
     return NULL;  
 }
 
-extern void __attribute__((naked)) switch_to(thread_t *p);
+static thread_t *normal_list_pick(void) {
+	return roundrobin_pick(&normal_list);
+}
 
-void sched_tick(struct regs *r) {
-  if (g_current_thread == NULL) {
-    g_current_thread = sched_next();
-	if (!g_current_thread) {
-        g_current_thread = &kernel_task;
+static thread_t *above_normal_list_pick(void) {
+	return roundrobin_pick(&above_normal_list);
+}
+
+static thread_t *high_list_pick(void) {
+	return roundrobin_pick(&high_list);
+}
+
+static thread_t *realtime_list_pick(void) {
+	return roundrobin_pick(&realtime_list);
+}
+
+static thread_t *sched_next(void) {
+  thread_t *t;
+
+  // Walk priority levels from highest to lowest.
+  if ((t = realtime_list_pick()) != NULL) {
+    return t;
+  }
+  if ((t = high_list_pick()) != NULL) {
+    return t;
+  }
+  if ((t = above_normal_list_pick()) != NULL) {
+    return t;
+  }
+  if ((t = normal_list_pick()) != NULL) {
+    return t;
+  }
+
+  return &kernel_idle_task;
+}
+
+static void debug_print_all_threads(void) {
+  // Debug: print all threads
+  debugf("\n=== Thread List ===\n");
+  
+  if (realtime_list) {
+    debugf("REALTIME queue:\n");
+    thread_t *t = realtime_list;
+    while (t) {
+      debugf("  TID=%u PRI=%d STATE=%d\n", t->tid, t->priority, t->state);
+      t = t->next;
     }
-  } else {
-    g_current_thread->arch->kernel_esp = (void *)r;
   }
   
-  // Let THREAD_REALTIME run twice 
-  if (g_current_thread &&
-	  g_current_thread->state == THREAD_REALTIME &&
-	  g_current_thread->rt_ticks == 0) {
-	  g_current_thread->rt_ticks = 1;
-	  return;   
+  if (high_list) {
+    debugf("HIGH queue:\n");
+    thread_t *t = high_list;
+    while (t) {
+      debugf("  TID=%u PRI=%d STATE=%d\n", t->tid, t->priority, t->state);
+      t = t->next;
+    }
   }
+  
+  if (above_normal_list) {
+    debugf("ABOVE_NORMAL queue:\n");
+    thread_t *t = above_normal_list;
+    while (t) {
+      debugf("  TID=%u PRI=%d STATE=%d\n", t->tid, t->priority, t->state);
+      t = t->next;
+    }
+  }
+  
+  if (normal_list) {
+    debugf("NORMAL queue:\n");
+    thread_t *t = normal_list;
+    while (t) {
+      debugf("  TID=%u PRI=%d STATE=%d\n", t->tid, t->priority, t->state);
+      t = t->next;
+    }
+  }
+  
+  debugf("Current: TID=%u PRI=%d\n", g_current_thread->tid, g_current_thread->priority);
+  debugf("==================\n");
+}
 
-  // Reset after second tick 
-  if (g_current_thread && g_current_thread->state == THREAD_REALTIME) {
+void sched_tick(void *context) {
+  spinlock_acquire(&sched_lock);
+  
+  // 1. Save current state
+  if (g_current_thread && g_current_thread != &kernel_idle_task) {
+    if (g_current_thread->rt_ticks < quantom_time_get(g_current_thread->priority)) {
+      g_current_thread->rt_ticks++;
+	  aging_and_demotion();
+      spinlock_release(&sched_lock);
+      return;
+    } else {
 	  g_current_thread->rt_ticks = 0;
+	}
+	  
+    hal_thread_save(g_current_thread->arch, context);
+    if (g_current_thread->state == THREAD_RUNNING) {
+      g_current_thread->state = THREAD_READY;
+    }
   }
 
+  aging_and_demotion();
+
+  // 2. Pick next
   thread_t *next = sched_next();
-  if (!next) {
-    next = &kernel_task;
-  }
-  
-  if (g_current_thread->state == THREAD_RUN) {
-    g_current_thread->state = THREAD_READY;
-  }
+
+  // 3. Prepare for switch
   g_current_thread = next;
+  next->state = THREAD_RUNNING;
+  
+  debug_print_all_threads();
+  
+  spinlock_release(&sched_lock);
+  
+  // Update TSS/MSR so sysenter/interrupts land on the correct kernel stack
+  hal_update_kernel_stack(0, next->kstack_top);
 
-  uint32_t cpu_id = 0;
-  hal_update_kernel_stack(cpu_id, next->kstack_top);
-
-  next->state = THREAD_RUN;
+  // 4. Perform the switch
   hal_thread_switch(next);
 }
 
-void sched_init(void) { 
-  isr_handler_register(0x45, sched_tick);
-  g_current_thread = NULL; 
+void sched_init(void) {
+  // Initialize a dummy idle task so the scheduler never has NULL
+  kernel_idle_task.tid = 0;
+  kernel_idle_task.state = THREAD_READY;
+  kernel_idle_task.kstack_top = kmalloc(4096) + 4096;
+  g_current_thread = &kernel_idle_task;
 }
