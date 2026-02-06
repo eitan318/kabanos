@@ -205,7 +205,13 @@ static thread_t *roundrobin_pick(thread_t **list_head) {
     return candidate;
   }
 
-  return NULL;
+        if (current_node->thread->state == THREAD_READY) {
+            return current_node->thread;
+        }
+
+    } while (current_node != start);
+
+    return NULL;  
 }
 
 static thread_t *normal_list_pick(void) {
