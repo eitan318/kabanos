@@ -8,11 +8,15 @@ void hal_thread_save(arch_thread_t *thread, void *context) {
 }
 
 extern void __attribute__((naked))
-thread_switch_to(void *kernel_esp, uint32_t pd_phys);
+thread_switch_to(void **old_esp, void *new_esp, uint32_t cr3);
 
-void hal_thread_switch(thread_t *next) {
-  thread_switch_to(next->arch->kernel_esp,
+void hal_thread_switch(thread_t *current, thread_t *next) {
+  void **old_esp;
+  thread_switch_to(old_esp, next->arch->kernel_esp,
                    next->process->vmspace->arch->pd_phys);
+  if (current) {
+    current->arch->kernel_esp = old_esp;
+  }
 }
 
 // Build initial interrupt frame on kernel stack, should match isr_common
@@ -37,7 +41,7 @@ void *build_initial_frame(void *kstack_top, uintptr_t entry,
 
   /* PUSHA frame */
   for (int i = 0; i < 8; i++) {
-    *(--sp) = 0; // EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI
+    *(--sp) = 0xDD; // EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI
   }
 
   /* Segment registers */

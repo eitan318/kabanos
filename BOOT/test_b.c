@@ -4,10 +4,13 @@
 void _start(void) {
   for (;;) {
     char *str = "B";
-    size_t len = 0;
-    while (str[len]) {
-      len++;
-    }
-    _syscall6(SYSCALL_NUMBERS_SYS_WRITE, str, len, 0, 0, 0, 0);
+    _syscall6(SYSCALL_NUMBERS_SYS_WRITE, str, 1, 0, 0, 0, 0);
+
+    // Simple delay loop so it doesn't fill the screen too fast
+    for (volatile int i = 0; i < 10000000; i++)
+      ;
+
+    // Tell the kernel: "I'm done for now, let someone else try"
+    _syscall6(SYSCALL_NUMBERS_SYS_YIELD, 0, 0, 0, 0, 0, 0);
   }
 }

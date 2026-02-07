@@ -65,6 +65,8 @@ void kmain(uint32_t mb2_ptr) {
   hal_arch_init();
   vga_clrscr();
   vga_setcursor(0, 0);
+
+  kernel_init_hardware();
   kbd_init();
 
   hal_interrupts_enable();
@@ -80,12 +82,11 @@ void kmain(uint32_t mb2_ptr) {
   // Load your processes into the scheduler's queue
   process_exec("test_a.elf", THREAD_NORMAL);
   process_exec("test_b.elf", THREAD_ABOVE_NORMAL);
-  process_exec("test_c.elf", THREAD_HIGH);
 
   // 1. Ask the scheduler for the first thread in the FIFO queue
   thread_t *first = sched_pick_next();
 
-  if (first) {
+  if (first && first->tid != 0) {
     debugf("Starting first thread: TID %u\n", first->tid);
 
     // 2. Use the dispatcher to jump into the thread

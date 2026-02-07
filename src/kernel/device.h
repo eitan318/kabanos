@@ -1,12 +1,7 @@
 #pragma once
 #include "sched/spinlock.h"
 #include "sched/thread.h"
-
-typedef struct wait_queue {
-  thread_t *head;
-  thread_t *tail;
-  spinlock_t lock;
-} wait_queue_t;
+#include "sched/wait.h"
 
 typedef struct {
   int device_id;
@@ -17,5 +12,11 @@ typedef struct {
   wait_queue_t wait_queue;
 } device_t;
 
+typedef enum {
+  DEVICE_HANDLE_KEYBOARD = 1,
+  DEVICE_HANDLE_ATA = 2,
+} device_handle_t;
+
 device_t *get_device_by_handle(int handle);
 device_t *device_init(int id);
+void kernel_init_hardware();

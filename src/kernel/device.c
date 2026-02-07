@@ -1,34 +1,57 @@
 #include "device.h"
-#include "kmalloc.h"
+#include "memory_management/kmalloc.h"
+#include "sched/dispatcher.h"
 #include "sched/spinlock.h"
-#include <stdbool.h>
+#include "sched/thread.h"
+#include "stdbool.h"
 #include <stddef.h>
-
-device_t *device_add(int id) {
-  device_t *dev = kmalloc(sizeof(device_t));
-  dev->device_id = id;
-  dev->data_ready = false;
-
-  // Initialize the spinlock and pointers for this specific queue
-  dev->wait_queue.head = NULL;
-  dev->wait_queue.tail = NULL;
-  dev->wait_queue.lock = SPINLOCK_RELEASED;
-  return dev;
-}
 
 #define MAX_DEVICES 32
 
 // A global registry of all detected hardware
 static device_t *g_device_table[MAX_DEVICES];
 
-device_t *get_device_by_handle(int handle) {
-  if (handle < 0 || handle >= MAX_DEVICES) {
-    return NULL;
+device_t *device_init(int id) {
+  device_t *dev = kmalloc(sizeof(device_t));
+  if (!dev)
+    return NULL; // Always check for kmalloc failure!
+
+  dev->device_id = id;
+  dev->data_ready = false;
+
+  dev->wait_queue.head = NULL;
+  dev->wait_queue.tail = NULL;
+
+  dev->wait_queue.lock = (spinlock_t)SPINLOCK_RELEASED;
+
+  g_device_table[id] = dev;
+
+  return dev;
+}
+
+void device_destroy(device_t *dev) {
+  if (!dev)
+    return;
+
+  // Safety check: ensure no threads are still sleeping here!
+  if (dev->wait_queue.head != NULL) {
+    // Handle error: You can't delete a device people are waiting on!
+    return;
   }
-  return g_device_table[handle];
+
+  kfree(dev);
+}
+
+device_t *get_device_by_handle(int handle) {
+  if (handle < 0 || handle >= MAX_DEVICES)
+    return NULL;
+
+  device_t *dev = g_device_table[handle];
+
+  return dev;
 }
 
 void kernel_init_hardware() {
-  device_t *kbd = kmalloc(sizeof(device_t));
-  device_init(kbd, 0);
+  device_t *kbd = device_init(DEVICE_HANDLE_KEYBOARD);
+  device_t *ata = device_init(DEVICE_HANDLE_ATA);
 }

@@ -22,4 +22,14 @@ static inline long __syscall6(long num, long a1, long a2, long a3, long a4,
   __syscall6((num), (long)(a1), (long)(a2), (long)(a3), (long)(a4),            \
              (long)(a5), (long)(a6))
 
-typedef enum { SYSCALL_NUMBERS_SYS_WRITE = 1 } SYSCALL_NUMBERS;
+typedef enum {
+  SYSCALL_NUMBERS_SYS_WRITE = 1,
+  SYSCALL_NUMBERS_SYS_YIELD = 2, // Added for FCFS rotation
+  SYSCALL_NUMBERS_SYS_SLEEP = 3, // Added for Blocking I/O demo
+  SYSCALL_NUMBERS_SYS_READ = 4   // Added for Blocking I/O demo
+} SYSCALL_NUMBERS;
+
+typedef enum {
+  DEVICE_HANDLE_KEYBOARD = 1,
+  DEVICE_HANDLE_ATA = 2,
+} device_handle_t;

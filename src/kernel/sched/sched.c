@@ -75,8 +75,20 @@ thread_t *sched_pick_next(void) {
 
   thread_t *next = ready_queue_head;
 
-  // If queue is empty, return idle task
-  if (!next) {
+  if (next) {
+    // 1. REMOVE the thread from the ready queue
+    ready_queue_head = next->next;
+
+    // 2. If the queue is now empty, update the tail
+    if (ready_queue_head == NULL) {
+      ready_queue_tail = NULL;
+    }
+
+    // 3. Clean the next pointer so the thread is isolated
+    next->next = NULL;
+  } else {
+    // 4. If queue is empty, return idle task
+    // Note: We do NOT modify ready_queue_head here
     next = &kernel_idle_task;
   }
 

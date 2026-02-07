@@ -1,6 +1,8 @@
 #include "drivers/keyboard.h"
+#include "device.h"
 #include "hal.h"
 #include "isr.h"
+#include "sched/wait.h"
 #include "utils/queue.h"
 
 // Keyboard is IRQ1, which maps to interrupt 0x21 after PIC remap
@@ -39,12 +41,16 @@ static char scancode_to_ascii_shift[128] = {
     'B', 'N', 'M',  '<',  '>',  '?', 0,   '*', 0,   ' ', 0};
 
 static void keyboard_isr_handler(struct arch_regs *regs) {
+  // 1. Get the device object
+  device_t *dev = get_device_by_handle(DEVICE_HANDLE_KEYBOARD);
+
+  // 2. Read the scancode from hardware
   uint8_t scancode = hal_in8(KEYBOARD_PORT);
 
-  // Handle key release
   int key_released = scancode & MAX_PRESS_SCANCODE;
   uint8_t keycode = scancode & 0x7F;
 
+  // Handle modifiers
   if (keycode == KBD_SHIFT || keycode == KBD_SHIFT_R) {
     shift_pressed = !key_released;
     goto eoi;
@@ -54,18 +60,24 @@ static void keyboard_isr_handler(struct arch_regs *regs) {
     goto eoi;
   }
 
-  // Only handle key press events
+  // 3. Process the key press
   if (!key_released) {
     char key_ascii = shift_pressed ? scancode_to_ascii_shift[keycode]
                                    : scancode_to_ascii[keycode];
 
-    // Handle Ctrl combinations (optional: e.g., Ctrl+C -> 0x03)
     if (ctrl_pressed && key_ascii >= 'a' && key_ascii <= 'z') {
-      key_ascii = key_ascii - 'a' + 1; // Ctrl+key -> ASCII control code
+      key_ascii = key_ascii - 'a' + 1;
     }
 
     if (key_ascii) {
+      // Put data into the circular queue
       enqueue(&keyboard_queue, (void *)(uintptr_t)key_ascii);
+
+      // SIGNAL that data is ready
+      dev->data_ready = true;
+
+      // WAKE UP any thread blocked in sys_read
+      wake_up_queue(&dev->wait_queue);
     }
   }
 
@@ -82,4 +94,22 @@ void kbd_init() {
   hal_irq_enable(KBD_IRQ);
 }
 
-char kbd_char_get() { return (char)(uintptr_t)dequeue(&keyboard_queue); }
+char kbd_char_get() {
+  device_t *dev = get_device_by_handle(DEVICE_HANDLE_KEYBOARD);
+
+  // If no keys are in the buffer, we sleep
+  while (queue_is_empty(&keyboard_queue)) {
+    dev->data_ready = false; // Reset the flag
+    wait_on_queue(&dev->wait_queue);
+  }
+
+  // When we reach here, there is at least one char in the queue
+  char c = (char)(uintptr_t)dequeue(&keyboard_queue);
+
+  // If the queue is now empty, reset the flag for the next caller
+  if (queue_is_empty(&keyboard_queue)) {
+    dev->data_ready = false;
+  }
+
+  return c;
+}
