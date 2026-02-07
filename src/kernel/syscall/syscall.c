@@ -53,14 +53,15 @@ long sys_read(int device_handle, char *user_buf, size_t count) {
   return count;
 }
 
-long syscall_dispatch(const syscall_frame_t *f) {
-  switch (f->num) {
+long syscall_dispatch(syscall_info_t f) {
+
+  switch (f.num) {
   case SYSCALL_NUMBERS_SYS_WRITE:
-    return sys_write((const char *)f->args[0], f->args[1]);
+    return sys_write((const char *)f.args[0], f.args[1]);
   case SYSCALL_NUMBERS_SYS_READ:
-    return sys_read(f->args[0], (char *)f->args[1], f->args[2]);
+    return sys_read(f.args[0], (char *)f.args[1], f.args[2]);
   case SYSCALL_NUMBERS_SYS_YIELD:
-    handle_yield();
+    handle_yield(f.context);
     return 0;
 
   default:

@@ -83,14 +83,9 @@ void kmain(uint32_t mb2_ptr) {
   process_exec("test_a.elf", THREAD_NORMAL);
   process_exec("test_b.elf", THREAD_ABOVE_NORMAL);
 
-  // 1. Ask the scheduler for the first thread in the FIFO queue
   thread_t *first = sched_pick_next();
-
   if (first && first->tid != 0) {
     debugf("Starting first thread: TID %u\n", first->tid);
-
-    // 2. Use the dispatcher to jump into the thread
-    // Note: dispatch_start_first doesn't return!
     dispatch_start_first(first);
   } else {
     debugf("No threads to run!\n");

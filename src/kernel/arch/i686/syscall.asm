@@ -1,41 +1,43 @@
 ; This address must match the value in MSR_IA32_SYSENTER_EIP
-global _sysenter_handler_entry
-extern syscall_dispatch
+global sysenter_handler_entry
+extern syscall_handler_entry 
 
-;   ECX: Ring 3 Stack pointer for SYSEXIT
-;   EDX: Ring 3 Return address
-;   EAX: syscall number
-;   Args: EBX, [stack], [stack + 4], EDI, ESI, [stack + 8] 
-_sysenter_handler_entry:
-    ; Build trap Frame for sysenter
+ sysenter_handler_entry:
+    ; 1. Build the "CPU" part of the frame (Simulate an interrupt)
     push 0x23           ; User SS
     push ecx            ; User ESP 
     pushf               ; EFLAGS
     push 0x1B           ; User CS
-    push edx            ; User EIP
+    push edx            ; User EIP (Return address)
+
+    ; 2. Build the "Software" part of the frame (arch_regs)
+    push 0              ; Dummy error code
+    push 0              ; Dummy int num
+    pusha               ; Save ALL GPRs (eax, ecx, edx, ebx, esp, ebp, esi, edi)
+    push ds
+    push es
+    push fs
+    push gs
+
+    mov eax, esp        
+    push eax            ; Pass pointer to arch_regs/frame
+    call syscall_handler_entry
+    add esp, 4
+
+    ; 5. Restore and Exit
+    pop gs
+    pop fs
+    pop es
+    pop ds
+    popa
+    add esp, 8          ; Skip dummies
     
-    push dword [ecx + 8] ; Arg 6
-    push edi             ; Arg 5
-    push esi             ; Arg 4
-    push dword [ecx + 4] ; Arg 3 
-    push dword [ecx]     ; Arg 2
-    push ebx             ; Arg 1
-    push eax             ; Syscall Number
-
-    mov eax, esp        ; Pointer to frame
-    push eax
-    call syscall_dispatch
-    add esp, 4          ; Clean up syscall frame pointer
-
-    ; Pop the args we pushed (7 dwords: num + 6 args)
-    add esp, 28         
-
-    ; Restore state for SYSEXIT
-    pop edx             ; Restore User EIP into EDX
+    ; Restore for sysexit
+    pop edx             ; User EIP
     add esp, 4          ; Skip CS
-    popfd               ; Restore EFLAGS
-    pop ecx             ; Restore User ESP into ECX
+    popfd               ; EFLAGS
+    pop ecx             ; User ESP
     add esp, 4          ; Skip SS
-
-    sti ; set interrupts because sysenter disables them
-    sysexit 
+    
+    sti
+    sysexit
