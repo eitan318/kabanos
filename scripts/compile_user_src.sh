@@ -10,6 +10,6 @@ for f in "$SRC_DIR"/*.c; do
     echo "Compiling $fname..."
     
     # -I. adds the current directory to the include path
-    gcc -m64 -static -fno-stack-protector -ffreestanding -nostdlib \
+    gcc -m32 -static -fno-stack-protector -ffreestanding -nostdlib \
         -I"$SRC_DIR/include" "$f" -o "$DST_DIR/$fname.elf"
 done
