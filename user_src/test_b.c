@@ -1,10 +1,10 @@
+#include "stdio.h"
 #include "syscall.h"
 #include <stddef.h>
 
 void _start(void) {
   for (;;) {
-    char *str = "B";
-    _syscall6(SYSCALL_NUMBERS_SYS_WRITE, str, 1, 0, 0, 0, 0);
+    printf("B");
 
     // Simple delay loop so it doesn't fill the screen too fast
     for (volatile int i = 0; i < 10000000; i++)

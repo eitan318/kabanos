@@ -6,6 +6,7 @@
 #include "sched/sched.h"
 #include "sched/thread.h"
 #include "stdio.h"
+#include "syscall/errno.h"
 #include <stddef.h>
 #include <string.h>
 
@@ -21,36 +22,26 @@ static long sys_write(const char *str, size_t len) {
   return (long)len;
 }
 
-long sys_read(int device_handle, char *user_buf, size_t count) {
+long sys_read(int fd, char *user_buf, size_t count) {
+  // POSIX Mapping
+  int device_handle = fd;
+  if (fd == 0)
+    device_handle = DEVICE_HANDLE_KEYBOARD;
+
   device_t *dev = get_device_by_handle(device_handle);
   if (!dev)
-    return -1;
+    return -EBADF; // POSIX Error: Bad File Descriptor
 
-  if (device_handle == DEVICE_HANDLE_KEYBOARD) {
-    size_t bytes_read = 0;
-    while (bytes_read < count) {
-      // kbd_char_get() will block the thread if the queue is empty
-      user_buf[bytes_read] = kbd_char_get();
-      bytes_read++;
+  size_t bytes_read = 0;
+  while (bytes_read < count) {
+    char c = kbd_char_get();
+    user_buf[bytes_read++] = c;
 
-      // Optional: stop if user hits enter
-      if (user_buf[bytes_read - 1] == '\n')
-        break;
-    }
-    return bytes_read;
+    if (c == '\n')
+      break;
   }
 
-  // Generic read logic for other devices (like disk)
-  while (!dev->data_ready) {
-    wait_on_queue(&dev->wait_queue);
-  }
-
-  spinlock_acquire(&dev->wait_queue.lock);
-  memcpy(user_buf, dev->buffer, (count < 256) ? count : 256);
-  dev->data_ready = false;
-  spinlock_release(&dev->wait_queue.lock);
-
-  return count;
+  return (long)bytes_read;
 }
 
 long syscall_dispatch(syscall_info_t f) {

@@ -5,11 +5,9 @@
 #include "sched/wait.h"
 #include "utils/queue.h"
 
-// Keyboard is IRQ1, which maps to interrupt 0x21 after PIC remap
 #define KBD_IRQ 1
 #define KBD_INT 0x21
 
-// Modifier keys
 #define KBD_SHIFT 0x2A
 #define KBD_SHIFT_R 0x36
 #define KBD_CTRL 0x1D
@@ -18,7 +16,7 @@
 #define MAX_PRESS_SCANCODE 0x80
 #define KEYBOARD_PORT 0x60
 
-Queue keyboard_queue;
+circular_buff_t keyboard_queue;
 
 // Modifier key states
 static int shift_pressed = 0;
@@ -41,12 +39,9 @@ static char scancode_to_ascii_shift[128] = {
     'B', 'N', 'M',  '<',  '>',  '?', 0,   '*', 0,   ' ', 0};
 
 static void keyboard_isr_handler(struct arch_regs *regs) {
-  // 1. Get the device object
   device_t *dev = get_device_by_handle(DEVICE_HANDLE_KEYBOARD);
 
-  // 2. Read the scancode from hardware
   uint8_t scancode = hal_in8(KEYBOARD_PORT);
-
   int key_released = scancode & MAX_PRESS_SCANCODE;
   uint8_t keycode = scancode & 0x7F;
 
@@ -60,7 +55,7 @@ static void keyboard_isr_handler(struct arch_regs *regs) {
     goto eoi;
   }
 
-  // 3. Process the key press
+  // Process the key press
   if (!key_released) {
     char key_ascii = shift_pressed ? scancode_to_ascii_shift[keycode]
                                    : scancode_to_ascii[keycode];
@@ -70,13 +65,8 @@ static void keyboard_isr_handler(struct arch_regs *regs) {
     }
 
     if (key_ascii) {
-      // Put data into the circular queue
       enqueue(&keyboard_queue, (void *)(uintptr_t)key_ascii);
-
-      // SIGNAL that data is ready
       dev->data_ready = true;
-
-      // WAKE UP any thread blocked in sys_read
       wake_up_queue(&dev->wait_queue);
     }
   }
@@ -87,10 +77,7 @@ eoi:
 
 void kbd_init() {
   queue_init(&keyboard_queue);
-
-  // Register keyboard interrupt handler
   isr_handler_register(KBD_INT, keyboard_isr_handler);
-  // Enable keyboard interrupt (IRQ1)
   hal_irq_enable(KBD_IRQ);
 }
 

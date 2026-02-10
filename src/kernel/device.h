@@ -1,6 +1,4 @@
 #pragma once
-#include "sched/spinlock.h"
-#include "sched/thread.h"
 #include "sched/wait.h"
 
 typedef struct {
