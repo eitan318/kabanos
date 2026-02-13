@@ -84,12 +84,6 @@ thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
     return NULL;
   }
 
-  /* Add to process and scheduler */
-  if (proc && !proc->main_thread) {
-    proc->main_thread = t;
-  }
-  sched_enqueue(t);
-
   return t;
 }
 

@@ -83,8 +83,6 @@ bool fat_read_fat(Partition *disk) {
 }
 
 bool fat_initialize(Partition *disk) {
-  debugf("FAT: Initializing filesystem...\n");
-
   g_data = (FAT_Data *)MEMORY_FAT_ADDR;
   g_disk = disk;
 
@@ -114,8 +112,6 @@ bool fat_initialize(Partition *disk) {
     debugf("FAT: read FAT failed\n");
     return false;
   }
-
-  debugf("FAT: FAT table loaded (%u bytes)\n", fat_size);
 
   uint32_t root_dir_lba =
       g_data->bs.boot_sector.reserved_sectors +
@@ -354,15 +350,12 @@ int fat_read_file(const char *path, void *buffer) {
     return -1;
   }
 
-  debugf("FAT: Opening file '%s'...\n", path);
   FAT_File *file = fat_open(g_disk, path);
 
   if (!file) {
     debugf("ERROR: Could not open: %s\n", path);
     return -2;
   }
-
-  debugf("FAT: Reading %u bytes...\n", file->size);
 
   uint32_t read = fat_read(g_disk, file, file->size, buffer);
 
@@ -373,6 +366,7 @@ int fat_read_file(const char *path, void *buffer) {
     return -3;
   }
 
-  debugf("FAT: File loaded successfully (%u bytes)\n", read);
+  debugf("FAT: File %s loaded successfully (%u bytes) to %p\n", path, read,
+         buffer);
   return read;
 }

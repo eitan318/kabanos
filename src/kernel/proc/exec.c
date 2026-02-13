@@ -6,6 +6,7 @@
 #include "memory_management/va_allocation.h"
 #include "memory_management/vmspace.h"
 #include "proc/proc.h"
+#include "sched/sched.h"
 #include "sched/thread.h"
 
 int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
@@ -39,5 +40,12 @@ int process_exec(const char *path, enum thread_priority p) {
 
   uintptr_t user_stack = setup_user_stack(proc->vmspace);
   thread_t *t = thread_create_user(proc, entry, user_stack, p);
+
+  if (proc && !proc->main_thread) {
+    proc->main_thread = t;
+  }
+
+  sched_enqueue(t);
+
   return 0;
 }

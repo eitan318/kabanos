@@ -1,7 +1,7 @@
 #include "proc/proc.h"
-#include "sched/thread.h"
 #include "memory_management/kmalloc.h"
 #include "memory_management/vmspace.h"
+#include "sched/thread.h"
 #include "string.h"
 
 static uint32_t next_pid = 1;
@@ -18,7 +18,9 @@ process_t *process_create(void) {
 }
 
 void process_destroy(process_t *proc) {
-  proc->main_thread->state = THREAD_DEAD;
+  if (proc->main_thread) {
+    proc->main_thread->state = THREAD_DEAD;
+  }
   vmspace_destroy(proc->vmspace);
   kfree(proc);
 }

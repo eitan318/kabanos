@@ -23,11 +23,9 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
-
 vmspace_t *g_kernel_vmspace;
 Range g_kernel_virt_range;
 Range g_kernel_phys_range;
-
 void kmain(uint32_t mb2_ptr) {
   debugf("[Kernel starting...]\n");
   extern uint8_t _kernel_start[], _kernel_end[];
@@ -35,54 +33,42 @@ void kmain(uint32_t mb2_ptr) {
   g_kernel_virt_range.end = (uintptr_t)&_kernel_end;
   g_kernel_phys_range.start = g_kernel_virt_range.start - KERNEL_BASE;
   g_kernel_phys_range.end = g_kernel_virt_range.end - KERNEL_BASE;
-
   KernelBootInfo *kernel_boot_info =
       parse_multiboot2_early((mb2_info_t *)mb2_ptr);
   mb2_ptr = 0; // disabling use of unparsed, low half params
-
   Range total_memory_range = get_memory_range(&kernel_boot_info->memory_map);
   size_t count;
   Range *unusable_memory_ranges =
       get_unusable_memory_ranges(kernel_boot_info, total_memory_range, &count);
-
   // From now on, no early pmm
   pmm_init(total_memory_range, unusable_memory_ranges, count);
-
   static vmspace_t kernel_vmspace = {0};
   kernel_vmspace_create(&kernel_vmspace, total_memory_range);
   g_kernel_vmspace = &kernel_vmspace;
-
   if (g_kernel_vmspace == NULL) {
     debugf("FAIL: Could not create page directory\n");
     return;
   }
-
   // From now on no lower half mapping
   vmspace_switch(g_kernel_vmspace);
   kmalloc_init();
-
   // Init hardware
   hal_arch_init();
   vga_clrscr();
   vga_setcursor(0, 0);
-
   kernel_init_hardware();
   kbd_init();
 
   hal_interrupts_enable();
-
   if (!fat_initialize(34)) {
     debugf("Failed to initialize FAT\n");
     for (;;) {
     }
   }
-
   sched_init();
-
   // Load your processes into the scheduler's queue
   process_exec("test_a.elf", THREAD_NORMAL);
   process_exec("test_b.elf", THREAD_ABOVE_NORMAL);
-
   thread_t *first = sched_pick_next();
   if (first && first->tid != 0) {
     debugf("Starting first thread: TID %u\n", first->tid);
@@ -90,9 +76,7 @@ void kmain(uint32_t mb2_ptr) {
   } else {
     debugf("No threads to run!\n");
   }
-
   hal_timer_enable();
-
   for (;;) {
   }
 }
