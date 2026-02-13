@@ -1,5 +1,6 @@
 #include "boot/bootparams.h"
 #include "device.h"
+#include "drivers/keyboard.h"
 #include "drivers/vga_text.h"
 #include "fat/fat.h"
 #include "hal.h"
@@ -17,7 +18,6 @@
 #include "string.h"
 #include "ut/ata/ata_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
-#include "ut/keyboard_driver.h"
 #include "utils/range.h"
 #include <stdbool.h>
 #include <stddef.h>
@@ -65,6 +65,7 @@ void kmain(uint32_t mb2_ptr) {
     for (;;) {
     }
   }
+  dispatch_init();
   sched_init();
   // Load your processes into the scheduler's queue
   process_exec("test_a.elf", THREAD_NORMAL);

@@ -3,7 +3,7 @@
 #include "hal.h"
 #include "sched/sched.h"
 
-void hal_thread_save(arch_thread_t *thread, void *context) {
+void hal_thread_save_context(arch_thread_t *thread, void *context) {
   thread->kernel_esp = context;
 }
 
@@ -11,8 +11,9 @@ extern void __attribute__((naked))
 thread_switch_to(void *kernel_esp, uint32_t pd_phys);
 
 void hal_thread_switch(thread_t *next) {
-  thread_switch_to(next->arch->kernel_esp,
-                   next->process->vmspace->arch->pd_phys);
+  uint32_t target_pd_phys =
+      next->process != NULL ? next->process->vmspace->arch->pd_phys : 0;
+  thread_switch_to(next->arch->kernel_esp, target_pd_phys);
 }
 
 // Build initial interrupt frame on kernel stack

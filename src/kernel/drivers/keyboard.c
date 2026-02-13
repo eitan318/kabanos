@@ -2,7 +2,9 @@
 #include "device.h"
 #include "hal.h"
 #include "isr.h"
+#include "sched/spinlock.h"
 #include "sched/wait.h"
+#include "string.h"
 #include "utils/queue.h"
 
 #define KBD_IRQ 1
@@ -16,7 +18,8 @@
 #define MAX_PRESS_SCANCODE 0x80
 #define KEYBOARD_PORT 0x60
 
-circular_buff_t keyboard_queue;
+circular_buff_t keyboard_buff;
+spinlock_t keyboard_lock;
 
 // Modifier key states
 static int shift_pressed = 0;
@@ -40,7 +43,6 @@ static char scancode_to_ascii_shift[128] = {
 
 static void keyboard_isr_handler(struct arch_regs *regs) {
   device_t *dev = get_device_by_handle(DEVICE_HANDLE_KEYBOARD);
-
   uint8_t scancode = hal_in8(KEYBOARD_PORT);
   int key_released = scancode & MAX_PRESS_SCANCODE;
   uint8_t keycode = scancode & 0x7F;
@@ -55,19 +57,20 @@ static void keyboard_isr_handler(struct arch_regs *regs) {
     goto eoi;
   }
 
-  // Process the key press
+  // Process key press
   if (!key_released) {
     char key_ascii = shift_pressed ? scancode_to_ascii_shift[keycode]
                                    : scancode_to_ascii[keycode];
-
     if (ctrl_pressed && key_ascii >= 'a' && key_ascii <= 'z') {
       key_ascii = key_ascii - 'a' + 1;
     }
 
     if (key_ascii) {
-      enqueue(&keyboard_queue, (void *)(uintptr_t)key_ascii);
-      dev->data_ready = true;
-      wake_up_queue(&dev->wait_queue);
+      spinlock_acquire(&keyboard_lock); // 1. Lock
+      enqueue(&keyboard_buff,
+              (void *)(uintptr_t)key_ascii); // 2. Add data (no _unlocked!)
+      wake_up_queue(&dev->wait_queue);       // 3. Wake waiting threads
+      spinlock_release(&keyboard_lock);      // 4. Unlock
     }
   }
 
@@ -75,28 +78,30 @@ eoi:
   hal_irq_send_eoi(KBD_IRQ);
 }
 
-void kbd_init() {
-  queue_init(&keyboard_queue);
-  isr_handler_register(KBD_INT, keyboard_isr_handler);
-  hal_irq_enable(KBD_IRQ);
+int kbd_read(char *buf, size_t count) {
+  device_t *dev = get_device_by_handle(DEVICE_HANDLE_KEYBOARD);
+  size_t i = 0;
+
+  while (i < count) {
+    spinlock_acquire(&keyboard_lock); // 1. Lock
+
+    while (keyboard_buff.count == 0) { // 2. Check if empty
+      // 3. Sleep (releases keyboard_lock, wakes up, re-acquires it)
+      wait_on_queue(&dev->wait_queue, &keyboard_lock);
+    }
+
+    // 4. Now we have data AND the lock
+    buf[i++] = (char)(uintptr_t)dequeue(&keyboard_buff); // No _unlocked!
+
+    spinlock_release(&keyboard_lock); // 5. Unlock
+  }
+
+  return i;
 }
 
-char kbd_char_get() {
-  device_t *dev = get_device_by_handle(DEVICE_HANDLE_KEYBOARD);
-
-  // If no keys are in the buffer, we sleep
-  while (queue_is_empty(&keyboard_queue)) {
-    dev->data_ready = false; // Reset the flag
-    wait_on_queue(&dev->wait_queue);
-  }
-
-  // When we reach here, there is at least one char in the queue
-  char c = (char)(uintptr_t)dequeue(&keyboard_queue);
-
-  // If the queue is now empty, reset the flag for the next caller
-  if (queue_is_empty(&keyboard_queue)) {
-    dev->data_ready = false;
-  }
-
-  return c;
+void kbd_init() {
+  queue_init(&keyboard_buff);
+  keyboard_lock = (spinlock_t)SPINLOCK_RELEASED;
+  isr_handler_register(KBD_INT, keyboard_isr_handler);
+  hal_irq_enable(KBD_IRQ);
 }

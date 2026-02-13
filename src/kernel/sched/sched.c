@@ -1,18 +1,22 @@
 #include "sched.h"
 #include "dispatcher.h"
 #include "memory_management/kmalloc.h"
+#include "sched/thread.h"
 
 static thread_t *ready_queue_head = NULL;
 static thread_t *ready_queue_tail = NULL;
-static thread_t kernel_idle_task;
+static thread_t *kernel_idle_task;
 static spinlock_t sched_lock = SPINLOCK_RELEASED;
 
+void idle_task(void *arg) {
+  while (1) {
+    thread_t *next = sched_pick_next();
+    dispatch_switch_from_kernel(next);
+  }
+}
+
 void sched_init(void) {
-  // Initialize idle task
-  kernel_idle_task.tid = 0;
-  kernel_idle_task.state = THREAD_READY;
-  kernel_idle_task.kstack_top = kmalloc(4096) + 4096;
-  kernel_idle_task.next = NULL;
+  kernel_idle_task = thread_create_kernel(NULL, (uintptr_t)idle_task);
 
   ready_queue_head = NULL;
   ready_queue_tail = NULL;
@@ -89,7 +93,7 @@ thread_t *sched_pick_next(void) {
   } else {
     // 4. If queue is empty, return idle task
     // Note: We do NOT modify ready_queue_head here
-    next = &kernel_idle_task;
+    next = kernel_idle_task;
   }
 
   spinlock_release(&sched_lock);

@@ -5,6 +5,6 @@
 #include <stdint.h>
 
 void kbd_init();
-char kbd_char_get();
+int kbd_read(char *buf, size_t count);
 
 #endif

@@ -73,10 +73,10 @@ void hal_vm_arch_load(arch_vm_t *arch_vm);
 void hal_vm_arch_destroy(arch_vm_t *vm);
 
 // Processes
-void hal_update_kernel_stack(int cpu_id, void *kstack_top);
+void hal_update_tss_and_syssenter_kstack(int cpu_id, void *kstack_top);
 
 // Thread
-void hal_thread_save(arch_thread_t *thread, void *context);
+void hal_thread_save_context(arch_thread_t *thread, void *context);
 int hal_thread_init(thread_t *t, uintptr_t entry, uintptr_t user_stack);
 void hal_thread_switch(thread_t *next);
 

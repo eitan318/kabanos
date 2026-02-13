@@ -1,2 +1,2 @@
 #pragma once
-void handle_yield(void *context);
+void sys_yield(void *context);

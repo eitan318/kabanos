@@ -51,13 +51,11 @@ typedef enum {
 static long sys_read(int fd, char *user_buf, size_t count) {
   int device_handle;
 
-  // Map POSIX File Descriptors to Kernel Device Handles
   switch (fd) {
   case 0: // stdin
     device_handle = DEVICE_HANDLE_KEYBOARD;
     break;
   default:
-    // For now, return error for other fds
     return -1;
   }
 
@@ -65,31 +63,27 @@ static long sys_read(int fd, char *user_buf, size_t count) {
   if (!dev)
     return -1;
 
+  // Keyboard has its own read implementation with proper synchronization
   if (device_handle == DEVICE_HANDLE_KEYBOARD) {
-    size_t bytes_read = 0;
-    while (bytes_read < count) {
-      // kbd_char_get() will block the thread if the queue is empty
-      user_buf[bytes_read] = kbd_char_get();
-      bytes_read++;
-
-      // Optional: stop if user hits enter
-      if (user_buf[bytes_read - 1] == '\n')
-        break;
-    }
-    return bytes_read;
+    return kbd_read(user_buf, count);
   }
 
   // Generic read logic for other devices (like disk)
+  spinlock_acquire(&dev->wait_queue.lock); // ← ACQUIRE BEFORE CHECK
+
   while (!dev->data_ready) {
-    wait_on_queue(&dev->wait_queue);
+    // Atomically release lock, sleep, and re-acquire lock
+    wait_on_queue(&dev->wait_queue, &dev->wait_queue.lock);
   }
 
-  spinlock_acquire(&dev->wait_queue.lock);
-  memcpy(user_buf, dev->buffer, (count < 256) ? count : 256);
+  // Now we have the lock AND data is ready
+  size_t bytes_to_copy = (count < 256) ? count : 256;
+  memcpy(user_buf, dev->buffer, bytes_to_copy);
   dev->data_ready = false;
+
   spinlock_release(&dev->wait_queue.lock);
 
-  return count;
+  return bytes_to_copy;
 }
 
 static long sys_write(int fd, const char *str, size_t len) {
@@ -109,7 +103,7 @@ long syscall_dispatch(syscall_info_t f) {
   case SYSCALL_NUMBER_SYS_READ:
     return sys_read(f.args[0], (char *)f.args[1], f.args[2]);
   case SYSCALL_NUMBER_SYS_YIELD:
-    handle_yield(f.context);
+    sys_yield(f.context);
   case 67:
     example_check(f);
     return 0;
