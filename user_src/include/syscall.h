@@ -1,20 +1,20 @@
 static inline long __syscall6(long num, long a1, long a2, long a3, long a4,
                               long a5, long a6) {
   long ret;
-  // We use "g" for args that can be in memory to let the compiler
-  // decide how to handle the register pressure.
-  __asm__ volatile(
-      "push %6\n\t"          // Push Arg 6 ([esp+8])
-      "push %3\n\t"          // Push Arg 3 ([esp+4])
-      "push %2\n\t"          // Push Arg 2 ([esp])
-      "mov %%esp, %%ecx\n\t" // 1. ECX = User ESP (Required for transition)
-      "lea 1f, %%edx\n\t" // 2. EDX = Return Address (Required for transition)
-      "sysenter\n\t"
-      "1:\n\t"             // The point where SYSEXIT lands
-      "add $12, %%esp\n\t" // Clean up the 3 arguments we pushed
-      : "=a"(ret)
-      : "a"(num), "m"(a2), "m"(a3), "b"(a1), "S"(a4), "D"(a5), "m"(a6)
-      : "memory", "ecx", "edx");
+  __asm__ volatile("push %7\n\t"
+                   "push %6\n\t"
+                   "push %5\n\t"
+                   "push %4\n\t"
+                   "push %3\n\t"
+                   "mov %%esp, %%ecx\n\t"
+                   "lea 1f, %%edx\n\t"
+                   "sysenter\n\t"
+                   "1:\n\t"
+                   "add $20, %%esp\n\t"
+                   : "=a"(ret)
+                   : "0"(num), "b"(a1), "g"(a2), "g"(a3), "g"(a4), "g"(a5),
+                     "g"(a6)
+                   : "memory", "ecx", "edx");
   return ret;
 }
 
@@ -23,13 +23,34 @@ static inline long __syscall6(long num, long a1, long a2, long a3, long a4,
              (long)(a5), (long)(a6))
 
 typedef enum {
-  SYSCALL_NUMBERS_SYS_WRITE = 1,
-  SYSCALL_NUMBERS_SYS_YIELD = 2, // Added for FCFS rotation
-  SYSCALL_NUMBERS_SYS_SLEEP = 3, // Added for Blocking I/O demo
-  SYSCALL_NUMBERS_SYS_READ = 4   // Added for Blocking I/O demo
-} SYSCALL_NUMBERS;
+  /* --- File & Device I/O --- */
+  SYSCALL_NUMBER_SYS_WRITE = 1,
+  SYSCALL_NUMBER_SYS_READ = 4,
+  SYSCALL_NUMBER_SYS_OPEN = 5,
+  SYSCALL_NUMBER_SYS_CLOSE = 6,
+  SYSCALL_NUMBER_SYS_LSEEK = 7,
+  SYSCALL_NUMBER_SYS_STAT = 8,
 
-typedef enum {
-  DEVICE_HANDLE_KEYBOARD = 1,
-  DEVICE_HANDLE_ATA = 2,
-} device_handle_t;
+  /* --- Process Management --- */
+  SYSCALL_NUMBER_SYS_FORK = 10,
+  SYSCALL_NUMBER_SYS_EXECVE = 11,
+  SYSCALL_NUMBER_SYS_EXIT = 12,
+  SYSCALL_NUMBER_SYS_WAITPID = 13,
+  SYSCALL_NUMBER_SYS_GETPID = 14,
+
+  /* --- Scheduling & Time --- */
+  SYSCALL_NUMBER_SYS_YIELD = 2,
+  SYSCALL_NUMBER_SYS_SLEEP = 3,
+  SYSCALL_NUMBER_SYS_NANOSLEEP = 15,
+  SYSCALL_NUMBER_SYS_GETTIMEOFDAY = 16,
+
+  /* --- Memory Management --- */
+  SYSCALL_NUMBER_SYS_SBRK = 20, // For malloc/heap expansion
+  SYSCALL_NUMBER_SYS_MMAP = 21,
+  SYSCALL_NUMBER_SYS_MUNMAP = 22,
+
+  /* --- Signals & IPC --- */
+  SYSCALL_NUMBER_SYS_KILL = 30,
+  SYSCALL_NUMBER_SYS_PIPE = 31,
+  SYSCALL_NUMBER_SYS_SIGACTION = 32,
+} SYSCALL_NUMBER;

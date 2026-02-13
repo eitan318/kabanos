@@ -6,22 +6,24 @@
 #include <stdlib.h>
 
 void syscall_handler_entry(arch_regs *regs) {
-  // 2. Map registers to a generic syscall info structure
-  // Standard x86 syscall convention: eax=num, ebx=arg0, ecx=arg1, edx=arg2,
-  // esi=arg3, edi=arg4, ebp=arg5
   syscall_info_t info;
+
+  // EAX and EBX are preserved as-is
   info.num = regs->eax;
-  info.args[0] = regs->ebx;
-  info.args[1] = regs->ecx;
-  info.args[2] = regs->edx;
-  info.args[3] = regs->esi;
-  info.args[4] = regs->edi;
-  info.args[5] = regs->ebp;
+  info.args[0] = regs->ebx; // a1
+
+  // ECX is our pointer to the User Stack where we pushed a2-a6
+  uint32_t *user_args = (uint32_t *)regs->ecx;
+
+  // Pull from the stack in the order they were pushed
+  info.args[1] = user_args[0]; // a2
+  info.args[2] = user_args[1]; // a3
+  info.args[3] = user_args[2]; // a4
+  info.args[4] = user_args[3]; // a5
+  info.args[5] = user_args[4]; // a6
+
   info.context = regs;
 
-  // 3. Dispatch to the generic handler
   long result = syscall_dispatch(info);
-
-  // 4. Store return value in EAX slot so user-space gets it
   regs->eax = (uint32_t)result;
 }
