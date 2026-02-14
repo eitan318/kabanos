@@ -15,6 +15,8 @@ typedef struct thread {
   uint32_t curr_time_quantum_ticks_passed;
   uint32_t burst_ticks_estimate;
 
+  uint32_t last_enqueue_tick;
+
   // sleep info
   uint32_t wakeup_time;
 
