@@ -9,7 +9,7 @@ typedef struct arch_regs arch_regs;
 typedef void (*interrupt_handler_t)(struct arch_regs *r);
 
 // Init
-void hal_arch_init(void);
+void hal_arch_init(uint32_t timer_tick_frequency_hz);
 
 // Panic
 int hal_describe_regs(struct arch_regs *regs, int max, const char **names,

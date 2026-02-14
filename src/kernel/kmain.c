@@ -23,6 +23,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+
 vmspace_t *g_kernel_vmspace;
 Range g_kernel_virt_range;
 Range g_kernel_phys_range;
@@ -30,17 +31,21 @@ Range g_kernel_phys_range;
 void kmain(uint32_t mb2_ptr) {
   debugf("[Kernel starting...]\n");
   extern uint8_t _kernel_start[], _kernel_end[];
+
   g_kernel_virt_range.start = (uintptr_t)&_kernel_start;
   g_kernel_virt_range.end = (uintptr_t)&_kernel_end;
   g_kernel_phys_range.start = g_kernel_virt_range.start - KERNEL_BASE;
   g_kernel_phys_range.end = g_kernel_virt_range.end - KERNEL_BASE;
+
   KernelBootInfo *kernel_boot_info =
       parse_multiboot2_early((mb2_info_t *)mb2_ptr);
+
   mb2_ptr = 0; // disabling use of unparsed, low half params
   Range total_memory_range = get_memory_range(&kernel_boot_info->memory_map);
   size_t count;
   Range *unusable_memory_ranges =
       get_unusable_memory_ranges(kernel_boot_info, total_memory_range, &count);
+
   // From now on, no early pmm
   pmm_init(total_memory_range, unusable_memory_ranges, count);
   static vmspace_t kernel_vmspace = {0};
@@ -53,8 +58,9 @@ void kmain(uint32_t mb2_ptr) {
   // From now on no lower half mapping
   vmspace_switch(g_kernel_vmspace);
   kmalloc_init();
+
   // Init hardware
-  hal_arch_init();
+  hal_arch_init(1000 / TIMER_TICK_MS);
   vga_clrscr();
   vga_setcursor(0, 0);
   kernel_init_devices();
@@ -66,16 +72,15 @@ void kmain(uint32_t mb2_ptr) {
     }
   }
 
-  dispatch_init();
   sched_init();
   hal_timer_enable();
 
   process_exec("test_a.elf", PRIORITY_VERY_HIGH);
-  process_exec("test_b.elf", PRIORITY_MEDIUM);
+  process_exec("test_b.elf", PRIORITY_LOW);
   process_exec("test_c.elf", PRIORITY_LOW);
 
   thread_t *first = sched_pick_next();
-  dispatch_start_first(first);
+  dispatch_switch_to(first);
 
   for (;;) {
   }

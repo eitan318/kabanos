@@ -1,7 +1,9 @@
 #include "sched.h"
 #include "dispatcher.h"
 #include "memory_management/kmalloc.h"
+#include "sched/sleep.h"
 #include "sched/thread.h"
+#include "spinlock.h"
 #include "stdio.h"
 
 // Time quantums (in milliseconds)
@@ -17,7 +19,7 @@ static thread_t *ready_queue_tails[NUM_PRIORITIES] = {NULL};
 static thread_t *kernel_idle_task = NULL;
 static spinlock_t sched_lock = SPINLOCK_RELEASED;
 
-static uint32_t tick = 0;
+uint32_t g_time_tick = 0;
 
 void idle_task(void *arg) {
   while (1) {
@@ -29,6 +31,8 @@ void sched_init(void) {
   kernel_idle_task = thread_create_kernel(NULL, (uintptr_t)idle_task);
   kernel_idle_task->tid = 0;
   kernel_idle_task->priority = PRIORITY_LOW; // Doesn't matter, never enqueued
+
+  dispatch_init(kernel_idle_task);
 
   for (int i = 0; i < NUM_PRIORITIES; i++) {
     ready_queue_heads[i] = NULL;
@@ -82,9 +86,28 @@ void sched_enqueue(thread_t *t) {
   }
 
   // Reset time quantum for this priority
-  t->time_slice_remaining = time_quantums[priority];
+  t->curr_time_quantum = time_quantums[priority];
+  t->burst_ticks_estimate = t->curr_time_quantum;
 
   spinlock_release(&sched_lock);
+}
+
+void sched_prepare_for_cpu_burst(thread_t *t) {
+  // Formula for history based prediction: T<n+1> = t<n> * a + (1-a) *
+  // T<n>
+  const double a = 0.5;
+  int next_burst_ticks_estimate =
+      t->curr_time_quantum_ticks_passed * a + (1 - a) * t->burst_ticks_estimate;
+
+  for (int i = 0; i < NUM_PRIORITIES; i++) {
+    if (next_burst_ticks_estimate < time_quantums[i]) {
+      t->priority = i;
+    }
+  }
+
+  t->burst_ticks_estimate = next_burst_ticks_estimate;
+  t->curr_time_quantum = time_quantums[t->priority];
+  t->curr_time_quantum_ticks_passed = 0;
 }
 
 thread_t *sched_pick_next(void) {
@@ -101,6 +124,7 @@ thread_t *sched_pick_next(void) {
         ready_queue_tails[priority] = NULL;
       }
       next->next = NULL;
+      sched_prepare_for_cpu_burst(next);
 
       spinlock_release(&sched_lock);
       return next;
@@ -112,10 +136,9 @@ thread_t *sched_pick_next(void) {
   return kernel_idle_task;
 }
 
-void not_runnign() {}
-void another() {}
-
 void sched_tick(void *context) {
+  wake_up_sleeping(g_time_tick);
+
   thread_t *current = dispatch_get_current();
   if (!current) {
     return; // Safety check
@@ -123,29 +146,26 @@ void sched_tick(void *context) {
 
   // Don't preempt idle or blocked threads
   if (current->tid == 0 || current->state != THREAD_RUNNING) {
-    not_runnign();
     return;
   }
 
-  if ((++tick) % 10 == 0) {
+  g_time_tick++;
+
+  if (g_time_tick % 10 == 0) {
     print_sched_struct();
   }
 
-  // Decrement time slice
   current->rt_ticks++;
-  current->time_slice_remaining--;
+  current->curr_time_quantum_ticks_passed++;
 
   // Check if time slice expired
-  if (current->time_slice_remaining <= 0) {
-    // Time slice expired - re-enqueue and pick next
+  if (current->curr_time_quantum - current->curr_time_quantum_ticks_passed <=
+      0) {
     sched_enqueue(current);
 
     thread_t *next = sched_pick_next();
     if (next && next != current) {
-      dispatch_switch_from_interrupt(context, next);
-    } else {
-      current->state = THREAD_RUNNING;
-      current->time_slice_remaining = time_quantums[current->priority];
+      dispatch_switch_preserve_context(context, next);
     }
   }
 }
@@ -186,3 +206,5 @@ void sched_dequeue(thread_t *t) {
 
   spinlock_release(&sched_lock);
 }
+
+uint32_t sched_time_get() { return g_time_tick; }

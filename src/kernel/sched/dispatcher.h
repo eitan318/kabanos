@@ -1,12 +1,8 @@
 #pragma once
 #include "thread.h"
 
-void dispatch_init();
-void dispatch_switch_from_interrupt(void *context, thread_t *next);
-void dispatch_switch_from_kernel(thread_t *next);
+void dispatch_init(thread_t *initial_task);
 
-// Special case: Starts the very first thread during OS boot
-void dispatch_start_first(thread_t *first);
-
-// Helper to get the thread currently owning the CPU
+void dispatch_switch_preserve_context(void *context, thread_t *next);
+void dispatch_switch_to(thread_t *next);
 thread_t *dispatch_get_current(void);

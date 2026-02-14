@@ -1,12 +1,13 @@
 #include "syscall.h"
 #include "device.h"
 #include "drivers/keyboard.h"
-#include "proc/yield.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
+#include "sched/sleep.h"
 #include "sched/thread.h"
 #include "stdio.h"
 #include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 
 typedef enum {
@@ -93,7 +94,22 @@ static long sys_write(int fd, const char *str, size_t len) {
   }
   return -1;
 }
-void example_check(syscall_info_t f) {}
+
+void sys_yield(void *context) {
+  thread_t *next = sched_pick_next();
+  thread_t *current = dispatch_get_current();
+
+  if (current && current != next) {
+    sched_enqueue(current); // Re-enqueue current
+  }
+
+  dispatch_switch_preserve_context(next, context);
+}
+
+void sys_sleep(uint32_t seconds) {
+  thread_t *current = dispatch_get_current();
+  enqueue_sleeper(current, sched_time_get() + (seconds * 1000) / TIMER_TICK_MS);
+}
 
 long syscall_dispatch(syscall_info_t f) {
 
@@ -104,9 +120,8 @@ long syscall_dispatch(syscall_info_t f) {
     return sys_read(f.args[0], (char *)f.args[1], f.args[2]);
   case SYSCALL_NUMBER_SYS_YIELD:
     sys_yield(f.context);
-  case 67:
-    example_check(f);
-    return 0;
+  case SYSCALL_NUMBER_SYS_SLEEP:
+    sys_sleep(f.args[0]);
 
   default:
     return -1;

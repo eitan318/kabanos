@@ -54,7 +54,9 @@ thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
   t->process = proc;
   t->state = THREAD_NEW;
   t->priority = p;
-  t->time_slice_remaining = 0;
+  t->curr_time_quantum_ticks_passed = 0;
+  t->curr_time_quantum = 0;
+
   t->mode = mode;
 
   // Allocate the arch-specific part (if it's a pointer)

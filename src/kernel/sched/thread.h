@@ -9,8 +9,14 @@ typedef struct thread {
   uint32_t tid;
   process_t *process; // Parent process (contains CR3)
 
+  // sched info
   uint32_t rt_ticks;
-  uint32_t time_slice_remaining;
+  uint32_t curr_time_quantum;
+  uint32_t curr_time_quantum_ticks_passed;
+  uint32_t burst_ticks_estimate;
+
+  // sleep info
+  uint32_t wakeup_time;
 
   enum thread_state {
     THREAD_NEW,
@@ -33,8 +39,11 @@ typedef struct thread {
   /* Stack tracking (for cleanup only) */
   void *kstack_top; // Top of kernel stack (for deallocation)
 
-  /* Scheduler linkage */
+  // Scheduler linkage
   struct thread *next;
+
+  // Sleeping linkage
+  struct thread *next_sleep;
 } thread_t;
 
 thread_t *thread_create_user(process_t *proc, uintptr_t entry,
