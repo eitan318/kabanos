@@ -71,7 +71,7 @@ void kmain(uint32_t mb2_ptr) {
   hal_timer_enable();
 
   process_exec("test_a.elf", PRIORITY_VERY_HIGH);
-  process_exec("test_b.elf", PRIORITY_VERY_HIGH);
+  process_exec("test_b.elf", PRIORITY_MEDIUM);
   process_exec("test_c.elf", PRIORITY_LOW);
 
   thread_t *first = sched_pick_next();

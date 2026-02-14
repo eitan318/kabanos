@@ -39,24 +39,23 @@ void sched_init(void) {
 void print_thread_struct(thread_t *t) {
   if (!t)
     return;
-  debugf_and_printf("\tTID %d {priority: %d ticks yet: %d}", t->tid,
-                    t->priority, t->rt_ticks);
+  printf("\tTID %d {priority: %d ticks yet: %d}", t->tid, t->priority,
+         t->rt_ticks);
 }
 void print_sched_struct() {
-
-  debugf_and_printf("\nCurrent: ");
+  printf("\nCurrent: ");
   print_thread_struct(dispatch_get_current());
-  debugf_and_printf("\n");
+  printf("\n");
   for (int i = 0; i < NUM_PRIORITIES; i++) {
-    debugf_and_printf("Priority %d: \n", i);
+    printf("Priority %d: \n", i);
 
     for (thread_t *curr = ready_queue_heads[i]; curr != NULL;
          curr = curr->next) {
       print_thread_struct(curr);
-      debugf_and_printf("\n");
+      printf("\n");
     }
   }
-  debugf_and_printf("\n");
+  printf("\n");
 }
 
 void sched_enqueue(thread_t *t) {
@@ -113,8 +112,10 @@ thread_t *sched_pick_next(void) {
   return kernel_idle_task;
 }
 
-void sched_tick(void *context) {
+void not_runnign() {}
+void another() {}
 
+void sched_tick(void *context) {
   thread_t *current = dispatch_get_current();
   if (!current) {
     return; // Safety check
@@ -122,6 +123,7 @@ void sched_tick(void *context) {
 
   // Don't preempt idle or blocked threads
   if (current->tid == 0 || current->state != THREAD_RUNNING) {
+    not_runnign();
     return;
   }
 
@@ -141,6 +143,9 @@ void sched_tick(void *context) {
     thread_t *next = sched_pick_next();
     if (next && next != current) {
       dispatch_switch_from_interrupt(context, next);
+    } else {
+      current->state = THREAD_RUNNING;
+      current->time_slice_remaining = time_quantums[current->priority];
     }
   }
 }
