@@ -6,20 +6,20 @@
 #define QUEUE_SIZE 256
 
 typedef struct {
-    void* data[QUEUE_SIZE]; // the buffer
-    int head;               // index to write (enqueue)
-    int tail;               // index to read (dequeue)
-    int count;              // current number of elements
-} Queue;
+  void *data[QUEUE_SIZE]; // the buffer
+  int head;               // index to write (enqueue)
+  int tail;               // index to read (dequeue)
+  int count;              // current number of elements
+} circular_buff_t;
 
-void queue_init(Queue* q);
+void circular_buff_init(circular_buff_t *q);
 
-bool queue_is_empty(Queue* q);
+bool circular_buff_is_empty(circular_buff_t *q);
 
-bool queue_is_full(Queue* q);
+bool circular_buff_is_full(circular_buff_t *q);
 
-void enqueue(Queue* q, void* val);
+void circular_buff_enqueue(circular_buff_t *q, void *val);
 
-void* dequeue(Queue* q);
+void *circular_buff_dequeue(circular_buff_t *q);
 
 #endif

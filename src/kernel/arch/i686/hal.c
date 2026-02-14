@@ -27,12 +27,12 @@ uintptr_t hal_regs_pc(struct arch_regs *regs) { return regs->eip; }
 
 void hal_serial_putc(const char c) { hal_out8(0x3f8, c); }
 
-void hal_arch_init(void) {
+void hal_arch_init(uint32_t timer_tick_frequency_hz) {
   i686_gdt_init();
   i686_idt_init();
   i686_isr_init();
   i686_pic_init();
-  i686_timer_init();
+  i686_timer_init(timer_tick_frequency_hz);
   i686_sysenter_init();
 }
 

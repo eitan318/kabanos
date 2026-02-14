@@ -84,8 +84,6 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
     debugf("ERROR: Failed to load initrd (error code: %d)!\n", initrd_size);
     halt();
   }
-  uint32_t initrd_start = (uint32_t)INITRD_LOAD_ADDR;
-  debugf("Initrd loaded at 0x%x, size: %d bytes\n", initrd_start, initrd_size);
 
   // Load modules
 

@@ -1,2 +1,3 @@
 #pragma once
-void i686_timer_init();
+#include "stdint.h"
+void i686_timer_init(uint32_t frequency_hz);

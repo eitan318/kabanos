@@ -1,151 +1,119 @@
 #!/usr/bin/env python3
-# tools/create_image.py
-# Usage:
-#   python3 create_image.py --image OUT/os.img \
-#       --boot BOOT/bootloader.bin --stage2 BOOT/stage2.bin --kernel KERNEL/kernel.bin
-
 import argparse
 import os
 import math
 import subprocess
-import sys
 import tempfile
 
 SECTOR = 512
-TOTAL_SECTORS = 2880  # 1.44MB floppy-style image
+TOTAL_SECTORS = 2880
 
 
-def run(cmd, check=True):
-    print("+", " ".join(cmd))
-    subprocess.run(cmd, check=check)
+def run(cmd):
+    subprocess.run(
+        cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+    )
 
 
 def copy_all_boot_files(boot_dir, part_img):
-    if not os.path.isdir(boot_dir):
-        raise SystemExit(f"boot_dir is not a directory: {boot_dir}")
-
     for entry in os.listdir(boot_dir):
         path = os.path.join(boot_dir, entry)
-
-        if not os.path.isfile(path):
-            continue  # skip subdirectories if any
-
-        dest = f"::{entry}"
-        print(f"Copying {entry} -> {dest}")
-
-        run(["mcopy", "-i", part_img, path, dest], check=True)
+        if os.path.isfile(path):
+            run(["mcopy", "-i", part_img, path, f"::{entry}"])
 
 
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--image", required=True)
-    p.add_argument("--boot", required=True)  # bootloader (512-byte MBR expected)
-    p.add_argument("--stage2", required=True)  # stage2 binary (arbitrary size)
-    p.add_argument("--kernel", required=True)  # kernel to put in FAT12 partition
+    p.add_argument("--boot", required=True)
+    p.add_argument("--stage2", required=True)
+    p.add_argument("--kernel", required=True)
     p.add_argument("--boot_dir", required=True)
     args = p.parse_args()
 
-    image = args.image
-    boot = args.boot
-    stage2 = args.stage2
-    kernel = args.kernel
-    boot_dir = args.boot_dir
+    # Quick existence check
+    for f in [args.boot, args.stage2, args.kernel, args.boot_dir]:
+        if not os.path.exists(f):
+            raise SystemExit(f"Error: {f} not found")
 
-    # sanity
-    if not os.path.exists(boot):
-        raise SystemExit("boot not found")
-    if not os.path.exists(stage2):
-        raise SystemExit("stage2 not found")
-    if not os.path.exists(kernel):
-        raise SystemExit("kernel not found")
-    if not os.path.exists(boot_dir):
-        raise SystemExit("boot_dir not found", boot_dir)
-
-    stage2_size = os.path.getsize(stage2)
-    stage2_sectors = math.ceil(stage2_size / SECTOR)
-    print("stage2 size:", stage2_size, "bytes ->", stage2_sectors, "sectors")
-
-    # partition starts AFTER sector 0 (MBR) and stage2 sectors
+    # Geometry calculations
+    stage2_sectors = math.ceil(os.path.getsize(args.stage2) / SECTOR)
     part_start = 1 + stage2_sectors
-    if part_start >= TOTAL_SECTORS:
-        raise SystemExit("stage2 too large to fit on image")
-
     part_sectors = TOTAL_SECTORS - part_start
-    print(
-        "partition will start at sector",
-        part_start,
-        "and length",
-        part_sectors,
-        "sectors",
-    )
 
-    # create blank image
-    with open(image, "wb") as f:
+    if part_start >= TOTAL_SECTORS:
+        raise SystemExit("Error: stage2 is too large for image.")
+
+    print(f"Building {args.image}:")
+    print(f"  Stage2:    {stage2_sectors} sectors (starts @ 1)")
+    print(f"  Partition: {part_sectors} sectors (starts @ {part_start})")
+
+    # Initialize image
+    with open(args.image, "wb") as f:
         f.truncate(TOTAL_SECTORS * SECTOR)
 
-    # write bootloader (MBR) into sector 0 (not truncating)
+    # Write Bootloader & Stage2
     run(
         [
             "dd",
-            "if={}".format(boot),
-            "of={}".format(image),
+            f"if={args.boot}",
+            f"of={args.image}",
             "bs=512",
             "count=1",
             "conv=notrunc",
         ]
     )
-
-    # write stage2 at offset sector 1
     run(
         [
             "dd",
-            "if={}".format(stage2),
-            "of={}".format(image),
+            f"if={args.stage2}",
+            f"of={args.image}",
             "bs=512",
             "seek=1",
             "conv=notrunc",
         ]
     )
 
-    # create a temporary file for the partition (the raw partition contents)
+    # Create & Format Partition
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         part_img = tmp.name
 
-    with open(part_img, "wb") as f:
-        f.truncate(part_sectors * SECTOR)
+    try:
+        with open(part_img, "wb") as f:
+            f.truncate(part_sectors * SECTOR)
 
-    # Format the partition image as FAT12 (requires mkfs.fat - part of dosfstools)
-    run(["mkfs.fat", "-F", "12", part_img])
+        run(["mkfs.fat", "-F", "12", part_img])
+        run(["mcopy", "-i", part_img, args.kernel, "::kernel.elf"])
+        copy_all_boot_files(args.boot_dir, part_img)
 
-    # Copy kernel.elf instead of kernel.bin
-    run(["mcopy", "-i", part_img, kernel, "::kernel.elf"])  # CHANGED THIS LINE
+        # Write Partition to Image
+        run(
+            [
+                "dd",
+                f"if={part_img}",
+                f"of={args.image}",
+                "bs=512",
+                f"seek={part_start}",
+                "conv=notrunc",
+            ]
+        )
 
-    copy_all_boot_files(boot_dir, part_img)
+        # Update Partition Table
+        sfdisk_input = f"{part_start} , {part_sectors} , 1 , *\n"
+        subprocess.run(
+            ["sfdisk", args.image],
+            input=sfdisk_input.encode("utf-8"),
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
 
-    # print("writing partition image into final image at sector", part_start)
-    run(
-        [
-            "dd",
-            "if={}".format(part_img),
-            "of={}".format(image),
-            "bs=512",
-            "seek={}".format(part_start),
-            "conv=notrunc",
-        ]
-    )
-
-    # print("writing partition table with sfdisk (type 0x01 = FAT12)")
-    sfdisk_input = "{} , {} , 1 , *\n".format(part_start, part_sectors)
-    # We feed sfdisk through stdin
-    proc = subprocess.run(["sfdisk", image], input=sfdisk_input.encode("utf-8"))
-    if proc.returncode != 0:
-        raise SystemExit("sfdisk failed, check tool installed and permissions")
-
-    # cleanup
-    os.remove(part_img)
-    print("done. created", image)
-    print("partition starts at sector", part_start, "contains kernel as /kernel.elf")  # UPDATED THIS LINE
+        print("Success: Image created and partitioned.")
+    finally:
+        if os.path.exists(part_img):
+            os.remove(part_img)
 
 
 if __name__ == "__main__":
     main()
+

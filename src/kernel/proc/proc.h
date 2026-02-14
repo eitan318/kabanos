@@ -2,9 +2,14 @@
 #include "memory_management/vmspace.h"
 #include <stdint.h>
 
+typedef struct {
+  struct device *devices[16]; // This process can open 16 things
+} fd_table_t;
+
 typedef struct process {
   uint32_t pid;
   vmspace_t *vmspace;
+  fd_table_t fd_table;
   struct thread *main_thread;
 } process_t;
 

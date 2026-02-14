@@ -1,4 +1,6 @@
 #include "boot/bootparams.h"
+#include "device.h"
+#include "drivers/keyboard.h"
 #include "drivers/vga_text.h"
 #include "fat/fat.h"
 #include "hal.h"
@@ -9,13 +11,13 @@
 #include "memory_management/pmm.h"
 #include "memory_management/vmspace.h"
 #include "proc/exec.h"
+#include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
 #include "stdio.h"
 #include "string.h"
 #include "ut/ata/ata_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
-#include "ut/keyboard_driver.h"
 #include "utils/range.h"
 #include <stdbool.h>
 #include <stddef.h>
@@ -29,6 +31,7 @@ Range g_kernel_phys_range;
 void kmain(uint32_t mb2_ptr) {
   debugf("[Kernel starting...]\n");
   extern uint8_t _kernel_start[], _kernel_end[];
+
   g_kernel_virt_range.start = (uintptr_t)&_kernel_start;
   g_kernel_virt_range.end = (uintptr_t)&_kernel_end;
   g_kernel_phys_range.start = g_kernel_virt_range.start - KERNEL_BASE;
@@ -36,8 +39,8 @@ void kmain(uint32_t mb2_ptr) {
 
   KernelBootInfo *kernel_boot_info =
       parse_multiboot2_early((mb2_info_t *)mb2_ptr);
-  mb2_ptr = 0; // disabling use of unparsed, low half params
 
+  mb2_ptr = 0; // disabling use of unparsed, low half params
   Range total_memory_range = get_memory_range(&kernel_boot_info->memory_map);
   size_t count;
   Range *unusable_memory_ranges =
@@ -45,24 +48,22 @@ void kmain(uint32_t mb2_ptr) {
 
   // From now on, no early pmm
   pmm_init(total_memory_range, unusable_memory_ranges, count);
-
   static vmspace_t kernel_vmspace = {0};
   kernel_vmspace_create(&kernel_vmspace, total_memory_range);
   g_kernel_vmspace = &kernel_vmspace;
-
   if (g_kernel_vmspace == NULL) {
     debugf("FAIL: Could not create page directory\n");
     return;
   }
-
   // From now on no lower half mapping
   vmspace_switch(g_kernel_vmspace);
   kmalloc_init();
 
   // Init hardware
-  hal_arch_init();
+  hal_arch_init(1000 / TIMER_TICK_MS);
   vga_clrscr();
   vga_setcursor(0, 0);
+  kernel_init_devices();
   kbd_init();
 
   if (!fat_initialize(34)) {
@@ -71,19 +72,15 @@ void kmain(uint32_t mb2_ptr) {
     }
   }
 
-  debugf("Testing Proc\n");
   sched_init();
-  if (process_exec("test_a.elf", THREAD_NORMAL) != 0)
-    debugf("err\n\n");
-
-  if (process_exec("test_b.elf", THREAD_ABOVE_NORMAL) != 0)
-    debugf("err\n\n");
-
-  if (process_exec("test_c.elf", THREAD_HIGH) != 0)
-    debugf("err\n\n");
-
-  hal_interrupts_enable();
   hal_timer_enable();
+
+  process_exec("test_a.elf", PRIORITY_LOW);
+  process_exec("test_b.elf", PRIORITY_VERY_HIGH);
+  process_exec("test_c.elf", PRIORITY_VERY_HIGH);
+
+  thread_t *first = sched_pick_next();
+  dispatch_switch_first(first);
 
   for (;;) {
   }

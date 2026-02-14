@@ -1,7 +1,7 @@
 bits 32
 
 ;
-; This should match the interrupt.asm isr_common and arch_regs
+; This should match the isr.asm common_isr for preeamptive switching
 ;
 global thread_switch_to
 thread_switch_to:
@@ -9,7 +9,12 @@ thread_switch_to:
     mov eax, [esp + 8]    ; eax = new_thread->cr3
 
     mov esp, edx          
+
+    test eax, eax ; pd_phys as 0 is flag for not switching
+    je .skip_vmspace_switch
     mov cr3, eax 
+.skip_vmspace_switch:
+
     ; Restore Segments (Order: DS, ES, FS, GS)
     pop ds
     pop es
