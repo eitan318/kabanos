@@ -51,7 +51,7 @@ device_t *get_device_by_handle(int handle) {
   return dev;
 }
 
-void kernel_init_hardware() {
+void kernel_init_devices() {
   device_t *kbd = device_init(DEVICE_HANDLE_KEYBOARD);
   device_t *ata = device_init(DEVICE_HANDLE_ATA);
 }

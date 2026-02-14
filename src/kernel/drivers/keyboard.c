@@ -67,10 +67,11 @@ static void keyboard_isr_handler(struct arch_regs *regs) {
 
     if (key_ascii) {
       spinlock_acquire(&keyboard_lock); // 1. Lock
-      enqueue(&keyboard_buff,
-              (void *)(uintptr_t)key_ascii); // 2. Add data (no _unlocked!)
-      wake_up_queue(&dev->wait_queue);       // 3. Wake waiting threads
-      spinlock_release(&keyboard_lock);      // 4. Unlock
+      circular_buff_enqueue(
+          &keyboard_buff,
+          (void *)(uintptr_t)key_ascii); // 2. Add data (no _unlocked!)
+      wake_up_queue(&dev->wait_queue);   // 3. Wake waiting threads
+      spinlock_release(&keyboard_lock);  // 4. Unlock
     }
   }
 
@@ -91,7 +92,8 @@ int kbd_read(char *buf, size_t count) {
     }
 
     // 4. Now we have data AND the lock
-    buf[i++] = (char)(uintptr_t)dequeue(&keyboard_buff); // No _unlocked!
+    buf[i++] =
+        (char)(uintptr_t)circular_buff_dequeue(&keyboard_buff); // No _unlocked!
 
     spinlock_release(&keyboard_lock); // 5. Unlock
   }
@@ -100,7 +102,7 @@ int kbd_read(char *buf, size_t count) {
 }
 
 void kbd_init() {
-  queue_init(&keyboard_buff);
+  circular_buff_init(&keyboard_buff);
   keyboard_lock = (spinlock_t)SPINLOCK_RELEASED;
   isr_handler_register(KBD_INT, keyboard_isr_handler);
   hal_irq_enable(KBD_IRQ);

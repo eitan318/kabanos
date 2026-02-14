@@ -54,10 +54,7 @@ thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
   t->process = proc;
   t->state = THREAD_NEW;
   t->priority = p;
-  t->base_priority = 0;
-  t->rt_ticks = 0;
-  t->wait_ticks = 0;
-  t->time_at_priority = 0;
+  t->time_slice_remaining = 0;
   t->mode = mode;
 
   // Allocate the arch-specific part (if it's a pointer)
@@ -93,7 +90,7 @@ thread_t *thread_create_user(process_t *proc, uintptr_t entry,
 }
 
 thread_t *thread_create_kernel(process_t *proc, uintptr_t entry) {
-  return thread_create(proc, entry, 0, THREAD_MODE_KERNEL, THREAD_NORMAL);
+  return thread_create(proc, entry, 0, THREAD_MODE_KERNEL, PRIORITY_HIGH);
 }
 
 void thread_destroy(thread_t *t) {

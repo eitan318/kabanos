@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <string.h>
 
+#define DELAY_LOOP 50000000
+
 typedef uint32_t pid_t;
 typedef uint64_t ssize_t;
 

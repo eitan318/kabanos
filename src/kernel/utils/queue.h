@@ -12,14 +12,14 @@ typedef struct {
   int count;              // current number of elements
 } circular_buff_t;
 
-void queue_init(circular_buff_t *q);
+void circular_buff_init(circular_buff_t *q);
 
-bool queue_is_empty(circular_buff_t *q);
+bool circular_buff_is_empty(circular_buff_t *q);
 
-bool queue_is_full(circular_buff_t *q);
+bool circular_buff_is_full(circular_buff_t *q);
 
-void enqueue(circular_buff_t *q, void *val);
+void circular_buff_enqueue(circular_buff_t *q, void *val);
 
-void *dequeue(circular_buff_t *q);
+void *circular_buff_dequeue(circular_buff_t *q);
 
 #endif

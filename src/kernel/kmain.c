@@ -26,6 +26,7 @@
 vmspace_t *g_kernel_vmspace;
 Range g_kernel_virt_range;
 Range g_kernel_phys_range;
+
 void kmain(uint32_t mb2_ptr) {
   debugf("[Kernel starting...]\n");
   extern uint8_t _kernel_start[], _kernel_end[];
@@ -56,28 +57,26 @@ void kmain(uint32_t mb2_ptr) {
   hal_arch_init();
   vga_clrscr();
   vga_setcursor(0, 0);
-  kernel_init_hardware();
+  kernel_init_devices();
   kbd_init();
 
-  hal_interrupts_enable();
   if (!fat_initialize(34)) {
     debugf("Failed to initialize FAT\n");
     for (;;) {
     }
   }
+
   dispatch_init();
   sched_init();
-  // Load your processes into the scheduler's queue
-  process_exec("test_a.elf", THREAD_NORMAL);
-  process_exec("test_b.elf", THREAD_ABOVE_NORMAL);
-  thread_t *first = sched_pick_next();
-  if (first && first->tid != 0) {
-    debugf("Starting first thread: TID %u\n", first->tid);
-    dispatch_start_first(first);
-  } else {
-    debugf("No threads to run!\n");
-  }
   hal_timer_enable();
+
+  process_exec("test_a.elf", PRIORITY_VERY_HIGH);
+  process_exec("test_b.elf", PRIORITY_VERY_HIGH);
+  process_exec("test_c.elf", PRIORITY_LOW);
+
+  thread_t *first = sched_pick_next();
+  dispatch_start_first(first);
+
   for (;;) {
   }
 }

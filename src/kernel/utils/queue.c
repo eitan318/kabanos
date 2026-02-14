@@ -1,14 +1,18 @@
 #include "queue.h"
 #include <stddef.h>
 
-void queue_init(circular_buff_t *q) { q->head = q->tail = q->count = 0; }
+void circular_buff_init(circular_buff_t *q) {
+  q->head = q->tail = q->count = 0;
+}
 
-bool queue_is_empty(circular_buff_t *q) { return q->count == 0; }
+bool circular_buff_is_empty(circular_buff_t *q) { return q->count == 0; }
 
-bool queue_is_full(circular_buff_t *q) { return q->count == QUEUE_SIZE; }
+bool circular_buff_is_full(circular_buff_t *q) {
+  return q->count == QUEUE_SIZE;
+}
 
-void enqueue(circular_buff_t *q, void *val) {
-  if (queue_is_full(q))
+void circular_buff_enqueue(circular_buff_t *q, void *val) {
+  if (circular_buff_is_full(q))
     return;
   q->data[q->head] = val;
   q->head = (q->head + 1) %
@@ -16,8 +20,8 @@ void enqueue(circular_buff_t *q, void *val) {
   q->count++;
 }
 
-void *dequeue(circular_buff_t *q) {
-  if (queue_is_empty(q))
+void *circular_buff_dequeue(circular_buff_t *q) {
+  if (circular_buff_is_empty(q))
     return NULL;
   void *val = q->data[q->tail];
   q->tail = (q->tail + 1) % QUEUE_SIZE; // same as above
