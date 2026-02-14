@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <string.h>
 
-#define DELAY_LOOP 50000000
+#define DELAY_LOOP 10000000
 
 typedef uint32_t pid_t;
 typedef uint64_t ssize_t;
@@ -48,7 +48,9 @@ int open(const char *pathname, int flags) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_OPEN, pathname, flags, 0, 0, 0, 0);
 }
 
-int close(int fd) { return (int)_syscall6(11, fd, 0, 0, 0, 0, 0); }
+int close(int fd) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_CLOSE, fd, 0, 0, 0, 0, 0);
+}
 
 ssize_t read(int fd, void *buf, size_t count) {
   return (ssize_t)_syscall6(SYSCALL_NUMBER_SYS_READ, fd, buf, count, 0, 0, 0);

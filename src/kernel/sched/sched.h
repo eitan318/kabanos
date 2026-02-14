@@ -1,6 +1,6 @@
 #include "sched/thread.h"
 
-#define TIMER_TICK_MS 10
+#define TIMER_TICK_MS 1
 
 void sched_init(void);
 void sched_enqueue(thread_t *t);

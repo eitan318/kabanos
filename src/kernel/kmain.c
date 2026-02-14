@@ -80,7 +80,7 @@ void kmain(uint32_t mb2_ptr) {
   process_exec("test_c.elf", PRIORITY_LOW);
 
   thread_t *first = sched_pick_next();
-  dispatch_switch_to(first);
+  dispatch_switch_first(first);
 
   for (;;) {
   }

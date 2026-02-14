@@ -103,16 +103,54 @@ void sys_yield(void *context) {
     sched_enqueue(current); // Re-enqueue current
   }
 
-  dispatch_switch_preserve_context(next, context);
+  dispatch_switch_preserve_context(context, next);
 }
 
-void sys_sleep(uint32_t seconds) {
+void sys_sleep(void *context, uint32_t seconds) {
   thread_t *current = dispatch_get_current();
-  enqueue_sleeper(current, sched_time_get() + (seconds * 1000) / TIMER_TICK_MS);
+  uint32_t curr_tick = sched_time_get();
+  enqueue_sleeper(current, curr_tick + ((seconds * 1000) / TIMER_TICK_MS));
+  thread_t *next = sched_pick_next();
+  dispatch_switch_preserve_context(context, next);
+}
+
+long sys_fork(void *context) {
+  // TODO: Implement fork syscall
+  return -1;
+}
+
+long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
+  // TODO: Implement execve syscall
+  return -1;
+}
+
+void sys_exit(int status) {
+  // TODO: Implement exit syscall
+  while (1)
+    ; // Prevent return
+}
+
+long sys_waitpid(int pid, int *wstatus, int options) {
+  // TODO: Implement waitpid syscall
+  return -1;
+}
+
+void *sys_sbrk(intptr_t increment) {
+  // TODO: Implement sbrk syscall
+  return (void *)-1;
+}
+
+long sys_open(const char *pathname, int flags) {
+  // TODO: Implement open syscall
+  return -1;
+}
+
+long sys_close(int fd) {
+  // TODO: Implement close syscall
+  return -1;
 }
 
 long syscall_dispatch(syscall_info_t f) {
-
   switch (f.num) {
   case SYSCALL_NUMBER_SYS_WRITE:
     return sys_write(f.args[0], (const char *)f.args[1], f.args[2]);
@@ -120,9 +158,26 @@ long syscall_dispatch(syscall_info_t f) {
     return sys_read(f.args[0], (char *)f.args[1], f.args[2]);
   case SYSCALL_NUMBER_SYS_YIELD:
     sys_yield(f.context);
+    return 0;
   case SYSCALL_NUMBER_SYS_SLEEP:
-    sys_sleep(f.args[0]);
-
+    sys_sleep(f.context, f.args[0]);
+    return 0;
+  case SYSCALL_NUMBER_SYS_FORK:
+    return sys_fork(f.context);
+  case SYSCALL_NUMBER_SYS_EXECVE:
+    return sys_execve((const char *)f.args[0], (char *const *)f.args[1],
+                      (char *const *)f.args[2]);
+  case SYSCALL_NUMBER_SYS_EXIT:
+    sys_exit(f.args[0]);
+    return 0; // Should never reach here
+  case SYSCALL_NUMBER_SYS_WAITPID:
+    return sys_waitpid(f.args[0], (int *)f.args[1], f.args[2]);
+  case SYSCALL_NUMBER_SYS_SBRK:
+    return (long)sys_sbrk(f.args[0]);
+  case SYSCALL_NUMBER_SYS_OPEN:
+    return sys_open((const char *)f.args[0], f.args[1]);
+  case SYSCALL_NUMBER_SYS_CLOSE:
+    return sys_close(f.args[0]);
   default:
     return -1;
   }

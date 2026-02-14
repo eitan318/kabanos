@@ -1,5 +1,6 @@
 #include "sched.h"
 #include "dispatcher.h"
+#include "hal.h"
 #include "memory_management/kmalloc.h"
 #include "sched/sleep.h"
 #include "sched/thread.h"
@@ -23,16 +24,17 @@ uint32_t g_time_tick = 0;
 
 void idle_task(void *arg) {
   while (1) {
-    __asm__ volatile("sti; hlt");
+    hal_interrupts_enable();
+    hal_halt();
   }
 }
-
 void sched_init(void) {
   kernel_idle_task = thread_create_kernel(NULL, (uintptr_t)idle_task);
   kernel_idle_task->tid = 0;
   kernel_idle_task->priority = PRIORITY_LOW; // Doesn't matter, never enqueued
+  kernel_idle_task->curr_time_quantum = 0;   // IDLE immediatly swapped
 
-  dispatch_init(kernel_idle_task);
+  dispatch_init();
 
   for (int i = 0; i < NUM_PRIORITIES; i++) {
     ready_queue_heads[i] = NULL;
@@ -145,27 +147,34 @@ void sched_tick(void *context) {
   }
 
   // Don't preempt idle or blocked threads
-  if (current->tid == 0 || current->state != THREAD_RUNNING) {
+  if (current->state != THREAD_RUNNING) {
     return;
   }
 
   g_time_tick++;
 
-  if (g_time_tick % 10 == 0) {
-    print_sched_struct();
+  const int ms_between_logs = 2000;
+  if (g_time_tick % ((ms_between_logs) / TIMER_TICK_MS) == 0) {
+    // print_sched_struct();
   }
 
   current->rt_ticks++;
   current->curr_time_quantum_ticks_passed++;
 
+  int remain_time =
+      current->curr_time_quantum - current->curr_time_quantum_ticks_passed;
+
   // Check if time slice expired
-  if (current->curr_time_quantum - current->curr_time_quantum_ticks_passed <=
-      0) {
+  if (remain_time <= 0) {
     sched_enqueue(current);
 
     thread_t *next = sched_pick_next();
     if (next && next != current) {
       dispatch_switch_preserve_context(context, next);
+    } else {
+      // The thread was reprepared in next, now set again to be running, leaving
+      // it running
+      next->state = THREAD_RUNNING;
     }
   }
 }

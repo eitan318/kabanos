@@ -5,7 +5,7 @@
 thread_t *g_current_thread = NULL;
 static thread_t *pending_switch_target = NULL;
 
-void dispatch_switch_preserve_context(void *context, thread_t *next) {
+void dispatch_switch_preserve_context(void *recent_context, thread_t *next) {
   thread_t *current = dispatch_get_current();
 
   if (!next || current == next) {
@@ -13,7 +13,16 @@ void dispatch_switch_preserve_context(void *context, thread_t *next) {
   }
 
   // Save current thread context
-  hal_thread_save_context(current->arch, context);
+  hal_thread_save_context(current->arch, recent_context);
+  hal_update_tss_and_syssenter_kstack(0, next->kstack_top);
+
+  next->state = THREAD_RUNNING;
+  g_current_thread = next;
+
+  hal_thread_switch(next);
+}
+
+void dispatch_switch_first(thread_t *next) {
   hal_update_tss_and_syssenter_kstack(0, next->kstack_top);
 
   next->state = THREAD_RUNNING;
@@ -31,9 +40,6 @@ static void handle_voluntary_yield(arch_regs *context) {
   dispatch_switch_preserve_context(context, pending_switch_target);
 }
 
-void dispatch_init(thread_t *initial_task) {
-  g_current_thread = initial_task;
-  isr_handler_register(0x81, handle_voluntary_yield);
-}
+void dispatch_init() { isr_handler_register(0x81, handle_voluntary_yield); }
 
 thread_t *dispatch_get_current(void) { return g_current_thread; }
