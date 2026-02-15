@@ -17,8 +17,6 @@ typedef enum {
 
 #define PAGE_SIZE 4096
 
-#define BOOT_STACK_SIZE 16384
-
 #define PD_ENTRIES PAGE_SIZE / sizeof(uint32_t)
 #define HALF_KERNEL_PD_INDEX (KERNEL_BASE / (PD_ENTRIES * PAGE_SIZE))
 
@@ -36,8 +34,8 @@ struct {
 multiboot_header = {MULTIBOOT_MAGIC, FLAGS, CHECKSUM};
 
 // Bootstrap stack in .bootstrap_stack section (nobits/bss)
-__attribute__((section(".bootstrap_stack"),
-               aligned(16))) static uint8_t stack_bottom[BOOT_STACK_SIZE];
+__attribute__((section(".bootstrap_stack"), aligned(16)))
+uint8_t stack_bottom[BOOT_STACK_SIZE];
 
 // Preallocated pages for paging in .bss section
 __attribute__((section(".bss"),

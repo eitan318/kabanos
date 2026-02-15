@@ -5,7 +5,7 @@
 #include "types.h"
 #include <stdlib.h>
 
-void syscall_handler_entry(arch_regs *regs) {
+void syscall_handler_entry(trap_frame_t *regs) {
   syscall_info_t info;
 
   // EAX and EBX are preserved as-is

@@ -4,7 +4,7 @@
 #include "fat/fat.h"
 #include "hal.h"
 #include "memory_management/kmalloc.h"
-#include "memory_management/kmap.h"
+#include "memory_management/memdefs.h"
 #include "memory_management/pmm.h"
 #include "memory_management/va_allocation.h"
 #include "memory_management/vmspace.h"
@@ -32,7 +32,7 @@ static int load_segment(arch_vm_t *vm, vaddr_t va_start, size_t mem_size,
     paddr_t phys = hal_vm_virt_to_phys(vm, page_va);
     ASSERT(phys);
 
-    void *kva = kmap(phys);
+    void *kva = (void *)(phys + KERNEL_BASE);
     ASSERT(kva);
 
     // Calculate which bytes in this page belong to the segment
@@ -57,8 +57,6 @@ static int load_segment(arch_vm_t *vm, vaddr_t va_start, size_t mem_size,
 
       file_copied += bytes_to_copy;
     }
-
-    kunmap();
   }
 
   return 0;

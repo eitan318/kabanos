@@ -5,27 +5,45 @@ bits 32
 ;
 global thread_switch_to
 thread_switch_to:
-    mov edx, [esp + 4]    ; edx = new_thread->esp
-    mov eax, [esp + 8]    ; eax = new_thread->cr3
+    ; 1. SAVE CURRENT CONTEXT (The "Out" Thread)
+    ; Since we are in the kernel, we only NEED to save callee-saved regs
+    ; if we are yielding. But if we want a unified switch:
+    pusha               ; Push EAX, ECX, EDX, EBX, ESP, EBP, ESI, EDI
+    push ds
+    push es
+    push fs
+    push gs
 
-    mov esp, edx          
+    ; Save the old stack pointer into the old_thread struct
+    mov eax, [esp + 52] ; Offset to reach 'old_esp' param (adjust based on pushes)
+    mov [eax], esp
 
-    test eax, eax ; pd_phys as 0 is flag for not switching
+    ; -------------------------------------------------------
+    ; 2. LOAD NEW CONTEXT (The "In" Thread)
+    mov edx, [esp + 56] ; edx = new_thread->arch->esp
+    mov ecx, [esp + 60] ; ecx = new_thread->process->cr3 (or equivalent)
+
+    mov esp, edx        ; THE SWITCH: We are now on the new thread's stack
+
+    ; 3. SWITCH ADDRESS SPACE
+    test ecx, ecx
+    jz .skip_vmspace_switch
+    mov eax, cr3
+    cmp eax, ecx        ; Optimization: don't reload if it's the same CR3
     je .skip_vmspace_switch
-    mov cr3, eax 
+    mov cr3, ecx
 .skip_vmspace_switch:
 
-    ; Restore Segments (Order: DS, ES, FS, GS)
-    pop ds
-    pop es
-    pop fs
+    ; 4. RESTORE NEW CONTEXT
     pop gs
-    ;
-    ; 4. Restore General Purpose Registers
-    popa 
+    pop fs
+    pop es
+    pop ds
+    popa
 
-    ; 5. Clean up interrupt stub data (int_no and err_code)
-    add esp, 8
+    add esp, 8 ;cleanup interrup preemption
 
-    ; 6. The jump to the thread
+    ; 5. EXIT
+    ; If this was an interrupt/preemption, the stack now contains
+    ; the EIP, CS, EFLAGS, etc., required by IRET.
     iret

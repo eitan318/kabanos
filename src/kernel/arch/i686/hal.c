@@ -22,10 +22,10 @@ int hal_interrupts_state_get() {
   __asm__ volatile("pushf; pop %0" : "=r"(eflags));
   return eflags & 0x200;
 }
-int hal_regs_interrupt_number(struct arch_regs *regs) {
+int hal_regs_interrupt_number(struct trap_frame *regs) {
   return regs->interrupt;
 }
-uintptr_t hal_regs_pc(struct arch_regs *regs) { return regs->eip; }
+uintptr_t hal_regs_pc(struct trap_frame *regs) { return regs->eip; }
 
 void hal_serial_putc(const char c) { hal_out8(0x3f8, c); }
 
@@ -42,11 +42,11 @@ int hal_arch_init(module_t *self) {
 #define i686_MAX_REGS 16
 unsigned hal_regs_max_get() { return i686_MAX_REGS; }
 
-bool hal_regs_from_user(const struct arch_regs *regs) {
+bool hal_regs_from_user(const struct trap_frame *regs) {
   return (regs->cs & 0x3) != 0;
 }
 
-int hal_describe_regs(struct arch_regs *regs, int max_regs, const char **names,
+int hal_describe_regs(struct trap_frame *regs, int max_regs, const char **names,
                       uintptr_t *values) {
   if (max_regs != i686_MAX_REGS)
     return -1;
@@ -80,7 +80,7 @@ int hal_describe_regs(struct arch_regs *regs, int max_regs, const char **names,
   return 16;
 }
 
-uintptr_t hal_backtrace(uintptr_t *data, struct arch_regs *regs) {
+uintptr_t hal_backtrace(uintptr_t *data, struct trap_frame *regs) {
   if (*data == 0) {
     if (regs)
       *data = regs->ebp;

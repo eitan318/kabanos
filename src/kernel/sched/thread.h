@@ -52,3 +52,5 @@ thread_t *thread_create_user(process_t *proc, uintptr_t entry,
                              uintptr_t user_stack, enum thread_priority p);
 
 thread_t *thread_create_kernel(process_t *proc, uintptr_t entry);
+
+thread_t *thread_clone(thread_t *parent, process_t *child_proc);

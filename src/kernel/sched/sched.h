@@ -2,7 +2,7 @@
 
 #define TIMER_TICK_MS 1
 
-void sched_init(void);
+void sched_yield();
 void sched_enqueue(thread_t *t);
 void sched_dequeue(thread_t *t);
 thread_t *sched_pick_next(void);

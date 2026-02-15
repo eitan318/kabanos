@@ -1,6 +1,9 @@
 #include "syscall.h"
 #include "device.h"
 #include "drivers/keyboard.h"
+#include "hal.h"
+#include "proc/exec.h"
+#include "proc/proc.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "sched/sleep.h"
@@ -95,39 +98,59 @@ static long sys_write(int fd, const char *str, size_t len) {
   return -1;
 }
 
-void sys_yield(void *context) {
-  thread_t *next = sched_pick_next();
-  thread_t *current = dispatch_get_current();
-
-  if (current && current != next) {
-    sched_enqueue(current); // Re-enqueue current
-  }
-
-  dispatch_switch_preserve_context(context, next);
+void sys_yield() {
+  thread_t *curr = dispatch_get_current();
+  sched_enqueue(curr);
+  sched_yield();
 }
 
-void sys_sleep(void *context, uint32_t seconds) {
+void sys_sleep(uint32_t seconds) {
   thread_t *current = dispatch_get_current();
   uint32_t curr_tick = sched_time_get();
   enqueue_sleeper(current, curr_tick + ((seconds * 1000) / TIMER_TICK_MS));
-  thread_t *next = sched_pick_next();
-  dispatch_switch_preserve_context(context, next);
+  sched_yield();
 }
 
-long sys_fork(void *context) {
-  // TODO: Implement fork syscall
-  return -1;
+long sys_fork() {
+  process_t *parent_proc = dispatch_get_current()->process;
+
+  process_t *child_proc = process_create();
+  child_proc->vmspace = vmspace_clone(parent_proc->vmspace);
+
+  thread_t *child_thread = thread_clone(dispatch_get_current(), child_proc);
+
+  hal_thread_set_return_value(child_thread, 0);
+
+  sched_enqueue(child_thread);
+
+  return child_proc->pid; // Parent gets the PID
 }
 
 long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
-  // TODO: Implement execve syscall
-  return -1;
+  process_exec_noreturn(pathname, PRIORITY_LOW);
+  return 0;
 }
 
 void sys_exit(int status) {
-  // TODO: Implement exit syscall
+  thread_t *current = dispatch_get_current();
+  process_t *proc = current->process;
+
+  proc->exit_code = status;
+  proc->state = PROCESS_ZOMBIE;
+
+  // Tell the scheduler never to run this thread again
+  sched_dequeue(current);
+
+  // If the parent is waiting, wake them up
+  if (proc->parent && proc->parent->is_waiting) {
+    sched_enqueue(proc->parent->main_thread);
+  }
+
+  // Switch away forever
+  sched_yield();
+
   while (1)
-    ; // Prevent return
+    ; // Should never be reached
 }
 
 long sys_waitpid(int pid, int *wstatus, int options) {
@@ -157,13 +180,13 @@ long syscall_dispatch(syscall_info_t f) {
   case SYSCALL_NUMBER_SYS_READ:
     return sys_read(f.args[0], (char *)f.args[1], f.args[2]);
   case SYSCALL_NUMBER_SYS_YIELD:
-    sys_yield(f.context);
+    sys_yield();
     return 0;
   case SYSCALL_NUMBER_SYS_SLEEP:
-    sys_sleep(f.context, f.args[0]);
-    return 0;
+    sys_sleep(f.args[0]);
+    return 0; // Should never reach here
   case SYSCALL_NUMBER_SYS_FORK:
-    return sys_fork(f.context);
+    return sys_fork();
   case SYSCALL_NUMBER_SYS_EXECVE:
     return sys_execve((const char *)f.args[0], (char *const *)f.args[1],
                       (char *const *)f.args[2]);

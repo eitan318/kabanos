@@ -12,7 +12,7 @@ void __attribute__((noreturn)) panic_halt(const char *fmt, ...) {
     hal_halt();
 }
 
-void panic_from_regs(struct arch_regs *regs) {
+void panic_from_regs(struct trap_frame *regs) {
   int max_regs = hal_regs_max_get();
   const char *names[max_regs];
   uintptr_t vals[max_regs];

@@ -95,6 +95,50 @@ thread_t *thread_create_kernel(process_t *proc, uintptr_t entry) {
   return thread_create(proc, entry, 0, THREAD_MODE_KERNEL, PRIORITY_HIGH);
 }
 
+thread_t *thread_clone(thread_t *src, process_t *dst_proc) {
+  // 1. Allocate the thread structure
+  thread_t *child = kmalloc(sizeof(thread_t));
+  if (!child)
+    return NULL;
+
+  // 2. Copy the TCB (Thread Control Block)
+  memcpy(child, src, sizeof(thread_t));
+
+  // 3. Customize unique identifiers
+  child->tid = alloc_tid();
+  child->process = dst_proc; // Point to the NEW process (and its CR3)
+  child->state = THREAD_NEW; // Scheduler will move it to READY
+
+  // Reset scheduler stats so the child doesn't inherit parent's "tiredness"
+  child->curr_time_quantum_ticks_passed = 0;
+  child->next = NULL;
+  child->next_sleep = NULL;
+
+  // 4. Allocate a new architecture-specific struct
+  child->arch = kmalloc(sizeof(*child->arch));
+  if (!child->arch) {
+    kfree(child);
+    return NULL;
+  }
+
+  // 5. Allocate a new kernel stack
+  arch_vm_t *user_vm = (dst_proc) ? dst_proc->vmspace->arch : NULL;
+  void *child_kstack_top = alloc_kernel_stack(child->tid, user_vm);
+  if (!child_kstack_top) {
+    kfree(child->arch);
+    kfree(child);
+    return NULL;
+  }
+  child->kstack_top = child_kstack_top;
+
+  // 6. ARCH-SPECIFIC COPY
+  if (hal_thread_clone_current(src, child) != 0) {
+    return NULL;
+  }
+
+  return child;
+}
+
 void thread_destroy(thread_t *t) {
   if (!t)
     return;

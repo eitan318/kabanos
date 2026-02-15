@@ -1,4 +1,5 @@
 #pragma once
+#include "arch/i686/types.h"
 #include "arch/types.h"
 #include "modules/modules.h"
 #include "sched/thread.h"
@@ -6,23 +7,23 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct arch_regs arch_regs;
-typedef void (*interrupt_handler_t)(struct arch_regs *r);
+typedef struct trap_frame trap_frame_t;
+typedef void (*interrupt_handler_t)(trap_frame_t *r);
 
 // Init
 int hal_arch_init(module_t *self);
 
 // Panic
-int hal_describe_regs(struct arch_regs *regs, int max, const char **names,
+int hal_describe_regs(struct trap_frame *regs, int max, const char **names,
                       uintptr_t *values);
-uintptr_t hal_backtrace(uintptr_t *data, struct arch_regs *regs);
+uintptr_t hal_backtrace(uintptr_t *data, trap_frame_t *regs);
 void hal_halt(void);
 void hal_trap();
 
 // Regs
-int hal_regs_interrupt_number(struct arch_regs *regs);
-uintptr_t hal_regs_pc(struct arch_regs *regs);
-bool hal_regs_from_user(const struct arch_regs *regs);
+int hal_regs_interrupt_number(trap_frame_t *regs);
+uintptr_t hal_regs_pc(trap_frame_t *regs);
+bool hal_regs_from_user(const trap_frame_t *regs);
 unsigned hal_regs_max_get();
 
 // Interrupts
@@ -77,9 +78,13 @@ void hal_vm_arch_destroy(arch_vm_t *vm);
 void hal_update_tss_and_syssenter_kstack(int cpu_id, void *kstack_top);
 
 // Thread
-void hal_thread_save_context(arch_thread_t *thread, void *context);
 int hal_thread_init(thread_t *t, uintptr_t entry, uintptr_t user_stack);
-void hal_thread_switch(thread_t *next);
+void hal_thread_switch(thread_t *curr, thread_t *next);
+int hal_thread_clone_current(thread_t *parent, thread_t *child);
+void hal_thread_set_return_value(thread_t *t, uint64_t val);
+void hal_thread_set_userspace_state(thread_t *t, uintptr_t entry,
+                                    uintptr_t user_stack);
+int hal_thread_clone_current(thread_t *current_thread, thread_t *dest_thread);
 
 // Timer
 void hal_timer_enable();

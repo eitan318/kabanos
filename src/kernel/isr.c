@@ -11,9 +11,9 @@ void isr_handler_register(uint32_t interrupt_num, interrupt_handler_t handler) {
   g_isr_handlers[interrupt_num] = handler;
 }
 
-void isr_dispatch(struct arch_regs *regs) {
-  int hal_regs_interrupt_number(struct arch_regs * regs);
-  uintptr_t hal_regs_pc(struct arch_regs * regs);
+void isr_dispatch(trap_frame_t *regs) {
+  int hal_regs_interrupt_number(trap_frame_t * regs);
+  uintptr_t hal_regs_pc(trap_frame_t * regs);
   int interrupt_num = hal_regs_interrupt_number(regs);
   if (g_isr_handlers[interrupt_num]) {
     g_isr_handlers[interrupt_num](regs);

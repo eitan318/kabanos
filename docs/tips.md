@@ -34,8 +34,3 @@ To tid 1
 0xf1005ff4:     0x00000082      0xbfffefd0      0x00000023      Cannot access memory at address
  0xf1006000
 (gdb)
-
-
-(gdb) p/x (*(arch_regs*)next.arch.kernel_esp).eip
-$9 = 0x8049026
-(gdb)

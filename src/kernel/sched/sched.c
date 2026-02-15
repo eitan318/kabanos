@@ -2,6 +2,7 @@
 #include "dispatcher.h"
 #include "hal.h"
 #include "memory_management/kmalloc.h"
+#include "modules/modules.h"
 #include "sched/sleep.h"
 #include "sched/thread.h"
 #include "spinlock.h"
@@ -30,18 +31,19 @@ void idle_task(void *arg) {
     hal_halt();
   }
 }
-void sched_init(void) {
+
+int sched_init(module_t *self) {
   kernel_idle_task = thread_create_kernel(NULL, (uintptr_t)idle_task);
   kernel_idle_task->tid = 0;
   kernel_idle_task->priority = PRIORITY_LOW; // Doesn't matter, never enqueued
   kernel_idle_task->curr_time_quantum = 0;   // IDLE immediatly swapped
 
-  dispatch_init();
-
   for (int i = 0; i < NUM_PRIORITIES; i++) {
     ready_queue_heads[i] = NULL;
     ready_queue_tails[i] = NULL;
   }
+
+  return 0;
 }
 
 void print_thread_struct(thread_t *t) {
@@ -50,6 +52,7 @@ void print_thread_struct(thread_t *t) {
   printf("\tTID %d {priority: %d ticks yet: %d}", t->tid, t->priority,
          t->rt_ticks);
 }
+
 void print_sched_struct() {
   printf("\nCurrent: ");
   print_thread_struct(dispatch_get_current());
@@ -229,15 +232,7 @@ void sched_tick(void *context) {
   // Check if time slice expired
   if (remain_time <= 0) {
     sched_enqueue(current);
-
-    thread_t *next = sched_pick_next();
-    if (next && next != current) {
-      dispatch_switch_preserve_context(context, next);
-    } else {
-      // The thread was reprepared in next, now set again to be running, leaving
-      // it running
-      next->state = THREAD_RUNNING;
-    }
+    sched_yield();
   }
 }
 
@@ -278,4 +273,18 @@ void sched_dequeue(thread_t *t) {
   spinlock_release(&sched_lock);
 }
 
+void sched_yield() {
+  thread_t *next = sched_pick_next();
+  dispatch_switch_to(next);
+}
+
 uint32_t sched_time_get() { return g_time_tick; }
+
+static const char *sched_deps[] = {"dispatcher", NULL};
+
+ITER_MODULE(sched) = {
+    .name = "sched",
+    .required = sched_deps,
+    .init = &sched_init,
+    .fini = NULL,
+};

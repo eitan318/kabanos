@@ -6,6 +6,7 @@
 #include "memory_management/va_allocation.h"
 #include "memory_management/vmspace.h"
 #include "proc/proc.h"
+#include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
 
@@ -30,7 +31,30 @@ uintptr_t setup_user_stack(vmspace_t *vm) {
   return (uintptr_t)(USER_STACK_BOTTOM + USER_STACK_SIZE);
 }
 
-int process_exec(const char *path, enum thread_priority p) {
+int process_exec_noreturn(const char *path, enum thread_priority p) {
+  thread_t *current = dispatch_get_current();
+  process_t *proc = current->process;
+
+  // 1. Validate the new ELF before we destroy the current address space
+  uintptr_t entry;
+  // Note: You'll need a way to "clear" or "reset" the vmspace
+  // instead of just creating a new one.
+  if (exec_load_elf(proc->vmspace, path, &entry) < 0) {
+    return -1; // Fail before destroying the process
+  }
+
+  // 2. Reset User Stack
+  uintptr_t user_stack = setup_user_stack(proc->vmspace);
+
+  // 3. Update the current thread's instruction pointer and stack pointer
+  // This usually requires a helper to modify the saved register state
+  // so when we return to user-space, we land at 'entry'.
+  hal_thread_set_userspace_state(current, entry, user_stack);
+
+  return 0; // The syscall return logic will jump to the NEW entry point
+}
+
+int process_spawn(const char *path, enum thread_priority p) {
   process_t *proc = process_create();
   uintptr_t entry;
   if (exec_load_elf(proc->vmspace, path, &entry) < 0) {

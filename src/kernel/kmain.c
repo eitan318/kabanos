@@ -1,9 +1,5 @@
 #include "boot/bootparams.h"
-#include "device.h"
-#include "drivers/keyboard.h"
-#include "drivers/vga_text.h"
 #include "fat/fat.h"
-#include "hal.h"
 #include "kernel_boot_info.h"
 #include "memory_management/kmalloc.h"
 #include "memory_management/memdefs.h"
@@ -25,7 +21,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 
-vmspace_t *g_kernel_vmspace;
+vmspace_t g_kernel_vmspace_obj;
+vmspace_t *g_kernel_vmspace = &g_kernel_vmspace_obj;
 Range g_kernel_virt_range;
 Range g_kernel_phys_range;
 
@@ -49,9 +46,8 @@ void kmain(uint32_t mb2_ptr) {
 
   // From now on, no early pmm
   pmm_init(total_memory_range, unusable_memory_ranges, count);
-  static vmspace_t kernel_vmspace = {0};
-  kernel_vmspace_create(&kernel_vmspace, total_memory_range);
-  g_kernel_vmspace = &kernel_vmspace;
+
+  kernel_vmspace_create(g_kernel_vmspace, total_memory_range);
   if (g_kernel_vmspace == NULL) {
     debugf("FAIL: Could not create page directory\n");
     return;
@@ -71,15 +67,11 @@ void kmain(uint32_t mb2_ptr) {
     }
   }
 
-  sched_init();
+  process_spawn("init.elf", PRIORITY_LOW);
+
   hal_timer_enable();
 
-  process_exec("test_a.elf", PRIORITY_LOW);
-  process_exec("test_b.elf", PRIORITY_VERY_HIGH);
-  process_exec("test_c.elf", PRIORITY_VERY_HIGH);
-
-  thread_t *first = sched_pick_next();
-  dispatch_switch_first(first);
+  sched_yield();
 
   for (;;) {
   }

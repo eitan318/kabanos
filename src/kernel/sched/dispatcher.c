@@ -1,45 +1,60 @@
 #include "dispatcher.h"
 #include "hal.h"
-#include "isr.h"
+#include "memory_management/memdefs.h"
+#include "string.h"
 
 thread_t *g_current_thread = NULL;
-static thread_t *pending_switch_target = NULL;
 
-void dispatch_switch_preserve_context(void *recent_context, thread_t *next) {
+static thread_t kmain_thread;
+static arch_thread_t kmain_arch;
+
+extern uint8_t stack_bottom[BOOT_STACK_SIZE];
+
+int dispatch_init(module_t *self) {
+  memset(&kmain_thread, 0, sizeof(thread_t));
+
+  kmain_thread.tid = 0; // The first thread
+  kmain_thread.priority = PRIORITY_HIGH;
+  kmain_thread.state = THREAD_RUNNING;
+  kmain_thread.mode = THREAD_MODE_KERNEL;
+
+  // Crucial: Point it to its arch-specific storage
+  kmain_thread.arch = &kmain_arch;
+
+  // We don't need to 'alloc_kernel_stack' because we are
+  // already using the boot stack. Just point to the top of it.
+  // (Ensure BOOT_STACK_TOP is the address from your linker/assembly)
+  kmain_thread.kstack_top = (void *)(stack_bottom + BOOT_STACK_SIZE);
+  kmain_thread.arch->kernel_esp = (void *)(stack_bottom + BOOT_STACK_SIZE);
+
+  // Adopt this as the current thread
+  g_current_thread = &kmain_thread;
+  return 0;
+}
+
+void dispatch_switch_to(thread_t *next) {
   thread_t *current = dispatch_get_current();
 
+  next->state = THREAD_RUNNING;
   if (!next || current == next) {
     return;
   }
 
-  // Save current thread context
-  hal_thread_save_context(current->arch, recent_context);
   hal_update_tss_and_syssenter_kstack(0, next->kstack_top);
 
-  next->state = THREAD_RUNNING;
   g_current_thread = next;
 
-  hal_thread_switch(next);
+  hal_thread_switch(current, next);
 }
 
-void dispatch_switch_first(thread_t *next) {
-  hal_update_tss_and_syssenter_kstack(0, next->kstack_top);
-
-  next->state = THREAD_RUNNING;
-  g_current_thread = next;
-
-  hal_thread_switch(next);
-}
-
-void dispatch_switch_to(thread_t *next) {
-  pending_switch_target = next;
-  __asm__ volatile("int $0x81");
-}
-
-static void handle_voluntary_yield(arch_regs *context) {
-  dispatch_switch_preserve_context(context, pending_switch_target);
-}
-
-void dispatch_init() { isr_handler_register(0x81, handle_voluntary_yield); }
-
+// if g_current_thread = null ret IDLE task i think
 thread_t *dispatch_get_current(void) { return g_current_thread; }
+
+static const char *dispatch_deps[] = {"hal", NULL};
+
+ITER_MODULE(dispatcher) = {
+    .name = "dispatcher",
+    .required = dispatch_deps,
+    .init = &dispatch_init,
+    .fini = NULL,
+};

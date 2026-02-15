@@ -5,7 +5,7 @@
 #define TIMER_IRQ 0
 #define TIMER_INT 0x20
 
-static void timer_isr(struct arch_regs *r) {
+static void timer_isr(trap_frame_t *r) {
   hal_irq_send_eoi(TIMER_IRQ); // Works only with eoi before
   sched_tick(r);
 }
