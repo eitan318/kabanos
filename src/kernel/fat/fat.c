@@ -160,6 +160,15 @@ bool fat_initialize(uint32_t partition_lba) {
   g_fat_data.initialized = true;
   return true;
 }
+//
+// static const char *fat_deps[] = {"disk", "devices", NULL};
+//
+// ITER_MODULE(fat) = {
+//     .name = "keyboard",
+//     .required = fat_deps,
+//     .init = &fat_initialize,
+//     .fini = NULL,
+// };
 
 static uint32_t fat_cluster_to_lba(uint32_t cluster) {
   return g_fat_data.data_section_lba +

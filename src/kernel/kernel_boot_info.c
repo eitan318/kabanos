@@ -7,7 +7,7 @@
 
 #define EARLYALLOC_SIZE (5 * 1024)
 
-static uintptr_t early_alloc(unsigned len) {
+static void *early_alloc(unsigned len) {
   static uint8_t buf[EARLYALLOC_SIZE];
   static unsigned idx = 0;
 
@@ -19,7 +19,7 @@ static uintptr_t early_alloc(unsigned len) {
   uint8_t *ptr = &buf[idx];
   idx += len;
 
-  return (uintptr_t)ptr;
+  return ptr;
 }
 
 KernelBootInfo *parse_multiboot2_early(mb2_info_t *mbi) {
@@ -47,21 +47,25 @@ KernelBootInfo *parse_multiboot2_early(mb2_info_t *mbi) {
 
     case MB2_TAG_MODULE: {
       mb2_tag_module_t *mod_tag = (void *)tag;
-      if (kernel_boot_info->module_count < MAX_MODULES) {
-        KernelModule *mod =
-            &kernel_boot_info->modules[kernel_boot_info->module_count++];
 
-        mod->start = (void *)mod_tag->mod_start;
-        mod->size = mod_tag->mod_end - mod_tag->mod_start;
+      module_t *mod = early_alloc(sizeof(module_t));
+      memset(mod, 0, sizeof(module_t));
 
-        // Copy module cmdline string into kernel memory
-        size_t len = strlen(mod_tag->cmdline) + 1;
-        mod->cmdline = (char *)early_alloc(len);
-        memcpy(mod->cmdline, mod_tag->cmdline, len);
-      }
+      mod->data_start = (void *)mod_tag->mod_start;
+      mod->data_size = mod_tag->mod_end - mod_tag->mod_start;
+
+      size_t len = strlen(mod_tag->cmdline) + 1;
+      char *cmdline = early_alloc(len);
+      memcpy(cmdline, mod_tag->cmdline, len);
+
+      mod->name = cmdline;
+
+      mod->next = kernel_boot_info->modules;
+      kernel_boot_info->modules = mod;
+
+      kernel_boot_info->module_count++;
       break;
     }
-
     case MB2_TAG_MMAP: {
       mb2_tag_mmap_t *mmap_tag = (void *)tag;
       mb2_mmap_entry_t *entry;
@@ -106,10 +110,10 @@ Range *get_unusable_memory_ranges(KernelBootInfo *kbi, Range memory_range,
   }
 
   for (int i = 0; i < kbi->module_count; i++) {
-    KernelModule *m = &kbi->modules[i];
+    module_t *m = &kbi->modules[i];
     range_list_push(&list, (Range){
-                               .start = (uintptr_t)m->start,
-                               .end = (uintptr_t)m->start + m->size,
+                               .start = (uintptr_t)m->data_start,
+                               .end = (uintptr_t)m->data_start + m->data_size,
                            });
   }
 

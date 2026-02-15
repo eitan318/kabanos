@@ -4,6 +4,7 @@
 #include "vga_text.h"
 #include "hal.h"
 #include "memory_management/memdefs.h"
+#include "modules/modules.h"
 
 const unsigned SCREEN_WIDTH = 80;
 const unsigned SCREEN_HEIGHT = 25;
@@ -108,3 +109,17 @@ void vga_puts(const char *str) {
     s++;
   }
 }
+
+static int vga_module_init(module_t *self) {
+  vga_clrscr();
+  vga_setcursor(0, 0);
+  return 0;
+}
+
+static const char *vga_deps[] = {"hal", NULL};
+
+ITER_MODULE(vga) = {
+    .name = "vga",
+    .required = vga_deps,
+    .init = &vga_module_init,
+};

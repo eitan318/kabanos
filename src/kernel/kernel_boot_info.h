@@ -1,17 +1,12 @@
 #pragma once
 #include "boot/bootparams.h"
 #include "memory_management/memory_map.h"
+#include "modules/modules.h"
 #include <stddef.h>
-typedef struct {
-  void *start;
-  size_t size;
-  char *cmdline; // copy of module path or parameters
-  bool loaded;
-} KernelModule;
 
 typedef struct {
   char *cmdline;
-  KernelModule modules[MAX_MODULES];
+  module_t *modules;
   int module_count;
   MemoryMap memory_map;
   uint32_t initrd_start;

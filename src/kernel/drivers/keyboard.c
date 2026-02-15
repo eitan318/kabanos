@@ -2,6 +2,7 @@
 #include "device.h"
 #include "hal.h"
 #include "isr.h"
+#include "modules/modules.h"
 #include "sched/spinlock.h"
 #include "sched/wait.h"
 #include "string.h"
@@ -101,9 +102,19 @@ int kbd_read(char *buf, size_t count) {
   return i;
 }
 
-void kbd_init() {
+int kbd_init(module_t *module) {
   circular_buff_init(&keyboard_buff);
   keyboard_lock = (spinlock_t)SPINLOCK_RELEASED;
   isr_handler_register(KBD_INT, keyboard_isr_handler);
   hal_irq_enable(KBD_IRQ);
+  return 0;
 }
+
+static const char *kbd_deps[] = {"hal", "devices", NULL};
+
+ITER_MODULE(keyboard) = {
+    .name = "keyboard",
+    .required = kbd_deps,
+    .init = &kbd_init,
+    .fini = NULL,
+};

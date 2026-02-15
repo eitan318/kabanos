@@ -10,6 +10,7 @@
 #include "memory_management/memory_map.h"
 #include "memory_management/pmm.h"
 #include "memory_management/vmspace.h"
+#include "modules/modules.h"
 #include "proc/exec.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
@@ -39,8 +40,8 @@ void kmain(uint32_t mb2_ptr) {
 
   KernelBootInfo *kernel_boot_info =
       parse_multiboot2_early((mb2_info_t *)mb2_ptr);
-
   mb2_ptr = 0; // disabling use of unparsed, low half params
+
   Range total_memory_range = get_memory_range(&kernel_boot_info->memory_map);
   size_t count;
   Range *unusable_memory_ranges =
@@ -57,14 +58,12 @@ void kmain(uint32_t mb2_ptr) {
   }
   // From now on no lower half mapping
   vmspace_switch(g_kernel_vmspace);
+
   kmalloc_init();
 
-  // Init hardware
-  hal_arch_init(1000 / TIMER_TICK_MS);
-  vga_clrscr();
-  vga_setcursor(0, 0);
-  kernel_init_devices();
-  kbd_init();
+  // Load static and dynamic modules
+  modules_init_registry(kernel_boot_info->modules);
+  modules_load();
 
   if (!fat_initialize(34)) {
     debugf("Failed to initialize FAT\n");

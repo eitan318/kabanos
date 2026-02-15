@@ -6,7 +6,9 @@
 #include "arch/i686/timer.h"
 #include "arch/i686/types.h"
 #include "assert.h"
+#include "modules/modules.h"
 #include "panic.h"
+#include "sched/sched.h"
 #include "string.h"
 #include <stdint.h>
 
@@ -27,13 +29,14 @@ uintptr_t hal_regs_pc(struct arch_regs *regs) { return regs->eip; }
 
 void hal_serial_putc(const char c) { hal_out8(0x3f8, c); }
 
-void hal_arch_init(uint32_t timer_tick_frequency_hz) {
+int hal_arch_init(module_t *self) {
   i686_gdt_init();
   i686_idt_init();
   i686_isr_init();
   i686_pic_init();
-  i686_timer_init(timer_tick_frequency_hz);
+  i686_timer_init(1000 / TIMER_TICK_MS);
   i686_sysenter_init();
+  return 0;
 }
 
 #define i686_MAX_REGS 16

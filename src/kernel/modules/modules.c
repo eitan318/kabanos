@@ -1,55 +1,74 @@
 #include "modules.h"
+#include "kernel_boot_info.h"
 #include "stdio.h"
 #include "string.h"
 
-// Load a specific module
-int module_load(KernelBootInfo *kbi, const char *name) {
-  for (uint32_t i = 0; i < kbi->module_count; i++) {
-    // Check if module name matches (compare basename)
-    const char *basename = strrchr(kbi->modules[i].cmdline, '/');
-    if (!basename)
-      basename = kbi->modules[i].cmdline;
-    else
-      basename++;
+static module_t *module_registry;
+static int registry_count = 0;
 
-    if (strcmp(basename, name) == 0) {
-      if (kbi->modules[i].loaded) {
-        debugf("Module %s already loaded\n", name);
-        return 0;
-      }
+extern module_t _modules_start[];
+extern module_t _modules_end[];
 
-      debugf("Loading module: %s\n", name);
+void modules_init_registry(module_t *dynamic_modules) {
+  // Add all static modules to the list first
+  size_t static_count = _modules_end - _modules_start;
+  for (size_t i = 0; i < static_count; i++) {
+    module_t *static_mod = &_modules_start[i];
 
-      // Module loading logic depends on your module format
-      // Example: if modules are ELF files, parse and load them
-      // For now, just mark as loaded
-
-      kbi->modules[i].loaded = 1;
-      debugf("Module %s loaded successfully\n", name);
-      return 0;
-    }
+    // Push to front of the registry list
+    static_mod->next = module_registry;
+    module_registry = static_mod;
   }
 
-  debugf("Module %s not found\n", name);
-  return -1;
+  // Attach the dynamic list to the end of the current registry
+  if (module_registry == NULL) {
+    module_registry = dynamic_modules;
+  } else {
+    module_t *last = module_registry;
+    while (last->next != NULL) {
+      last = last->next;
+    }
+    last->next = dynamic_modules;
+  }
 }
 
-// Get module data by name
-void *module_get_data(KernelBootInfo *kbi, const char *name,
-                      uint32_t *size_out) {
-  for (uint32_t i = 0; i < kbi->module_count; i++) {
-    const char *basename = strrchr(kbi->modules[i].cmdline, '/');
-    if (!basename)
-      basename = kbi->modules[i].cmdline;
-    else
-      basename++;
-
-    if (strcmp(basename, name) == 0) {
-      if (size_out) {
-        *size_out = kbi->modules[i].size;
-      }
-      return kbi->modules[i].start;
+module_t *find_module_by_name(const char *name) {
+  module_t *mod = module_registry;
+  while (mod != NULL) {
+    if (!strcmp(mod->name, name)) {
+      return mod;
     }
+    mod = mod->next;
   }
   return NULL;
+}
+
+void module_load(module_t *mod) {
+  if (mod->state == MODULE_LOADED)
+    return;
+
+  mod->state = MODULE_LOADING;
+
+  if (mod->required) {
+    for (int i = 0; mod->required[i] != NULL; i++) {
+      module_t *dep = find_module_by_name(mod->required[i]);
+      if (dep)
+        module_load(dep);
+    }
+  }
+
+  if (mod->init) {
+    debugf("Initing module: %s\n", mod->name);
+    mod->init(mod);
+  }
+
+  mod->state = MODULE_LOADED;
+}
+
+void modules_load() {
+  module_t *mod = module_registry;
+  while (mod != NULL) {
+    module_load(mod);
+    mod = mod->next;
+  }
 }

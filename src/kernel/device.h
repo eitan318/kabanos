@@ -17,4 +17,3 @@ typedef enum {
 
 device_t *get_device_by_handle(int handle);
 device_t *device_init(int id);
-void kernel_init_devices();

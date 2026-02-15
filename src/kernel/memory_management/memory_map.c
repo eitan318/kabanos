@@ -1,7 +1,6 @@
 #include "memory_map.h"
 #include "boot/bootparams.h"
 #include "memory_management/pmm.h"
-#include "string.h"
 
 void collect_non_usable_ranges(RangeList *list, MemoryMap *memory_map,
                                Range memory_range) {

@@ -24,7 +24,10 @@ SECTIONS
 	}
 	.rodata ALIGN (4K) : AT (ADDR (.rodata) - KERNEL_BASE_VIRT)
 	{
-		*(.rodata)
+        _modules_start = .;
+        KEEP(*(.modules))
+        _modules_end = .;
+	
 	}
 	.data ALIGN (4K) : AT (ADDR (.data) - KERNEL_BASE_VIRT)
 	{
