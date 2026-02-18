@@ -133,6 +133,7 @@ thread_t *thread_clone(thread_t *src, process_t *dst_proc) {
 
   // 6. ARCH-SPECIFIC COPY
   if (hal_thread_clone_current(src, child) != 0) {
+    debugf("Fork faild to clone curr thread");
     return NULL;
   }
 

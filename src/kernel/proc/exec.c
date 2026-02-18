@@ -56,6 +56,7 @@ int process_exec_noreturn(const char *path, enum thread_priority p) {
 
 int process_spawn(const char *path, enum thread_priority p) {
   process_t *proc = process_create();
+  proc->vmspace = vmspace_create();
   uintptr_t entry;
   if (exec_load_elf(proc->vmspace, path, &entry) < 0) {
     process_destroy(proc);

@@ -1,4 +1,4 @@
-#include "include/posix.h"
+#include "posix.h"
 #include <stddef.h>
 
 void _start(void) {

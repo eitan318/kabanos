@@ -1,36 +1,15 @@
-in switching from, after push, and switch to target kenel esp, before pop:
 
-To tid 1
-
-(gdb) x/25wx $esp
-0xf1005fb4:     0x00000023      0x00000023      0x00000023      0x00000023
-0xf1005fc4:     0x000000dd      0x000000dd      0x000000dd      0x000000dd
-0xf1005fd4:     0x000000dd      0x000000dd      0x000000dd      0x000000dd
-0xf1005fe4:     0x00000000      0x00000000      0x08049000      0x0000001b
-0xf1005ff4:     0x00000202      0xbffff000      0x00000023      Cannot access memory at address
- 0xf1006000
+(gdb) p str
+$4 = 0x804a000 <error: Cannot access memory at address 0x804a000>
 (gdb)
 
 
+Bug on yield in sched_tick after first timeslice of test_c.elf
 
-To tid 2
-(gdb) x/25wx $esp
-0xf1007fb4:     0x00000023      0x00000023      0x00000023      0x00000023
-0xf1007fc4:     0x000000dd      0x000000dd      0x000000dd      0x000000dd
-0xf1007fd4:     0x000000dd      0x000000dd      0x000000dd      0x000000dd
-0xf1007fe4:     0x00000000      0x00000000      0x08049000      0x0000001b
-0xf1007ff4:     0x00000202      0xbffff000      0x00000023      Cannot access memory at address
- 0xf1008000
+
+(gdb) p $eps
+$2 = void
 (gdb)
 
 
-
-To tid 1
-(gdb) x/25wx $esp
-0xf1005fb4:     0xbfffefe3      0x00000023      0x00000023      0x00000023
-0xf1005fc4:     0x00000001      0xc0109f8b      0xf1005fd0      0x00000004
-0xf1005fd4:     0x00000001      0x0804c000      0xbfffefe3      0x00000000
-0xf1005fe4:     0x00000000      0x00000000      0x08049085      0x0000001b
-0xf1005ff4:     0x00000082      0xbfffefd0      0x00000023      Cannot access memory at address
- 0xf1006000
-(gdb)
+esp            0xf1009eb0          0xf1009eb0

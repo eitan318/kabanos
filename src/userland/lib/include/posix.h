@@ -1,3 +1,4 @@
+#pragma once
 #include "syscall.h"
 #include <stddef.h>
 #include <stdint.h>
@@ -6,6 +7,7 @@
 #define DELAY_LOOP 10000000
 
 typedef uint32_t pid_t;
+typedef uint32_t fd_t;
 typedef uint64_t ssize_t;
 
 typedef enum {
@@ -14,8 +16,8 @@ typedef enum {
   FD_STDERR = 2,
 } STREAM_FD;
 
-pid_t fork(void) {
-  return (pid_t)_syscall6(SYSCALL_NUMBER_SYS_FORK, 0, 0, 0, 0, 0,
+pid_t fork(char *try) {
+  return (pid_t)_syscall6(SYSCALL_NUMBER_SYS_FORK, try, 0, 0, 0, 0,
                           0); // Assigned 5 for SYS_FORK
 }
 

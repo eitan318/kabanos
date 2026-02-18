@@ -45,9 +45,9 @@ vmspace_t *vmspace_create() {
 
 void vmspace_switch(vmspace_t *vmspace) { hal_vm_arch_load(vmspace->arch); }
 
-vmspace_t *vmspace_clone(vmspace_t *other) {
-  vmspace_t *vmspace_clone = kmalloc(sizeof(*vmspace_clone));
-  hal_vm_arch_clone(vmspace_clone->arch, other->arch);
+vmspace_t *vmspace_clone(vmspace_t *original) {
+  vmspace_t *vmspace_clone = vmspace_create();
+  hal_vm_arch_clone(vmspace_clone->arch, original->arch);
   return vmspace_clone;
 }
 

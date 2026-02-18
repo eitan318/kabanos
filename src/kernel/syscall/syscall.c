@@ -111,13 +111,14 @@ void sys_sleep(uint32_t seconds) {
   sched_yield();
 }
 
-long sys_fork() {
+long sys_fork(char *try) {
   process_t *parent_proc = dispatch_get_current()->process;
 
   process_t *child_proc = process_create();
   child_proc->vmspace = vmspace_clone(parent_proc->vmspace);
 
   thread_t *child_thread = thread_clone(dispatch_get_current(), child_proc);
+  child_proc->main_thread = child_thread;
 
   hal_thread_set_return_value(child_thread, 0);
 
@@ -186,7 +187,7 @@ long syscall_dispatch(syscall_info_t f) {
     sys_sleep(f.args[0]);
     return 0; // Should never reach here
   case SYSCALL_NUMBER_SYS_FORK:
-    return sys_fork();
+    return sys_fork((char *)f.args[0]);
   case SYSCALL_NUMBER_SYS_EXECVE:
     return sys_execve((const char *)f.args[0], (char *const *)f.args[1],
                       (char *const *)f.args[2]);

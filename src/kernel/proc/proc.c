@@ -12,7 +12,6 @@ process_t *process_create(void) {
   memset(p, 0, sizeof(*p));
 
   p->pid = alloc_pid();
-  p->vmspace = vmspace_create();
 
   return p;
 }

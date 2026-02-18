@@ -225,6 +225,8 @@ uint32_t fat_read(FAT_File *file, uint32_t byte_count, void *out) {
                          ? &g_fat_data.root_directory
                          : &g_fat_data.opened_files[file->handle];
 
+  // debugf("fd.buf = %p, DATA: %s\n", fd->buffer, fd->buffer);
+
   uint8_t *out8 = (uint8_t *)out;
 
   // Limit read to file size (except for directories with unknown size)
@@ -331,6 +333,7 @@ static bool fat_find_file(FAT_File *file, const char *name,
   }
 
   while (fat_read_entry(file, &entry)) {
+    // debugf("entry_name: %s target: %s\n", entry.name, fat_name);
     if (memcmp(fat_name, entry.name, 11) == 0) {
       *out = entry;
       return true;
@@ -351,6 +354,9 @@ FAT_File *fat_open(const char *path) {
     path++;
 
   FAT_File *current = &g_fat_data.root_directory.public;
+  // debugf("handle: %d, pos: %d, size: %d \n", current->handle,
+  // current->position,
+  //        current->size);
 
   while (*path) {
     bool is_last = false;
@@ -392,6 +398,7 @@ int fat_read_file(const char *path, void **buffer, uint32_t *size) {
     return -1;
   }
 
+  // Error here
   debugf("FAT: Opening file '%s'...\n", path);
   FAT_File *file = fat_open(path);
 
@@ -399,8 +406,6 @@ int fat_read_file(const char *path, void **buffer, uint32_t *size) {
     debugf("FAT: Could not open: %s\n", path);
     return -2;
   }
-
-  debugf("FAT: File size: %u bytes\n", file->size);
 
   *buffer = kmalloc(file->size);
   if (!*buffer) {
@@ -419,7 +424,7 @@ int fat_read_file(const char *path, void **buffer, uint32_t *size) {
     return -4;
   }
 
-  debugf("FAT: File loaded successfully (%u bytes)\n", read);
+  debugf("FAT: File read successfull (%u bytes)\n", read);
   return 0;
 }
 
