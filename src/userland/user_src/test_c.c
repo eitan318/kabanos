@@ -1,7 +1,7 @@
 #include "posix.h"
 #include <stddef.h>
 
-void _start(void) {
+void main(void) {
   for (;;) {
     write(FD_STDOUT, "C", 1);
     // Simple delay loop so it doesn't fill the screen too fast

@@ -14,8 +14,8 @@ typedef void (*interrupt_handler_t)(trap_frame_t *r);
 int hal_arch_init(module_t *self);
 
 // Panic
-int hal_describe_regs(struct trap_frame *regs, int max, const char **names,
-                      uintptr_t *values);
+int hal_describe_trap_frame(struct trap_frame *regs, int max,
+                            const char **names, uintptr_t *values);
 uintptr_t hal_backtrace(uintptr_t *data, trap_frame_t *regs);
 void hal_halt(void);
 void hal_trap();

@@ -1,6 +1,7 @@
 #include "dispatcher.h"
 #include "hal.h"
 #include "memory_management/memdefs.h"
+#include "stdio.h"
 #include "string.h"
 
 thread_t *g_current_thread = NULL;
@@ -34,6 +35,7 @@ int dispatch_init(module_t *self) {
 
 void dispatch_switch_to(thread_t *next) {
   thread_t *current = dispatch_get_current();
+  printf("curr: %d, next %d", current->tid, next->tid);
 
   next->state = THREAD_RUNNING;
   if (!next || current == next) {

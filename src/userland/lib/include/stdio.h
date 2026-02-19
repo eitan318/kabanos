@@ -1,9 +1,12 @@
+// STDIO for custom libc
 #ifndef _STDIO_H
 #define _STDIO_H
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+typedef long fpos_t;
 
 // Instead of bits/alltypes, use the compiler's versions
 #include <stdarg.h> // Gives you va_list for printf
@@ -68,7 +71,7 @@ int fprintf(FILE *__restrict, const char *__restrict, ...);
 int sprintf(char *__restrict, const char *__restrict, ...);
 int snprintf(char *__restrict, size_t, const char *__restrict, ...);
 
-int vprintf(const char *__restrict, __isoc_va_list);
+int vprintf(const char *__restrict, va_list);
 int vfprintf(FILE *__restrict, const char *__restrict, va_list);
 int vsprintf(char *__restrict, const char *__restrict, va_list);
 int vsnprintf(char *__restrict, size_t, const char *__restrict, va_list);
@@ -76,7 +79,7 @@ int vsnprintf(char *__restrict, size_t, const char *__restrict, va_list);
 int scanf(const char *__restrict, ...);
 int fscanf(FILE *__restrict, const char *__restrict, ...);
 int sscanf(const char *__restrict, const char *__restrict, ...);
-int vscanf(const char *__restrict, __isoc_va_list);
+int vscanf(const char *__restrict, va_list);
 int vfscanf(FILE *__restrict, const char *__restrict, va_list);
 int vsscanf(const char *__restrict, const char *__restrict, va_list);
 
@@ -84,4 +87,5 @@ void perror(const char *);
 
 #ifdef __cplusplus
 }
+#endif
 #endif

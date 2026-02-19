@@ -20,8 +20,8 @@ void collect_non_usable_ranges(RangeList *list, MemoryMap *memory_map,
 }
 
 Range get_memory_range(MemoryMap *memory_map) {
-  uintptr_t max_addr = 0;          // Initialize to 0
-  uintptr_t min_addr = UINT64_MAX; // Initialize to max value
+  uintptr_t max_addr = 0;
+  uintptr_t min_addr = UINT64_MAX;
 
   for (int i = 0; i < memory_map->region_count; i++) {
     MemoryRegion *region = &memory_map->regions[i];

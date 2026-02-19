@@ -101,21 +101,12 @@ int hal_thread_init(thread_t *t, uintptr_t entry, uintptr_t user_stack) {
   t->arch->kernel_esp = sp;
   return 0;
 }
+int hal_thread_clone_current(thread_t *src, thread_t *child) {
+  void *child_to = (void *)child->kstack_top - sizeof(trap_frame_t);
+  void *src_from = (void *)src->kstack_top - sizeof(trap_frame_t);
+  memcpy(child_to, src_from, sizeof(trap_frame_t));
 
-int hal_thread_clone_current(thread_t *current_thread, thread_t *dest_thread) {
-  uintptr_t current_esp;
-  asm volatile("mov %%esp, %0" : "=r"(current_esp));
-
-  size_t stack_used = (uintptr_t)current_thread->kstack_top - current_esp;
-
-  // Set the destination stack pointer at the same offset
-  dest_thread->arch->kernel_esp =
-      (void *)((uintptr_t)dest_thread->kstack_top - stack_used);
-
-  // Copy the live stack to the new thread's stack
-  memcpy(dest_thread->arch->kernel_esp, (void *)current_esp, stack_used);
-
-  hal_thread_set_return_value(dest_thread, 0);
+  child->arch->kernel_esp = (void *)src->kstack_top - sizeof(trap_frame_t);
 
   return 0;
 }

@@ -1,8 +1,13 @@
 #include "posix.h"
+#include "stdio.h"
 #include <stddef.h>
+#include <stdio.h>
 
-void _start(void) {
-  pid_t pid = fork("hello");
+int main(void) {
+  printf("forking\n");
+  pid_t pid = fork();
+  printf("after fork\n");
+
   if (pid == 0) {
     //  This is the CHILD process
     // execve("test_b.elf", NULL, NULL);
@@ -12,7 +17,5 @@ void _start(void) {
   }
 
   execve("test_c.elf", NULL, NULL);
-
-  // This is the PARENT process (the original _start)
-  // It continues here immediately while test_a runs.
+  return 0;
 }

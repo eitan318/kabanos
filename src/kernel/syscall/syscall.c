@@ -11,6 +11,7 @@
 #include "stdio.h"
 #include <stddef.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 
 typedef enum {
@@ -111,7 +112,7 @@ void sys_sleep(uint32_t seconds) {
   sched_yield();
 }
 
-long sys_fork(char *try) {
+long sys_fork() {
   process_t *parent_proc = dispatch_get_current()->process;
 
   process_t *child_proc = process_create();
@@ -123,6 +124,8 @@ long sys_fork(char *try) {
   hal_thread_set_return_value(child_thread, 0);
 
   sched_enqueue(child_thread);
+  // printf("chld tid: %d", child_thread->tid);
+  // printf("parent tid: %d", parent_proc->main_thread->tid);
 
   return child_proc->pid; // Parent gets the PID
 }
@@ -187,7 +190,7 @@ long syscall_dispatch(syscall_info_t f) {
     sys_sleep(f.args[0]);
     return 0; // Should never reach here
   case SYSCALL_NUMBER_SYS_FORK:
-    return sys_fork((char *)f.args[0]);
+    return sys_fork();
   case SYSCALL_NUMBER_SYS_EXECVE:
     return sys_execve((const char *)f.args[0], (char *const *)f.args[1],
                       (char *const *)f.args[2]);

@@ -1,7 +1,7 @@
 #include "posix.h"
 #include <stddef.h>
 
-void _start(void) {
+void main(void) {
   char key_buf[3];
   for (;;) {
     read(FD_STDIN, key_buf, 1);

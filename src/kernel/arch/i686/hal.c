@@ -39,45 +39,61 @@ int hal_arch_init(module_t *self) {
   return 0;
 }
 
-#define i686_MAX_REGS 16
+#define i686_MAX_REGS 21
 unsigned hal_regs_max_get() { return i686_MAX_REGS; }
 
 bool hal_regs_from_user(const struct trap_frame *regs) {
   return (regs->cs & 0x3) != 0;
 }
 
-int hal_describe_regs(struct trap_frame *regs, int max_regs, const char **names,
-                      uintptr_t *values) {
-  if (max_regs != i686_MAX_REGS)
+int hal_describe_trap_frame(struct trap_frame *regs, int max_regs,
+                            const char **names, uintptr_t *values) {
+  if (max_regs < i686_MAX_REGS)
     return -1;
   if (!regs)
     panic_halt("describe_regs(NULL)!");
 
-  static const char *_names[] = {"eax", "ecx", "edx", "ebx",    "esi", "edi",
-                                 "eip", "ebp", "esp", "eflags", "cs",  "U-esp",
-                                 "cr0", "cr2", "cr3", "cr4"};
-  memcpy((uint8_t *)names, (uint8_t *)_names,
-         sizeof(const char *) * i686_MAX_REGS);
+  // 1. Define names in the exact order of your struct + Control Registers
+  static const char *_names[] = {
+      "gs",     "fs",       "es",     "ds",        // Segment registers
+      "edi",    "esi",      "ebp",    "esp_dummy", // pusha part 1
+      "ebx",    "edx",      "ecx",    "eax",       // pusha part 2
+      "int_no", "err_code",                        // ISR Stub
+      "eip",    "cs",       "eflags", "esp_user",  "ss_user", // CPU Automatic
+      "cr2",    "cr3"                                         // Contextual info
+  };
 
-  values[0] = regs->eax;
-  values[1] = regs->ecx;
-  values[2] = regs->edx;
-  values[3] = regs->ebx;
-  values[4] = regs->esi;
-  values[5] = regs->edi;
-  values[6] = regs->eip;
+  // Copy names to the output buffer
+  for (int i = 0; i < i686_MAX_REGS; i++) {
+    names[i] = _names[i];
+  }
+
+  // 2. Map struct members to the values array
+  values[0] = regs->gs;
+  values[1] = regs->fs;
+  values[2] = regs->es;
+  values[3] = regs->ds;
+  values[4] = regs->edi;
+  values[5] = regs->esi;
+  values[6] = regs->ebp;
   values[7] = regs->esp_dummy;
-  values[8] = regs->esp_dummy;
-  values[9] = regs->eflags;
-  values[10] = regs->cs;
-  values[11] = regs->esp_user;
+  values[8] = regs->ebx;
+  values[9] = regs->edx;
+  values[10] = regs->ecx;
+  values[11] = regs->eax;
+  values[12] = regs->interrupt;
+  values[13] = regs->error;
+  values[14] = regs->eip;
+  values[15] = regs->cs;
+  values[16] = regs->eflags;
+  values[17] = regs->esp_user;
+  values[18] = regs->ss_user;
 
-  __asm__ volatile("mov %%cr0, %0" : "=r"(values[12]));
-  __asm__ volatile("mov %%cr2, %0" : "=r"(values[13]));
-  __asm__ volatile("mov %%cr3, %0" : "=r"(values[14]));
-  __asm__ volatile("mov %%cr4, %0" : "=r"(values[15]));
+  // 3. Capture Control Registers (Very useful for Page Faults/cr2)
+  __asm__ volatile("mov %%cr2, %0" : "=r"(values[19]));
+  __asm__ volatile("mov %%cr3, %0" : "=r"(values[20]));
 
-  return 16;
+  return i686_MAX_REGS;
 }
 
 uintptr_t hal_backtrace(uintptr_t *data, struct trap_frame *regs) {

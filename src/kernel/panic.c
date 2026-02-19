@@ -17,7 +17,7 @@ void panic_from_regs(struct trap_frame *regs) {
   const char *names[max_regs];
   uintptr_t vals[max_regs];
 
-  int n = hal_describe_regs(regs, max_regs, names, vals);
+  int n = hal_describe_trap_frame(regs, max_regs, names, vals);
   for (int i = 0; i < n; i++) {
     debugf_and_printf("%s: 0x%lx, ", names[i], vals[i]);
   }
