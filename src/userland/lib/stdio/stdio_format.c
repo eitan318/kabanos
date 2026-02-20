@@ -1,70 +1,11 @@
-// STDIO for custom libc
-#include "stdio.h"
 #include "math.h"
-#include "posix.h"
-#include <stdarg.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#include "stdint.h"
+#include "stdio.h"
+#include "stdio_internal.h"
 
-// ============================================================================
-// FILE structure and globals
-// ============================================================================
-typedef struct _IO_FILE {
-  int fd;
-  char *buf;
-  size_t buf_size;
-  size_t buf_pos;
-} FILE;
-
-#define BUFSIZ 0x10000
-
-static char stdout_buf[BUFSIZ];
-static struct _IO_FILE _stdin_file = {
-    .fd = FD_STDIN, .buf = NULL, .buf_size = 0, .buf_pos = 0};
-static struct _IO_FILE _stdout_file = {
-    .fd = FD_STDOUT, .buf = stdout_buf, .buf_size = BUFSIZ, .buf_pos = 0};
-static struct _IO_FILE _stderr_file = {
-    .fd = FD_STDERR, .buf = NULL, .buf_size = 0, .buf_pos = 0};
-
-FILE *const stdin = &_stdin_file;
-FILE *const stdout = &_stdout_file;
-FILE *const stderr = &_stderr_file;
-
-static int file_putc(int c, FILE *file) {
-  uint8_t byte = (uint8_t)c;
-
-  if (file->buf && file->buf_size > 0) {
-    file->buf[file->buf_pos] = (char)byte;
-    // only track pos for snprintf, or flush for real files
-    if (file->fd == -1) {
-      // buffer-only mode (snprintf): just advance, never flush
-      if (file->buf_pos < file->buf_size - 1)
-        file->buf_pos++;
-    } else {
-      file->buf_pos++;
-      if (file->buf_pos >= file->buf_size || byte == '\n') {
-        write(file->fd, file->buf, file->buf_pos);
-        file->buf_pos = 0;
-      }
-    }
-  } else {
-    write(file->fd, &byte, 1);
-  }
-
-  return (unsigned char)c;
-}
-
-int fflush(FILE *file) {
-  if (file && file->buf && file->buf_pos > 0) {
-    write(file->fd, file->buf, file->buf_pos);
-    file->buf_pos = 0;
-  }
-  return 0;
-}
 static void out_putc(FILE *out, char c) {
   if (out) {
-    file_putc((unsigned char)c, out);
+    fputc((unsigned char)c, out);
   } else if (out->buf) {
     if (out->buf_pos < out->buf_size - 1)
       out->buf[out->buf_pos] = c;
@@ -76,10 +17,6 @@ static void out_puts(FILE *out, const char *s) {
   while (*s)
     out_putc(out, *s++);
 }
-
-// ============================================================================
-// Core formatting engine
-// ============================================================================
 
 static const char g_hex_chars[] = "0123456789abcdef";
 
@@ -284,7 +221,7 @@ int fprintf(FILE *__restrict file, const char *__restrict fmt, ...) {
   return ret;
 }
 
-int printf(const char *__restrict fmt, ...) {
+int dprintf(const char *__restrict fmt, ...) {
   va_list args;
   va_start(args, fmt);
   int ret = vfprintf(stdout, fmt, args);
@@ -307,21 +244,4 @@ int sprintf(char *__restrict buf, const char *__restrict fmt, ...) {
   int ret = vsprintf(buf, fmt, args);
   va_end(args);
   return ret;
-}
-
-int fputc(int c, FILE *file) { return file_putc(c, file); }
-int putc(int c, FILE *file) { return file_putc(c, file); }
-int putchar(int c) { return file_putc(c, stdout); }
-
-int fputs(const char *__restrict s, FILE *__restrict file) {
-  while (*s)
-    if (file_putc((unsigned char)*s++, file) == EOF)
-      return EOF;
-  return 0;
-}
-
-int puts(const char *s) {
-  if (fputs(s, stdout) == EOF)
-    return EOF;
-  return file_putc('\n', stdout);
 }

@@ -128,16 +128,6 @@ int hal_thread_clone_current(thread_t *src, thread_t *child) {
   trap_frame_t *child_tf =
       (trap_frame_t *)((uintptr_t)child->kstack_top - tf_offset);
 
-  int max_regs = hal_regs_max_get();
-  const char *names[max_regs];
-  uintptr_t vals[max_regs];
-
-  int n = hal_describe_trap_frame(child_tf, max_regs, names, vals);
-  for (int i = 0; i < n; i++) {
-    debugf_and_printf("%s: 0x%lx, ", names[i], vals[i]);
-  }
-  debugf_and_printf("\n");
-
   // 3. CRITICAL: Set the return value for the child to 0
   // On x86, this is EAX. On ARM, it's R0.
   child_tf->eax = 0;
@@ -147,7 +137,6 @@ int hal_thread_clone_current(thread_t *src, thread_t *child) {
   // function like ret_from_fork that pops the registers and exits to userland.
   //
   child->arch->kernel_esp = (void *)child_tf;
-  printf("child (tid %d) esp %p", child->tid, child->arch->kernel_esp);
 
   return 0;
 }

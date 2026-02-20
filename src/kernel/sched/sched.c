@@ -160,9 +160,6 @@ void sched_apply_aging(void) {
           ready_queue_tails[i - 1]->next = to_promote;
           ready_queue_tails[i - 1] = to_promote;
         }
-
-        // printf("Aging: Promoted TID %d to priority %d\n", to_promote->tid,
-        //      to_promote->priority);
       } else {
         prev = curr;
         curr = curr->next;

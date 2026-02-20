@@ -1,30 +1,28 @@
-#include "posix.h"
 #include "stdio.h"
+#include "unistd.h"
 #include <stddef.h>
 #include <stdio.h>
 
-int main(void) {
+int proc_spawn(char *name) {
   pid_t pid = fork();
-  asm volatile("nop");
-  asm volatile("nop");
-  asm volatile("nop");
 
-  printf("pid: %d\n", pid);
-
-  if (pid == 0) {
-    //  This is the CHILD process
-    execve("test_c.elf", NULL, NULL);
-    //  If execve fails, we must exit so the child doesn't
-    //  keep running the parent's loop.
-    _exit(1);
+  if (pid < 0) {
+    perror("fork failed");
+    return 1;
   }
 
-  printf("forked proc didnt spawn\n");
-  yield();
-  asm volatile("nop");
-  asm volatile("nop");
-  asm volatile("nop");
-  asm volatile("nop");
+  if (pid == 0) {
+    execve(name, NULL, NULL);
+    perror("execve failed");
+    _exit(1);
+  }
+  return 0;
+}
 
-  return 5;
+int main(void) {
+  dprintf("hello");
+  // proc_spawn("test_b.elf");
+  dprintf("hello");
+
+  return 0;
 }

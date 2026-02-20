@@ -34,6 +34,8 @@ SECTIONS
 		*(.data)
 	}
 
+    .bootstrap_stack ALIGN(16) : { *(.bootstrap_stack) }
+
     _bss_start = .;
     .bss ALIGN(4K) : AT(ADDR(.bss) - KERNEL_BASE_VIRT)
     {
@@ -42,7 +44,6 @@ SECTIONS
     }
     _bss_end = .;
 
-    .bootstrap_stack ALIGN(16) : { *(.bootstrap_stack) }
 
 	_kernel_end = .;
 }

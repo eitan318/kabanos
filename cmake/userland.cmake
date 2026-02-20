@@ -1,7 +1,7 @@
 enable_language(ASM_NASM)
 
-file(GLOB LIB_C_SOURCES ${SRC_DIR}/userland/lib/*.c)
-file(GLOB LIB_ASM_SOURCES ${SRC_DIR}/userland/lib/*.asm)
+file(GLOB_RECURSE LIB_C_SOURCES ${SRC_DIR}/userland/lib/*.c)
+file(GLOB_RECURSE LIB_ASM_SOURCES ${SRC_DIR}/userland/lib/*.asm)
 
 # Manually assemble all .asm files as elf32
 set(LIB_ASM_OBJECTS)

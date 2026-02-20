@@ -66,6 +66,7 @@ paddr_t hal_vm_virt_to_phys(arch_vm_t *pd, vaddr_t va);
 bool hal_vm_map_range(arch_vm_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
                       size_t size, uint32_t flags);
 bool hal_vm_unmap_range(arch_vm_t *pd_virt, vaddr_t va_start, size_t size);
+void hal_vm_arch_clone_mapping(arch_vm_t *dst, arch_vm_t *src);
 
 //  - context
 bool hal_vm_empty_arch_vm_create(arch_vm_t *kernel_arch_vm);

@@ -18,10 +18,18 @@ static inline long __syscall6(long num, long a1, long a2, long a3, long a4,
                    : "memory", "ecx", "edx");
   return ret;
 }
+static int errno;
+static inline long __syscall_ret(unsigned long r) {
+  if (r > -4096) {
+    errno = -r;
+    return -1;
+  }
+  return r;
+}
 
 #define _syscall6(num, a1, a2, a3, a4, a5, a6)                                 \
-  __syscall6((num), (long)(a1), (long)(a2), (long)(a3), (long)(a4),            \
-             (long)(a5), (long)(a6))
+  __syscall_ret(__syscall6((num), (long)(a1), (long)(a2), (long)(a3),          \
+                           (long)(a4), (long)(a5), (long)(a6)))
 
 typedef enum {
   /* --- File & Device I/O --- */

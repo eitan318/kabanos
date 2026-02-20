@@ -9,11 +9,9 @@
 typedef uint32_t pid_t;
 typedef uint64_t ssize_t;
 
-typedef enum {
-  FD_STDIN = 0,
-  FD_STDOUT = 1,
-  FD_STDERR = 2,
-} STREAM_FD;
+#define FD_STDIN 0
+#define FD_STDOUT 1
+#define FD_STDERR 2
 
 pid_t fork();
 int execve(const char *pathname, char *const argv[], char *const envp[]);

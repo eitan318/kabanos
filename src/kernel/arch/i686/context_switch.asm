@@ -41,22 +41,24 @@ thread_switch_to:
     pop ds
     popa
 
+     add esp, 8
+
      ; Peek at what's below esp.
      ; Interrupt frame has CS at esp+4. User CS = 0x1b, kernel CS = 0x08.
      ; If it looks like an iret frame, use iret. Otherwise ret.
-     mov eax, [esp + 12]
-     cmp eax, 0x08        ; kernel CS = voluntary yield, came via call
+     cmp dword [esp + 4], 0x08        ; kernel CS = voluntary yield, came via call
      je .voluntary
-     cmp eax, 0x1b        ; user CS = preempted from userspace
+     cmp dword [esp + 4], 0x1b        ; user CS = preempted from userspace
      je .from_interrupt
-        
-     ; fallthrough = unknown, probably voluntary kernel thread
+
+; fallthrough = unknown probabl voluntary
+
+
  .voluntary:
      ret
+
  .from_interrupt:
-     add esp, 8
 
     ; the EIP, CS, EFLAGS, etc., required by IRET.
      iret
-
 

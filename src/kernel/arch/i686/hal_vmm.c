@@ -13,7 +13,7 @@
 #include <stdint.h>
 #include <string.h>
 
-typedef uint32_t page_dir_t;
+typedef uint32_t page_dir_entry_t;
 
 #define KERNEL_PD_START (KERNEL_BASE / (4 * 1024 * 1024))
 #define PD_PT_PRESENT PAGE_PRESENT
@@ -47,7 +47,7 @@ static inline uint32_t calc_remaining_in_pt(uint32_t pt_index) {
 }
 
 paddr_t hal_vm_virt_to_phys(arch_vm_t *vm, vaddr_t va) {
-  page_dir_t *pd = vm->pd;
+  page_dir_entry_t *pd = vm->pd;
   uint32_t pd_index = get_pd_index(va);
   uint32_t pt_index = get_pt_index(va);
 
@@ -81,7 +81,7 @@ static paddr_t allocate_page_table(void) {
   return pt_phys;
 }
 
-static bool ensure_page_table_exists(page_dir_t *pd, uint32_t pd_index,
+static bool ensure_page_table_exists(page_dir_entry_t *pd, uint32_t pd_index,
                                      uint32_t flags) {
   if (pd[pd_index] & PD_PT_PRESENT) {
     return true;
@@ -97,7 +97,7 @@ static bool ensure_page_table_exists(page_dir_t *pd, uint32_t pd_index,
   return true;
 }
 
-static paddr_t get_or_create_page_table(page_dir_t *pd, uint32_t pd_index,
+static paddr_t get_or_create_page_table(page_dir_entry_t *pd, uint32_t pd_index,
                                         uint32_t flags, bool *created) {
   if (pd[pd_index] & PD_PT_PRESENT) {
     *created = false;
@@ -128,8 +128,8 @@ static void fill_page_table_entries(uint32_t *pt, uint32_t start_index,
   }
 }
 
-static void map_full_page_table(page_dir_t *pd, uint32_t pd_index, paddr_t pa,
-                                uint32_t flags) {
+static void map_full_page_table(page_dir_entry_t *pd, uint32_t pd_index,
+                                paddr_t pa, uint32_t flags) {
   bool created;
   paddr_t pt_phys = get_or_create_page_table(pd, pd_index, flags, &created);
   uint32_t *pt_virt = get_pt_virtual(pt_phys);
@@ -137,7 +137,7 @@ static void map_full_page_table(page_dir_t *pd, uint32_t pd_index, paddr_t pa,
   fill_page_table_entries(pt_virt, 0, PT_ENTRIES, pa, flags);
 }
 
-static void map_partial_page_table(page_dir_t *pd, uint32_t pd_index,
+static void map_partial_page_table(page_dir_entry_t *pd, uint32_t pd_index,
                                    uint32_t pt_index, uint32_t page_count,
                                    paddr_t pa, uint32_t flags, vaddr_t va) {
   if (!ensure_page_table_exists(pd, pd_index, flags)) {
@@ -168,13 +168,13 @@ static void clear_page_table_entries(uint32_t *pt, uint32_t start_index,
   }
 }
 
-static void unmap_full_page_table(page_dir_t *pd, uint32_t pd_index) {
+static void unmap_full_page_table(page_dir_entry_t *pd, uint32_t pd_index) {
   paddr_t pt_phys = pd[pd_index] & ~0xFFF;
   pmm_frame_free(pt_phys);
   pd[pd_index] = 0;
 }
 
-static void unmap_partial_page_table(page_dir_t *pd, uint32_t pd_index,
+static void unmap_partial_page_table(page_dir_entry_t *pd, uint32_t pd_index,
                                      uint32_t pt_index, uint32_t page_count) {
   paddr_t pt_phys = pd[pd_index] & ~0xFFF;
   uint32_t *pt_virt = get_pt_virtual(pt_phys);
@@ -196,7 +196,7 @@ static uint32_t calculate_map_size(uint32_t pt_index, vaddr_t va,
 bool hal_vm_map_range(arch_vm_t *vm, paddr_t pa_start, vaddr_t va_start,
                       size_t size, uint32_t flags) {
 
-  page_dir_t *pd_virt = vm->pd;
+  page_dir_entry_t *pd_virt = vm->pd;
 
   if (size == 0) {
     return true;
@@ -241,7 +241,7 @@ bool hal_vm_unmap_range(arch_vm_t *vm, vaddr_t va_start, size_t size) {
   if (size == 0) {
     return true;
   }
-  page_dir_t *pd_virt = vm->pd;
+  page_dir_entry_t *pd_virt = vm->pd;
 
   ASSERT(is_aligned(va_start, PAGE_SIZE));
   ASSERT(is_aligned(size, PAGE_SIZE));
@@ -351,8 +351,22 @@ bool hal_vmm_handle_cow(arch_vm_t *arch_vm, uintptr_t addr) {
   return true;
 }
 
+//
+// Page Directory Lifetime
+//
+
+void hal_vm_arch_destroy(arch_vm_t *vm) {
+  for (int i = 0; i < KERNEL_PD_START; i++) {
+    if (vm->pd[i] & PD_PT_PRESENT) {
+      paddr_t pt_phys = vm->pd[i] & ~0xFFF;
+      pmm_frame_free(pt_phys);
+    }
+  }
+  pmm_frame_free(vm->pd_phys);
+}
+
 static void hal_vmm_set_cow(arch_vm_t *arch_vm) {
-  page_dir_t *pd = arch_vm->pd;
+  page_dir_entry_t *pd = arch_vm->pd;
 
   // Only iterate over USER space entries
   for (int i = 0; i < KERNEL_PD_START; i++) {
@@ -381,21 +395,29 @@ static void hal_vmm_set_cow(arch_vm_t *arch_vm) {
   tlb_flush_all();
 }
 
-//
-// Page Directory Lifetime
-//
-
-void hal_vm_arch_destroy(arch_vm_t *vm) {
-  for (int i = 0; i < KERNEL_PD_START; i++) {
-    if (vm->pd[i] & PD_PT_PRESENT) {
-      paddr_t pt_phys = vm->pd[i] & ~0xFFF;
-      pmm_frame_free(pt_phys);
-    }
-  }
-  pmm_frame_free(vm->pd_phys);
+void hal_vm_arch_clone_mapping(arch_vm_t *dst, arch_vm_t *src) {
+  memcpy(dst->pd, src->pd, PAGE_SIZE);
 }
 
 void hal_vm_arch_clone(arch_vm_t *dst, arch_vm_t *src) {
+  // 1. Mark the source as COW first
   hal_vmm_set_cow(src);
-  memcpy(dst->pd, src->pd, PAGE_SIZE);
+
+  for (int i = 0; i < KERNEL_PD_START; i++) {
+    if (src->pd[i] & PAGE_PRESENT) {
+      paddr_t new_pt_phys = pmm_frame_alloc();
+      uint32_t *new_pt_virt = get_pt_virtual(new_pt_phys);
+      uint32_t *old_pt_virt = get_pt_virtual(src->pd[i] & ~0xFFF);
+
+      memcpy(new_pt_virt, old_pt_virt, PAGE_SIZE);
+
+      // Link the new PT into the child's PD
+      dst->pd[i] = new_pt_phys | (src->pd[i] & 0xFFF);
+    }
+  }
+
+  // Copy Kernel space entries (usually just a direct pointer copy as kernel is
+  // shared)
+  memcpy(&dst->pd[KERNEL_PD_START], &src->pd[KERNEL_PD_START],
+         (1024 - KERNEL_PD_START) * sizeof(page_dir_entry_t));
 }

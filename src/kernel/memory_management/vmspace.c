@@ -38,7 +38,7 @@ vmspace_t *vmspace_create() {
   }
 
   extern vmspace_t *g_kernel_vmspace;
-  hal_vm_arch_clone(vmspace->arch, g_kernel_vmspace->arch);
+  hal_vm_arch_clone_mapping(vmspace->arch, g_kernel_vmspace->arch);
 
   return vmspace;
 }
@@ -47,7 +47,7 @@ void vmspace_switch(vmspace_t *vmspace) { hal_vm_arch_load(vmspace->arch); }
 
 vmspace_t *vmspace_clone(vmspace_t *original) {
   vmspace_t *vmspace_clone = vmspace_create();
-  /// hial_vm_arch_clone(vmspace_clone->arch, original->arch);
+  hal_vm_arch_clone(vmspace_clone->arch, original->arch);
   return vmspace_clone;
 }
 
