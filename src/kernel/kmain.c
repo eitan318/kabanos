@@ -8,7 +8,6 @@
 #include "memory_management/vmspace.h"
 #include "modules/modules.h"
 #include "proc/exec.h"
-#include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
 #include "stdio.h"
@@ -68,10 +67,14 @@ void kmain(uint32_t mb2_ptr) {
   }
 
   process_spawn("init.elf", PRIORITY_LOW);
+  // process_spawn("test_c.elf", PRIORITY_VERY_HIGH);
+  // process_spawn("test_b.elf", PRIORITY_VERY_HIGH);
 
-  hal_timer_enable();
+  // hal_timer_enable();
 
   sched_yield();
+
+  printf("problematic return");
 
   for (;;) {
   }

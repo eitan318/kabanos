@@ -1,7 +1,9 @@
 #include "arch/i686/gdt.h"
 #include "arch/types.h"
 #include "hal.h"
+#include "memory_management/memdefs.h"
 #include "sched/sched.h"
+#include "stdio.h"
 #include "string.h"
 #include "types.h"
 
@@ -101,12 +103,51 @@ int hal_thread_init(thread_t *t, uintptr_t entry, uintptr_t user_stack) {
   t->arch->kernel_esp = sp;
   return 0;
 }
-int hal_thread_clone_current(thread_t *src, thread_t *child) {
-  void *child_to = (void *)child->kstack_top - sizeof(trap_frame_t);
-  void *src_from = (void *)src->kstack_top - sizeof(trap_frame_t);
-  memcpy(child_to, src_from, sizeof(trap_frame_t));
 
-  child->arch->kernel_esp = (void *)src->kstack_top - sizeof(trap_frame_t);
+trap_frame_t *hal_get_trap_frame(thread_t *thread) {
+  // The trap frame is pushed at the very top of the allocated stack page.
+  // If kstack_top is the address of the end of the stack:
+  return (trap_frame_t *)((uintptr_t)thread->kstack_top - sizeof(trap_frame_t));
+}
+
+int hal_thread_clone_current(thread_t *src, thread_t *child) {
+  // 1. Copy the ENTIRE kernel stack.
+  // Assuming STACK_SIZE is defined (e.g., 4096).
+  // We copy from the bottom of the stack.
+  void *src_stack_base =
+      (void *)((uintptr_t)src->kstack_top - PROCESS_KERNEL_STACK_SIZE);
+  void *child_stack_base =
+      (void *)((uintptr_t)child->kstack_top - PROCESS_KERNEL_STACK_SIZE);
+
+  memcpy(child_stack_base, src_stack_base, PROCESS_KERNEL_STACK_SIZE);
+
+  // 2. Locate the trap frame on the NEW stack
+  // We find where the trap_frame lives relative to the top of the stack
+  uintptr_t tf_offset =
+      (uintptr_t)src->kstack_top - (uintptr_t)hal_get_trap_frame(src);
+  trap_frame_t *child_tf =
+      (trap_frame_t *)((uintptr_t)child->kstack_top - tf_offset);
+
+  int max_regs = hal_regs_max_get();
+  const char *names[max_regs];
+  uintptr_t vals[max_regs];
+
+  int n = hal_describe_trap_frame(child_tf, max_regs, names, vals);
+  for (int i = 0; i < n; i++) {
+    debugf_and_printf("%s: 0x%lx, ", names[i], vals[i]);
+  }
+  debugf_and_printf("\n");
+
+  // 3. CRITICAL: Set the return value for the child to 0
+  // On x86, this is EAX. On ARM, it's R0.
+  child_tf->eax = 0;
+
+  // 4. Set up the child's context for the first time it is scheduled.
+  // Usually, you'd set the child's kernel_esp to point to a "stub"
+  // function like ret_from_fork that pops the registers and exits to userland.
+  //
+  child->arch->kernel_esp = (void *)child_tf;
+  printf("child (tid %d) esp %p", child->tid, child->arch->kernel_esp);
 
   return 0;
 }

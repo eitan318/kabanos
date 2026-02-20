@@ -124,8 +124,6 @@ long sys_fork() {
   hal_thread_set_return_value(child_thread, 0);
 
   sched_enqueue(child_thread);
-  // printf("chld tid: %d", child_thread->tid);
-  // printf("parent tid: %d", parent_proc->main_thread->tid);
 
   return child_proc->pid; // Parent gets the PID
 }
@@ -154,7 +152,8 @@ void sys_exit(int status) {
   sched_yield();
 
   while (1)
-    ; // Should never be reached
+    printf("returned from exit!");
+  ; // Should never be reached
 }
 
 long sys_waitpid(int pid, int *wstatus, int options) {

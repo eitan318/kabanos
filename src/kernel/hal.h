@@ -1,5 +1,4 @@
 #pragma once
-#include "arch/i686/types.h"
 #include "arch/types.h"
 #include "modules/modules.h"
 #include "sched/thread.h"
@@ -73,6 +72,9 @@ bool hal_vm_empty_arch_vm_create(arch_vm_t *kernel_arch_vm);
 void hal_vm_arch_clone(arch_vm_t *dst, arch_vm_t *src);
 void hal_vm_arch_load(arch_vm_t *arch_vm);
 void hal_vm_arch_destroy(arch_vm_t *vm);
+
+// cow
+bool hal_vmm_handle_cow(arch_vm_t *arch_vm, uintptr_t addr);
 
 // Processes
 void hal_update_tss_and_syssenter_kstack(int cpu_id, void *kstack_top);

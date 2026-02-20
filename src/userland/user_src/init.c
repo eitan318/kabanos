@@ -4,18 +4,27 @@
 #include <stdio.h>
 
 int main(void) {
-  printf("forking\n");
   pid_t pid = fork();
-  printf("after fork\n");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+
+  printf("pid: %d\n", pid);
 
   if (pid == 0) {
     //  This is the CHILD process
-    // execve("test_b.elf", NULL, NULL);
+    execve("test_c.elf", NULL, NULL);
     //  If execve fails, we must exit so the child doesn't
     //  keep running the parent's loop.
-    //_exit(1);
+    _exit(1);
   }
 
-  execve("test_c.elf", NULL, NULL);
-  return 0;
+  printf("forked proc didnt spawn\n");
+  yield();
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+
+  return 5;
 }

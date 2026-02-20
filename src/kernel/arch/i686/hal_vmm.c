@@ -22,6 +22,8 @@ typedef uint32_t page_dir_t;
 #define PT_ENTRIES 1024
 #define PT_SIZE (PT_ENTRIES * PAGE_SIZE)
 
+#define PT_COW 0x200 // Bit 9: Our custom "Copy-on-Write" flag
+
 static void tlb_flush(vaddr_t virtual_addr) {
   __asm__ volatile("invlpg (%0)" : : "r"(virtual_addr) : "memory");
 }
@@ -303,12 +305,80 @@ bool hal_vm_empty_arch_vm_create(arch_vm_t *kernel_arch_vm) {
   return true;
 }
 
-void hal_vm_arch_clone(arch_vm_t *dst, arch_vm_t *src) {
-  memcpy(dst->pd, src->pd, PAGE_SIZE);
-}
-
 void hal_vm_arch_load(arch_vm_t *arch_vm) {
   asm volatile("mov %0, %%cr3" ::"r"(arch_vm->pd_phys));
+}
+
+static uint32_t *hal_vm_get_pte_ptr(arch_vm_t *vm, vaddr_t va) {
+  uint32_t pd_idx = get_pd_index(va);
+  if (!(vm->pd[pd_idx] & PD_PT_PRESENT))
+    return NULL;
+
+  uint32_t *pt_virt = get_pt_virtual(vm->pd[pd_idx] & ~0xFFF);
+  return &pt_virt[get_pt_index(va)];
+}
+
+static void hal_phys_copy(paddr_t dst_pa, paddr_t src_pa) {
+  void *src = (void *)(src_pa + KERNEL_BASE);
+  void *dst = (void *)(dst_pa + KERNEL_BASE);
+  memcpy(dst, src, FRAME_SIZE);
+}
+
+bool hal_vmm_handle_cow(arch_vm_t *arch_vm, uintptr_t addr) {
+  uint32_t *pte = hal_vm_get_pte_ptr(arch_vm, addr);
+
+  if (!pte || !(*pte & PT_COW))
+    return false;
+
+  paddr_t old_phys = *pte & ~0xFFF;
+  pmm_frame_refcount_inc(old_phys);
+  if (pmm_frame_refcount_get(old_phys) > 1) {
+    paddr_t new_phys = pmm_frame_alloc();
+
+    hal_phys_copy(new_phys, old_phys);
+
+    *pte = new_phys | (*pte & 0xFFF) | PD_PT_READWRITE;
+    *pte &= ~PT_COW;
+
+    pmm_frame_free(old_phys); // Decrements ref count
+  } else {
+    // Only one owner left, promote back to writable
+    *pte |= PD_PT_READWRITE;
+    *pte &= ~PT_COW;
+  }
+
+  tlb_flush(addr);
+  return true;
+}
+
+static void hal_vmm_set_cow(arch_vm_t *arch_vm) {
+  page_dir_t *pd = arch_vm->pd;
+
+  // Only iterate over USER space entries
+  for (int i = 0; i < KERNEL_PD_START; i++) {
+    if (!(pd[i] & PAGE_PRESENT))
+      continue;
+
+    // 1. Convert physical address in PD to a virtual pointer we can use
+    paddr_t pt_phys = pd[i] & ~0xFFF;
+    uint32_t *pt = get_pt_virtual(pt_phys);
+
+    for (int j = 0; j < PT_ENTRIES; j++) {
+      if (!(pt[j] & PAGE_PRESENT))
+        continue;
+
+      // Only make WRITABLE pages COW
+      if (pt[j] & PD_PT_READWRITE) {
+        pt[j] |= PT_COW;
+        pt[j] &= ~PD_PT_READWRITE; // Correct bitwise NOT
+      }
+
+      // Every page shared between parent and child needs +1 ref
+      paddr_t page_phys = pt[j] & ~0xFFF;
+      pmm_frame_refcount_inc(page_phys);
+    }
+  }
+  tlb_flush_all();
 }
 
 //
@@ -323,4 +393,9 @@ void hal_vm_arch_destroy(arch_vm_t *vm) {
     }
   }
   pmm_frame_free(vm->pd_phys);
+}
+
+void hal_vm_arch_clone(arch_vm_t *dst, arch_vm_t *src) {
+  hal_vmm_set_cow(src);
+  memcpy(dst->pd, src->pd, PAGE_SIZE);
 }

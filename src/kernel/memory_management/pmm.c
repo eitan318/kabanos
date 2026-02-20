@@ -16,11 +16,26 @@ static uint64_t used_frames = 0;
 static uint64_t bitmap_size_bytes = 0;
 static bool initialized = false;
 static Range memory_range;
+static uint16_t frame_refcounts[MAX_FRAMES];
+
+void pmm_frame_refcount_inc(paddr_t frame_addr) {
+  uint32_t frame_idx = frame_addr / FRAME_SIZE;
+  if (frame_idx < total_frames) {
+    frame_refcounts[frame_idx]++;
+  }
+}
+
+uint16_t pmm_frame_refcount_get(paddr_t frame_addr) {
+  uint32_t frame_idx = frame_addr / FRAME_SIZE;
+  return (frame_idx < total_frames) ? frame_refcounts[frame_idx] : 0;
+}
 
 static inline void mark_frame_used(uint64_t frame_idx) {
   if (!bitmap_test(bitmap, frame_idx)) {
     bitmap_set(bitmap, frame_idx);
     used_frames++;
+    // Initialize refcount to 1 for a brand new allocation
+    frame_refcounts[frame_idx] = 1;
   }
 }
 
@@ -51,9 +66,18 @@ void pmm_mark_range_used(paddr_t from, paddr_t to) {
 static inline uint64_t frame_to_aligned_addr(uint64_t frame) {
   return memory_range.start + (frame * FRAME_SIZE);
 }
-
 static void mark_frame_free(uint64_t frame) {
-  if (bitmap_test(bitmap, frame)) {
+  if (!bitmap_test(bitmap, frame)) {
+    return; // Already free
+  }
+
+  // Decrement if there are references
+  if (frame_refcounts[frame] > 0) {
+    frame_refcounts[frame]--;
+  }
+
+  // CRITICAL: Only clear the bitmap if no one is using it anymore
+  if (frame_refcounts[frame] == 0) {
     bitmap_clear(bitmap, frame);
     used_frames--;
   }
@@ -71,7 +95,7 @@ uint64_t pmm_frame_alloc() {
   return 0;
 }
 
-void pmm_frame_free(uint64_t frame_addr) {
+void pmm_frame_free(paddr_t frame_addr) {
   // Reject NULL or unaligned addresses
   if (frame_addr == 0 || (frame_addr & (FRAME_SIZE - 1)) != 0) {
     return;

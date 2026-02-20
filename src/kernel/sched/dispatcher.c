@@ -35,7 +35,7 @@ int dispatch_init(module_t *self) {
 
 void dispatch_switch_to(thread_t *next) {
   thread_t *current = dispatch_get_current();
-  printf("curr: %d, next %d", current->tid, next->tid);
+  // printf("curr: %d, next %d", current->tid, next->tid);
 
   next->state = THREAD_RUNNING;
   if (!next || current == next) {
@@ -46,6 +46,7 @@ void dispatch_switch_to(thread_t *next) {
 
   g_current_thread = next;
 
+  printf("NEXT (tid %d) esp %p", next->tid, next->arch->kernel_esp);
   hal_thread_switch(current, next);
 }
 
