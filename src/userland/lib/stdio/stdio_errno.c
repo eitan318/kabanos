@@ -27,8 +27,8 @@ void perror(const char *s) {
 
   // 2. Print: "custom message: error description\n"
   if (s && *s) {
-    fprintf(stderr, "%s: %s\n", s, err_str);
+    kfprintf(stderr, "%s: %s\n", s, err_str);
   } else {
-    fprintf(stderr, "%s\n", err_str);
+    kfprintf(stderr, "%s\n", err_str);
   }
 }

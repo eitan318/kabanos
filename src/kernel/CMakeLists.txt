@@ -14,6 +14,7 @@ file(GLOB_RECURSE ALL_C_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.c")
 file(GLOB_RECURSE LIB_SOURCES "${SRC_DIR}/libs/*.c")
 file(GLOB_RECURSE ARCH_SPECIFIC_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/arch/${ARCH}/*.c")
 
+
 set(KERNEL_GENERIC_SOURCES ${ALL_C_SOURCES})
 list(FILTER KERNEL_GENERIC_SOURCES EXCLUDE REGEX "^${CMAKE_CURRENT_SOURCE_DIR}/arch/.*")
 
@@ -50,9 +51,9 @@ set_target_properties(kernel.elf PROPERTIES
 # We point to the 'include' folder. 
 # Because that folder contains a subfolder 'arch', <arch/types.h> works!
 target_include_directories(kernel.elf PRIVATE 
-    ${CMAKE_CURRENT_SOURCE_DIR}                  # For "kernel/..."
-    ${CMAKE_CURRENT_SOURCE_DIR}/arch/${ARCH}/include # For "arch/..."
-    ${SRC_DIR}/libs                               # For libs
+    ${CMAKE_CURRENT_SOURCE_DIR}               # Internal kernel headers
+    ${CMAKE_CURRENT_SOURCE_DIR}/arch/${ARCH}/include 
+    ${SRC_DIR}/libs                           # ONLY shared common types/macros
 )
 
 # 6. Options and Linker (Unchanged)

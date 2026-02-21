@@ -221,7 +221,7 @@ int fprintf(FILE *__restrict file, const char *__restrict fmt, ...) {
   return ret;
 }
 
-int dprintf(const char *__restrict fmt, ...) {
+int printf(const char *__restrict fmt, ...) {
   va_list args;
   va_start(args, fmt);
   int ret = vfprintf(stdout, fmt, args);

@@ -93,7 +93,7 @@ static long sys_read(int fd, char *user_buf, size_t count) {
 
 static long sys_write(int fd, const char *str, size_t len) {
   if (fd == 1 || fd == 2) {
-    printf("%s", str);
+    kprintf("%s", str);
     return (long)len;
   }
   return -1;
@@ -152,7 +152,7 @@ void sys_exit(int status) {
   sched_yield();
 
   while (1)
-    printf("returned from exit!");
+    kprintf("returned from exit!");
   ; // Should never be reached
 }
 

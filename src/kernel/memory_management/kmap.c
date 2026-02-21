@@ -11,7 +11,7 @@ void *kmap(uint32_t phys_addr) {
   // Map physical page into kernel PD
   if (!hal_vm_map(g_kernel_vmspace->arch, kmap_temp, phys_addr,
                   PAGE_READWRITE)) {
-    debugf("kmap: failed to map phys 0x%x\n", phys_addr);
+    kdebugf("kmap: failed to map phys 0x%x\n", phys_addr);
     return NULL;
   }
 

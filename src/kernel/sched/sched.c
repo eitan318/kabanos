@@ -49,24 +49,24 @@ int sched_init(module_t *self) {
 void print_thread_struct(thread_t *t) {
   if (!t)
     return;
-  printf("\tTID %d {priority: %d ticks yet: %d}", t->tid, t->priority,
-         t->rt_ticks);
+  kprintf("\tTID %d {priority: %d ticks yet: %d}", t->tid, t->priority,
+          t->rt_ticks);
 }
 
 void print_sched_struct() {
-  printf("\nCurrent: ");
+  kprintf("\nCurrent: ");
   print_thread_struct(dispatch_get_current());
-  printf("\n");
+  kprintf("\n");
   for (int i = 0; i < NUM_PRIORITIES; i++) {
-    printf("Priority %d: \n", i);
+    kprintf("Priority %d: \n", i);
 
     for (thread_t *curr = ready_queue_heads[i]; curr != NULL;
          curr = curr->next) {
       print_thread_struct(curr);
-      printf("\n");
+      kprintf("\n");
     }
   }
-  printf("\n");
+  kprintf("\n");
 }
 
 void sched_enqueue(thread_t *t) {

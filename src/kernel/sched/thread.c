@@ -23,7 +23,7 @@ static void *alloc_kernel_stack(uint32_t tid, arch_vm_t *user_vm) {
   /* Allocate in kernel page directory */
   if (!va_alloc_region(g_kernel_vmspace->arch, stack_bottom,
                        PROCESS_KERNEL_STACK_SIZE, PAGE_READWRITE)) {
-    debugf("Failed to alloc kernel stack for tid %u\n", tid);
+    kdebugf("Failed to alloc kernel stack for tid %u\n", tid);
     return NULL;
   }
 
@@ -32,7 +32,7 @@ static void *alloc_kernel_stack(uint32_t tid, arch_vm_t *user_vm) {
     for (vaddr_t va = stack_bottom; va < stack_top; va += PAGE_SIZE) {
       paddr_t phys = hal_vm_virt_to_phys(g_kernel_vmspace->arch, va);
       if (!phys || !hal_vm_map(user_vm, va, phys, PAGE_READWRITE)) {
-        debugf("Failed to map kernel stack into user PD at 0x%x\n", va);
+        kdebugf("Failed to map kernel stack into user PD at 0x%x\n", va);
         va_free_region(g_kernel_vmspace->arch, stack_bottom,
                        PROCESS_KERNEL_STACK_SIZE);
         return NULL;
@@ -133,7 +133,7 @@ thread_t *thread_clone(thread_t *src, process_t *dst_proc) {
 
   // 6. ARCH-SPECIFIC COPY
   if (hal_thread_clone_current(src, child) != 0) {
-    debugf("Fork faild to clone curr thread");
+    kdebugf("Fork faild to clone curr thread");
     return NULL;
   }
 

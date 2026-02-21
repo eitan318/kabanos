@@ -26,7 +26,7 @@ Range g_kernel_virt_range;
 Range g_kernel_phys_range;
 
 void kmain(uint32_t mb2_ptr) {
-  debugf("[Kernel starting...]\n");
+  kdebugf("[Kernel starting...]\n");
   extern uint8_t _kernel_start[], _kernel_end[];
 
   g_kernel_virt_range.start = (uintptr_t)&_kernel_start;
@@ -48,7 +48,7 @@ void kmain(uint32_t mb2_ptr) {
 
   kernel_vmspace_create(g_kernel_vmspace, total_memory_range);
   if (g_kernel_vmspace == NULL) {
-    debugf("FAIL: Could not create page directory\n");
+    kdebugf("FAIL: Could not create page directory\n");
     return;
   }
   // From now on no lower half mapping
@@ -61,7 +61,7 @@ void kmain(uint32_t mb2_ptr) {
   modules_load();
 
   if (!fat_initialize(34)) {
-    debugf("Failed to initialize FAT\n");
+    kdebugf("Failed to initialize FAT\n");
     for (;;) {
     }
   }
@@ -74,7 +74,7 @@ void kmain(uint32_t mb2_ptr) {
 
   sched_yield();
 
-  printf("problematic return");
+  kprintf("problematic return");
 
   for (;;) {
   }

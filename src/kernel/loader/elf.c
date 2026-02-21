@@ -68,7 +68,7 @@ int elf_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
   ASSERT(vm && elf_data && entry);
 
   if (elf_size < sizeof(ELFHeader)) {
-    debugf("ELF: File too small\n");
+    kdebugf("ELF: File too small\n");
     return -1;
   }
 
@@ -80,7 +80,7 @@ int elf_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
       hdr->Endianness != ELF_ENDIANNESS_LITTLE ||
       hdr->Type != ELF_TYPE_EXECUTABLE ||
       hdr->InstructionSet != ELF_INSTRUCTION_SET_X86) {
-    debugf("ELF: Invalid header\n");
+    kdebugf("ELF: Invalid header\n");
     return -1;
   }
 
@@ -89,7 +89,7 @@ int elf_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
       hdr->ProgramHeaderTableEntryCount * hdr->ProgramHeaderTableEntrySize;
   if (hdr->ProgramHeaderTablePosition > elf_size ||
       hdr->ProgramHeaderTablePosition + phdr_size > elf_size) {
-    debugf("ELF: Invalid program headers\n");
+    kdebugf("ELF: Invalid program headers\n");
     return -1;
   }
 
@@ -106,7 +106,7 @@ int elf_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
 
     // Validate segment bounds
     if (ph->Offset > elf_size || ph->Offset + ph->FileSize > elf_size) {
-      debugf("ELF: Segment %u out of bounds\n", i);
+      kdebugf("ELF: Segment %u out of bounds\n", i);
       return -1;
     }
 
@@ -119,7 +119,7 @@ int elf_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
 
     if (load_segment(vm, ph->VirtualAddress, ph->MemorySize, file_data,
                      ph->FileSize, flags) != 0) {
-      debugf("ELF: Failed to load segment %u\n", i);
+      kdebugf("ELF: Failed to load segment %u\n", i);
       return -1;
     }
   }

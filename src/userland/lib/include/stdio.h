@@ -1,6 +1,5 @@
 // STDIO for custom libc
-#ifndef _STDIO_H
-#define _STDIO_H
+#pragma once
 
 #ifdef __cplusplus
 extern "C" {
@@ -25,12 +24,6 @@ typedef struct _IO_FILE FILE;
 extern FILE *const stdin;
 extern FILE *const stdout;
 extern FILE *const stderr;
-
-// Standard Functions
-int printf(const char *__restrict format, ...);
-int sprintf(char *__restrict s, const char *__restrict format, ...);
-int putchar(int c);
-int puts(const char *s);
 
 // File Operations (Implement these later when VFS is ready)
 FILE *fopen(const char *__restrict filename, const char *__restrict mode);
@@ -66,7 +59,7 @@ char *fgets(char *__restrict, int, FILE *__restrict);
 int fputs(const char *__restrict, FILE *__restrict);
 int puts(const char *);
 
-int dprintf(const char *__restrict, ...);
+int printf(const char *__restrict, ...);
 int fprintf(FILE *__restrict, const char *__restrict, ...);
 int sprintf(char *__restrict, const char *__restrict, ...);
 int snprintf(char *__restrict, size_t, const char *__restrict, ...);
@@ -87,5 +80,4 @@ void perror(const char *);
 
 #ifdef __cplusplus
 }
-#endif
 #endif

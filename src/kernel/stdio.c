@@ -40,10 +40,6 @@ static void buffer_putc(void *ctx, char c) {
   buf_ctx->pos++; // Always increment to track total chars that would be written
 }
 
-// ============================================================================
-// Core formatting logic (shared by all printf variants)
-// ============================================================================
-
 static void output_char(printf_output_t *out, char c) {
   out->putc_fn(out->context, c);
 }
@@ -251,13 +247,13 @@ static int vprintf_core(printf_output_t *out, const char *format,
 // Public API - each variant sets up its output context
 // ============================================================================
 
-void vfprintf(fd_t file, const char *format, va_list args) {
+void kvfprintf(fd_t file, const char *format, va_list args) {
   fd_output_ctx_t ctx = {.file = file};
   printf_output_t out = {.putc_fn = fd_putc, .context = &ctx};
   vprintf_core(&out, format, args);
 }
 
-int vsnprintf(char *buffer, size_t size, const char *format, va_list args) {
+int kvsnprintf(char *buffer, size_t size, const char *format, va_list args) {
   if (size == 0)
     return 0;
 
@@ -276,59 +272,59 @@ int vsnprintf(char *buffer, size_t size, const char *format, va_list args) {
   return ctx.pos; // Return number of chars that would have been written
 }
 
-int vsprintf(char *buffer, const char *format, va_list args) {
+int kvsprintf(char *buffer, const char *format, va_list args) {
   // Unsafe version - no size limit
-  return vsnprintf(buffer, SIZE_MAX, format, args);
+  return kvsnprintf(buffer, SIZE_MAX, format, args);
 }
 
 // ============================================================================
 // Convenience wrappers
 // ============================================================================
 
-void fprintf(fd_t file, const char *fmt, ...) {
+void kfprintf(fd_t file, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  vfprintf(file, fmt, args);
+  kvfprintf(file, fmt, args);
   va_end(args);
 }
 
-void printf(const char *fmt, ...) {
+void kprintf(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  vfprintf(VFS_FD_STDOUT, fmt, args);
+  kvfprintf(VFS_FD_STDOUT, fmt, args);
   va_end(args);
 }
 
-void debugf(const char *fmt, ...) {
+void kdebugf(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  vfprintf(VFS_FD_DEBUG, fmt, args);
+  kvfprintf(VFS_FD_DEBUG, fmt, args);
   va_end(args);
 }
 
-void debugf_and_printf(const char *fmt, ...) {
+void kdebugf_and_printf(const char *fmt, ...) {
   va_list args, args_copy;
 
   va_start(args, fmt);
   va_copy(args_copy, args);
-  vfprintf(VFS_FD_DEBUG, fmt, args_copy);
-  vfprintf(VFS_FD_STDOUT, fmt, args);
+  kvfprintf(VFS_FD_DEBUG, fmt, args_copy);
+  kvfprintf(VFS_FD_STDOUT, fmt, args);
   va_end(args_copy);
   va_end(args);
 }
 
-int snprintf(char *buffer, size_t size, const char *fmt, ...) {
+int ksnprintf(char *buffer, size_t size, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  int ret = vsnprintf(buffer, size, fmt, args);
+  int ret = kvsnprintf(buffer, size, fmt, args);
   va_end(args);
   return ret;
 }
 
-int sprintf(char *buffer, const char *fmt, ...) {
+int ksprintf(char *buffer, const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  int ret = vsprintf(buffer, fmt, args);
+  int ret = kvsprintf(buffer, fmt, args);
   va_end(args);
   return ret;
 }
@@ -337,19 +333,19 @@ int sprintf(char *buffer, const char *fmt, ...) {
 // Simple character/string functions
 // ============================================================================
 
-void fputc(char c, fd_t file) { pvfs_write(file, (uint8_t *)&c, sizeof(c)); }
+void kfputc(char c, fd_t file) { pvfs_write(file, (uint8_t *)&c, sizeof(c)); }
 
-void fputs(const char *s, fd_t file) {
+void kfputs(const char *s, fd_t file) {
   while (*s) {
-    fputc(*s, file);
+    kfputc(*s, file);
     s++;
   }
 }
 
-void putc(char c) { fputc(c, VFS_FD_STDOUT); }
+void kputc(char c) { kfputc(c, VFS_FD_STDOUT); }
 
-void puts(const char *s) { fputs(s, VFS_FD_STDOUT); }
+void kputs(const char *s) { kfputs(s, VFS_FD_STDOUT); }
 
-void debugc(char c) { fputc(c, VFS_FD_DEBUG); }
+void kdebugc(char c) { kfputc(c, VFS_FD_DEBUG); }
 
-void debugs(const char *s) { fputs(s, VFS_FD_DEBUG); }
+void kdebugs(const char *s) { kfputs(s, VFS_FD_DEBUG); }

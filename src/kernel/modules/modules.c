@@ -58,7 +58,7 @@ void module_load(module_t *mod) {
   }
 
   if (mod->init) {
-    debugf("Initing module: %s\n", mod->name);
+    kdebugf("Initing module: %s\n", mod->name);
     mod->init(mod);
   }
 

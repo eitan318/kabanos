@@ -12,12 +12,12 @@ int ut_run_suite(ut_test_suite_t *suite, ut_config_t *config) {
 
   // Show header if verbose or if there will be output
   if (config->verbose && !config->quiet) {
-    debugf("\n%s┌─ %s%s\n", UT_COLOR_BLUE, suite->suite_name, UT_COLOR_RESET);
+    kdebugf("\n%s┌─ %s%s\n", UT_COLOR_BLUE, suite->suite_name, UT_COLOR_RESET);
   }
 
   if (suite->suite_setup && suite->suite_setup() != 0) {
     if (!config->quiet)
-      debugf("%s└─ Suite setup failed%s\n", UT_COLOR_RED, UT_COLOR_RESET);
+      kdebugf("%s└─ Suite setup failed%s\n", UT_COLOR_RED, UT_COLOR_RESET);
     return -1;
   }
 
@@ -71,25 +71,25 @@ int ut_run_suite(ut_test_suite_t *suite, ut_config_t *config) {
     if (failed > 0) {
       for (int i = 0; i < total_run; i++) {
         if (test_results[i].result == UT_PASS) {
-          debugf("%s│  ✓ %s%s\n", UT_COLOR_GREEN, test_results[i].name,
-                 UT_COLOR_RESET);
+          kdebugf("%s│  ✓ %s%s\n", UT_COLOR_GREEN, test_results[i].name,
+                  UT_COLOR_RESET);
         } else if (test_results[i].result == UT_SKIP) {
-          debugf("%s│  ○ %s (skipped)%s\n", UT_COLOR_YELLOW,
-                 test_results[i].name, UT_COLOR_RESET);
+          kdebugf("%s│  ○ %s (skipped)%s\n", UT_COLOR_YELLOW,
+                  test_results[i].name, UT_COLOR_RESET);
         } else {
-          debugf("%s│  ✗ %s%s\n", UT_COLOR_RED, test_results[i].name,
-                 UT_COLOR_RESET);
+          kdebugf("%s│  ✗ %s%s\n", UT_COLOR_RED, test_results[i].name,
+                  UT_COLOR_RESET);
         }
       }
     } else if (config->show_passed) {
       // All passed and show_passed is enabled - print them
       for (int i = 0; i < total_run; i++) {
         if (test_results[i].result == UT_PASS) {
-          debugf("%s│  ✓ %s%s\n", UT_COLOR_GREEN, test_results[i].name,
-                 UT_COLOR_RESET);
+          kdebugf("%s│  ✓ %s%s\n", UT_COLOR_GREEN, test_results[i].name,
+                  UT_COLOR_RESET);
         } else if (test_results[i].result == UT_SKIP) {
-          debugf("%s│  ○ %s (skipped)%s\n", UT_COLOR_YELLOW,
-                 test_results[i].name, UT_COLOR_RESET);
+          kdebugf("%s│  ○ %s (skipped)%s\n", UT_COLOR_YELLOW,
+                  test_results[i].name, UT_COLOR_RESET);
         }
       }
     }
@@ -98,46 +98,46 @@ int ut_run_suite(ut_test_suite_t *suite, ut_config_t *config) {
     // Non-verbose mode: always show failures as they happen
     for (int i = 0; i < passed + failed + skipped; i++) {
       if (test_results[i].result == UT_FAIL) {
-        debugf("%s│  ✗ %s%s\n", UT_COLOR_RED, test_results[i].name,
-               UT_COLOR_RESET);
+        kdebugf("%s│  ✗ %s%s\n", UT_COLOR_RED, test_results[i].name,
+                UT_COLOR_RESET);
       }
     }
   }
 
   if (suite->suite_teardown && suite->suite_teardown() != 0) {
     if (!config->quiet)
-      debugf("%s│  Suite teardown failed%s\n", UT_COLOR_RED, UT_COLOR_RESET);
+      kdebugf("%s│  Suite teardown failed%s\n", UT_COLOR_RED, UT_COLOR_RESET);
   }
 
   // Print summary
   if (!config->quiet) {
     if (config->verbose) {
       // Verbose mode: show full summary with box
-      debugf("%s└─ Suite: %s", UT_COLOR_YELLOW, UT_COLOR_RESET);
+      kdebugf("%s└─ Suite: %s", UT_COLOR_YELLOW, UT_COLOR_RESET);
 
       if (failed == 0 && skipped == 0) {
-        debugf("%s✓ All %d tests passed%s\n", UT_COLOR_GREEN, passed,
-               UT_COLOR_RESET);
+        kdebugf("%s✓ All %d tests passed%s\n", UT_COLOR_GREEN, passed,
+                UT_COLOR_RESET);
       } else if (failed == 0) {
-        debugf("%s%d passed%s, %s%d skipped%s\n", UT_COLOR_GREEN, passed,
-               UT_COLOR_RESET, UT_COLOR_YELLOW, skipped, UT_COLOR_RESET);
+        kdebugf("%s%d passed%s, %s%d skipped%s\n", UT_COLOR_GREEN, passed,
+                UT_COLOR_RESET, UT_COLOR_YELLOW, skipped, UT_COLOR_RESET);
       } else {
-        debugf("%s%d passed%s, %s%d failed%s", UT_COLOR_GREEN, passed,
-               UT_COLOR_RESET, UT_COLOR_RED, failed, UT_COLOR_RESET);
+        kdebugf("%s%d passed%s, %s%d failed%s", UT_COLOR_GREEN, passed,
+                UT_COLOR_RESET, UT_COLOR_RED, failed, UT_COLOR_RESET);
         if (skipped > 0)
-          debugf(", %s%d skipped%s", UT_COLOR_YELLOW, skipped, UT_COLOR_RESET);
-        debugf("\n");
+          kdebugf(", %s%d skipped%s", UT_COLOR_YELLOW, skipped, UT_COLOR_RESET);
+        kdebugf("\n");
       }
     } else {
       // Non-verbose mode: only show failures
       if (failed > 0) {
-        debugf("%s✗ %s:%s ", UT_COLOR_RED, suite->suite_name, UT_COLOR_RESET);
+        kdebugf("%s✗ %s:%s ", UT_COLOR_RED, suite->suite_name, UT_COLOR_RESET);
         for (int i = 0; i < failed_count; i++) {
-          debugf("%s", failed_tests[i]);
+          kdebugf("%s", failed_tests[i]);
           if (i < failed_count - 1)
-            debugf(", ");
+            kdebugf(", ");
         }
-        debugf(" (%d/%d failed)\n", failed, suite->num_tests);
+        kdebugf(" (%d/%d failed)\n", failed, suite->num_tests);
       }
     }
   }
@@ -159,8 +159,8 @@ int ut_run_suites(ut_test_suite_t *suites, int num_suites,
 
   // Show header if verbose
   if (config->verbose && !config->quiet) {
-    debugf("%s══════════ Running %d Test Suites ══════════%s\n", UT_COLOR_CYAN,
-           num_suites, UT_COLOR_RESET);
+    kdebugf("%s══════════ Running %d Test Suites ══════════%s\n", UT_COLOR_CYAN,
+            num_suites, UT_COLOR_RESET);
   }
 
   for (int i = 0; i < num_suites; i++) {
@@ -182,42 +182,42 @@ int ut_run_suites(ut_test_suite_t *suites, int num_suites,
   if (!config->quiet) {
     if (config->verbose) {
       // Verbose mode: full summary with separators
-      debugf("%s════════════════════════════════════════%s\n", UT_COLOR_CYAN,
-             UT_COLOR_RESET);
+      kdebugf("%s════════════════════════════════════════%s\n", UT_COLOR_CYAN,
+              UT_COLOR_RESET);
 
       if (total_failed == 0 && total_passed > 0) {
-        debugf("%s    ✓ All %d suites passed (%d tests)%s\n", UT_COLOR_GREEN,
-               num_suites, total_tests, UT_COLOR_RESET);
+        kdebugf("%s    ✓ All %d suites passed (%d tests)%s\n", UT_COLOR_GREEN,
+                num_suites, total_tests, UT_COLOR_RESET);
       } else {
-        debugf("    %s%d/%d suites passed%s",
-               total_passed == num_suites ? UT_COLOR_GREEN : UT_COLOR_RESET,
-               total_passed, num_suites, UT_COLOR_RESET);
+        kdebugf("    %s%d/%d suites passed%s",
+                total_passed == num_suites ? UT_COLOR_GREEN : UT_COLOR_RESET,
+                total_passed, num_suites, UT_COLOR_RESET);
 
         if (total_failed > 0) {
-          debugf(", %s%d failed%s\n", UT_COLOR_RED, total_failed,
-                 UT_COLOR_RESET);
-          debugf("%s    Failed suites:%s ", UT_COLOR_RED, UT_COLOR_RESET);
+          kdebugf(", %s%d failed%s\n", UT_COLOR_RED, total_failed,
+                  UT_COLOR_RESET);
+          kdebugf("%s    Failed suites:%s ", UT_COLOR_RED, UT_COLOR_RESET);
           for (int i = 0; i < failed_suite_count; i++) {
-            debugf("%s", failed_suites[i]);
+            kdebugf("%s", failed_suites[i]);
             if (i < failed_suite_count - 1)
-              debugf(", ");
+              kdebugf(", ");
           }
-          debugf("\n");
+          kdebugf("\n");
         } else {
-          debugf("\n");
+          kdebugf("\n");
         }
       }
 
-      debugf("%s════════════════════════════════════════%s\n\n", UT_COLOR_CYAN,
-             UT_COLOR_RESET);
+      kdebugf("%s════════════════════════════════════════%s\n\n", UT_COLOR_CYAN,
+              UT_COLOR_RESET);
     } else {
       // Non-verbose mode: one-line summary
       if (total_failed == 0 && total_passed > 0) {
-        debugf("%s✓ All tests passed%s (%d suites, %d tests)\n", UT_COLOR_GREEN,
-               UT_COLOR_RESET, num_suites, total_tests);
+        kdebugf("%s✓ All tests passed%s (%d suites, %d tests)\n",
+                UT_COLOR_GREEN, UT_COLOR_RESET, num_suites, total_tests);
       } else if (total_failed > 0) {
-        debugf("%s%d/%d suites passed, %d failed%s\n", UT_COLOR_RED,
-               total_passed, num_suites, total_failed, UT_COLOR_RESET);
+        kdebugf("%s%d/%d suites passed, %d failed%s\n", UT_COLOR_RED,
+                total_passed, num_suites, total_failed, UT_COLOR_RESET);
       }
     }
   }
@@ -230,14 +230,14 @@ int ut_run_suites(ut_test_suite_t *suites, int num_suites,
  *===========================================================================*/
 void ut_print_summary(int total, int passed, int failed, int skipped) {
   if (failed == 0 && passed > 0) {
-    debugf("%s✓ All %d tests passed%s\n", UT_COLOR_GREEN, total,
-           UT_COLOR_RESET);
+    kdebugf("%s✓ All %d tests passed%s\n", UT_COLOR_GREEN, total,
+            UT_COLOR_RESET);
   } else {
-    debugf("%s%d passed%s", UT_COLOR_GREEN, passed, UT_COLOR_RESET);
+    kdebugf("%s%d passed%s", UT_COLOR_GREEN, passed, UT_COLOR_RESET);
     if (failed > 0)
-      debugf(", %s%d failed%s", UT_COLOR_RED, failed, UT_COLOR_RESET);
+      kdebugf(", %s%d failed%s", UT_COLOR_RED, failed, UT_COLOR_RESET);
     if (skipped > 0)
-      debugf(", %s%d skipped%s", UT_COLOR_YELLOW, skipped, UT_COLOR_RESET);
-    debugf(" (total: %d)\n", total);
+      kdebugf(", %s%d skipped%s", UT_COLOR_YELLOW, skipped, UT_COLOR_RESET);
+    kdebugf(" (total: %d)\n", total);
   }
 }

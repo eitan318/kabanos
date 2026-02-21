@@ -42,8 +42,8 @@ void initrd_init(void *initrd_start, uint32_t initrd_size) {
   g_initrd_start = initrd_start;
   g_initrd_size = initrd_size;
 
-  debugf("Initrd initialized at 0x%p, size: %u bytes\n", initrd_start,
-         initrd_size);
+  kdebugf("Initrd initialized at 0x%p, size: %u bytes\n", initrd_start,
+          initrd_size);
 }
 
 // Find a file in the initrd
@@ -65,7 +65,7 @@ void *initrd_find_file(const char *filename, uint32_t *size_out) {
 
     // Verify TAR magic
     if (strncmp(header->magic, "ustar", 5) != 0) {
-      debugf("Invalid TAR magic at 0x%p\n", ptr);
+      kdebugf("Invalid TAR magic at 0x%p\n", ptr);
       break;
     }
 
@@ -77,8 +77,8 @@ void *initrd_find_file(const char *filename, uint32_t *size_out) {
       if (size_out) {
         *size_out = file_size;
       }
-      debugf("Found file '%s' in initrd, size: %u bytes\n", filename,
-             file_size);
+      kdebugf("Found file '%s' in initrd, size: %u bytes\n", filename,
+              file_size);
       return file_data;
     }
 
@@ -93,11 +93,11 @@ void *initrd_find_file(const char *filename, uint32_t *size_out) {
 // List all files in initrd
 void initrd_list_files(void) {
   if (!g_initrd_start) {
-    debugf("Initrd not initialized\n");
+    kdebugf("Initrd not initialized\n");
     return;
   }
 
-  debugf("Files in initrd:\n");
+  kdebugf("Files in initrd:\n");
 
   uint8_t *ptr = (uint8_t *)g_initrd_start;
   uint8_t *end = ptr + g_initrd_size;
@@ -114,7 +114,7 @@ void initrd_list_files(void) {
     }
 
     uint32_t file_size = tar_parse_octal(header->size, sizeof(header->size));
-    debugf("  %s (%u bytes)\n", header->name, file_size);
+    kdebugf("  %s (%u bytes)\n", header->name, file_size);
 
     uint32_t blocks = (file_size + 511) / 512;
     ptr += 512 + (blocks * 512);

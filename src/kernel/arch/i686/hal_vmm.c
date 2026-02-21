@@ -72,7 +72,7 @@ paddr_t hal_vm_virt_to_phys(arch_vm_t *vm, vaddr_t va) {
 static paddr_t allocate_page_table(void) {
   paddr_t pt_phys = pmm_frame_alloc();
   if (!pt_phys) {
-    debugf("Alloc FAILED The allocator was out of memory!");
+    kdebugf("Alloc FAILED The allocator was out of memory!");
     return 0;
   }
 

@@ -21,12 +21,12 @@ void isr_dispatch(trap_frame_t *regs) {
   }
 
   if (interrupt_num >= 32) {
-    debugf_and_printf("Unhandled IRQ %d!\n", interrupt_num);
+    kdebugf_and_printf("Unhandled IRQ %d!\n", interrupt_num);
     return;
   }
 
-  debugf_and_printf("Unhandled exception %d %s\n", interrupt_num,
-                    hal_exception_name(interrupt_num));
+  kdebugf_and_printf("Unhandled exception %d %s\n", interrupt_num,
+                     hal_exception_name(interrupt_num));
 
   panic_from_regs(regs);
 }

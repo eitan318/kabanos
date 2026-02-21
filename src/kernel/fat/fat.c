@@ -399,11 +399,11 @@ int fat_read_file(const char *path, void **buffer, uint32_t *size) {
   }
 
   // Error here
-  debugf("FAT: Opening file '%s'...\n", path);
+  kdebugf("FAT: Opening file '%s'...\n", path);
   FAT_File *file = fat_open(path);
 
   if (!file) {
-    debugf("FAT: Could not open: %s\n", path);
+    kdebugf("FAT: Could not open: %s\n", path);
     return -2;
   }
 
@@ -424,7 +424,7 @@ int fat_read_file(const char *path, void **buffer, uint32_t *size) {
     return -4;
   }
 
-  debugf("FAT: File read successfull (%u bytes)\n", read);
+  kdebugf("FAT: File read successfull (%u bytes)\n", read);
   return 0;
 }
 

@@ -121,7 +121,7 @@ void pmm_init(Range total_memory_range, Range *used_ranges,
 
   total_frames = (memory_range.end - memory_range.start) / FRAME_SIZE;
   if (total_frames > MAX_FRAMES) {
-    debugf("Memory range greater than max frames!");
+    kdebugf("Memory range greater than max frames!");
     total_frames = MAX_FRAMES;
     memory_range.end = memory_range.start + ((uint64_t)MAX_FRAMES * FRAME_SIZE);
   }

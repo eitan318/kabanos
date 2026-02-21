@@ -23,7 +23,7 @@ void pf_handle(trap_frame_t *regs) {
 
   // If we reach here, it wasn't a COW fault.
   // It's a real Page Fault (Null pointer, permission violation, etc.)
-  debugf_and_printf("Fatal Page Fault at 0x%p (Error Code: 0x%x)\n", addr, 14);
+  kdebugf_and_printf("Fatal Page Fault at 0x%p (Error Code: 0x%x)\n", addr, 14);
 
   // Fall back to the kernel's standard panic or process killer
   panic_from_regs(regs);

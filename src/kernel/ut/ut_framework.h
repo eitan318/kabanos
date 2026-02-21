@@ -136,8 +136,8 @@ typedef struct {
 #define UT_ASSERT_SUCCESS(result, msg)                                         \
   do {                                                                         \
     if ((result) < 0) {                                                        \
-      debugf("%sFAIL%s: %s - Operation failed with code %d (line %d)\n",       \
-             UT_COLOR_RED, UT_COLOR_RESET, (msg), (result), __LINE__);         \
+      kdebugf("%sFAIL%s: %s - Operation failed with code %d (line %d)\n",      \
+              UT_COLOR_RED, UT_COLOR_RESET, (msg), (result), __LINE__);        \
       return UT_FAIL;                                                          \
     }                                                                          \
   } while (0)
