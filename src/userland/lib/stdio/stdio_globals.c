@@ -9,6 +9,19 @@ static struct _IO_FILE _stdout_file = {
 static struct _IO_FILE _stderr_file = {
     .fd = FD_STDERR, .buf = NULL, .buf_size = 0, .buf_pos = 0};
 
+FILE *_open_streams_head;
+
 FILE *stdin = &_stdin_file;
 FILE *stdout = &_stdout_file;
 FILE *stderr = &_stderr_file;
+
+void add_file(FILE *file) {
+  file->next = _open_streams_head;
+  _open_streams_head = file;
+}
+
+void stdio_init() {
+  add_file(stdin);
+  add_file(stdout);
+  add_file(stderr);
+}

@@ -1,7 +1,7 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <unistd.h>
-
+//
 // int proc_spawn(char *name) {
 //   pid_t pid = fork();
 //
@@ -13,15 +13,15 @@
 //   if (pid == 0) {
 //     execve(name, NULL, NULL);
 //     perror("execve failed");
-//     _exit(1);
+//     exit(1);
 //   }
 //   return 0;
 // }
 //
-int main(void) {
+int main(int argc, char **argv, char **envp) {
   printf("hello");
   // proc_spawn("test_b.elf");
-  printf("hello");
+  // printf("hello");
 
   return 0;
 }

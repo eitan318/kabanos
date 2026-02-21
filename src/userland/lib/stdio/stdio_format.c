@@ -1,7 +1,9 @@
+// userland
 #include "math.h"
 #include "stdint.h"
 #include "stdio.h"
 #include "stdio_internal.h"
+#include "unistd.h"
 
 static void out_putc(FILE *out, char c) {
   if (out) {

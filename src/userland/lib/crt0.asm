@@ -1,16 +1,17 @@
 bits 32
 section .text
 
-extern main
-global _start
-extern _exit
+global _start        ; Standard entry point name
+extern c_start       ; Renaming your C function to avoid naming conflict
+extern exit
 
 _start:
-    call main
-    push eax
-    call _exit
-    
-    .halt:
-        hlt 
-        jmp .halt
+    xor ebp, ebp     ; Standard practice to clear EBP for the debugger
+    call c_start
 
+    push eax
+    call exit
+
+.halt:
+    hlt 
+    jmp .halt

@@ -15,7 +15,7 @@ typedef uint64_t ssize_t;
 
 pid_t fork();
 int execve(const char *pathname, char *const argv[], char *const envp[]);
-void _exit(int status);
+void exit(int status);
 pid_t waitpid(pid_t pid, int *wstatus, int options);
 void *sbrk(intptr_t increment);
 int open(const char *pathname, int flags);

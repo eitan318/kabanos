@@ -1,8 +1,9 @@
-#include "unistd.h"
 #include <stddef.h>
+#include <stdio.h>
+#include <unistd.h>
 
 int main(void) {
-  write(FD_STDIN, "hello", 5);
+  printf("hello");
   char key_buf[3];
   for (;;) {
     read(FD_STDIN, key_buf, 1);

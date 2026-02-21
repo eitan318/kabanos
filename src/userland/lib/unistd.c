@@ -1,4 +1,5 @@
 #include "unistd.h"
+#include <stdio.h>
 
 pid_t fork() {
   return (pid_t)_syscall6(SYSCALL_NUMBER_SYS_FORK, 0, 0, 0, 0, 0,
@@ -14,6 +15,11 @@ void _exit(int status) {
   _syscall6(SYSCALL_NUMBER_SYS_EXIT, status, 0, 0, 0, 0, 0);
   while (1)
     ; // Should never reach here
+}
+
+void exit(int status) {
+  fflush(NULL);
+  _exit(status);
 }
 
 pid_t waitpid(pid_t pid, int *wstatus, int options) {

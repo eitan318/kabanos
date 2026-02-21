@@ -8,30 +8,40 @@ static int file_putc(int c, FILE *file) {
   uint8_t byte = (uint8_t)c;
 
   if (file->buf && file->buf_size > 0) {
-    file->buf[file->buf_pos] = (char)byte;
-    // only track pos for snprintf, or flush for real files
+
     if (file->fd == -1) {
-      // buffer-only mode (snprintf): just advance, never flush
-      if (file->buf_pos < file->buf_size - 1)
-        file->buf_pos++;
-    } else {
-      file->buf_pos++;
-      if (file->buf_pos >= file->buf_size || byte == '\n') {
-        write(file->fd, file->buf, file->buf_pos);
-        file->buf_pos = 0;
+      if (file->buf_pos < file->buf_size - 1) {
+        file->buf[file->buf_pos++] = (char)byte;
+        file->buf[file->buf_pos] = '\0'; // Always null-terminate strings
       }
+      return (unsigned char)c;
+    }
+
+    file->buf[file->buf_pos++] = (char)byte;
+
+    if (file->buf_pos >= file->buf_size || byte == '\n') {
+      write(file->fd, file->buf, file->buf_pos);
+      file->buf_pos = 0;
     }
   } else {
-    write(file->fd, &byte, 1);
+    write(file->fd, &byte, FD_STDOUT);
   }
 
   return (unsigned char)c;
 }
 
-int fflush(FILE *file) {
-  if (file && file->buf && file->buf_pos > 0) {
-    write(file->fd, file->buf, file->buf_pos);
-    file->buf_pos = 0;
+// NULL is flush all
+int fflush(FILE *stream) {
+  if (stream == NULL) {
+    for (FILE *curr = _open_streams_head; curr != NULL; curr = curr->next) {
+      fflush(curr);
+    }
+    return 0;
+  }
+
+  if (stream->fd != -1 && stream->buf_pos > 0) {
+    write(stream->fd, stream->buf, stream->buf_pos);
+    stream->buf_pos = 0;
   }
   return 0;
 }
