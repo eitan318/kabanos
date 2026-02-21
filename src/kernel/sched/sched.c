@@ -195,7 +195,7 @@ thread_t *sched_pick_next(void) {
 }
 
 void sched_tick(void *context) {
-  print_sched_struct();
+  // print_sched_struct();
   wake_up_sleeping(g_time_tick);
 
   if (g_time_tick % 100 == 0) {

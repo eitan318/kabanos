@@ -70,7 +70,7 @@ void kmain(uint32_t mb2_ptr) {
   // process_spawn("test_c.elf", PRIORITY_VERY_HIGH);
   // process_spawn("test_b.elf", PRIORITY_VERY_HIGH);
 
-  // hal_timer_enable();
+  hal_timer_enable();
 
   sched_yield();
 
