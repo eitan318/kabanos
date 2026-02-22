@@ -10,18 +10,18 @@ else()
 endif()
 
 # 2. Source Collection (Same as before)
-file(GLOB_RECURSE ALL_C_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.c")
+file(GLOB_RECURSE ALL_C_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
 file(GLOB_RECURSE LIB_SOURCES "${SRC_DIR}/libs/*.c")
-file(GLOB_RECURSE ARCH_SPECIFIC_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/arch/${ARCH}/*.c")
+file(GLOB_RECURSE ARCH_SPECIFIC_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/arch/${ARCH}/*.c")
 
 
 set(KERNEL_GENERIC_SOURCES ${ALL_C_SOURCES})
-list(FILTER KERNEL_GENERIC_SOURCES EXCLUDE REGEX "^${CMAKE_CURRENT_SOURCE_DIR}/arch/.*")
+list(FILTER KERNEL_GENERIC_SOURCES EXCLUDE REGEX "^${CMAKE_CURRENT_SOURCE_DIR}/src/arch/.*")
 
 set(KERNEL_C_SOURCES ${KERNEL_GENERIC_SOURCES} ${ARCH_SPECIFIC_SOURCES} ${LIB_SOURCES})
 
 # 3. ASM Processing (Same as before)
-file(GLOB_RECURSE KERNEL_ASM_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/arch/${ARCH}/*.asm)
+file(GLOB_RECURSE KERNEL_ASM_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/arch/${ARCH}/*.asm)
 foreach(ASM_SOURCE ${KERNEL_ASM_SOURCES})
     get_filename_component(ASM_NAME ${ASM_SOURCE} NAME_WE)
     get_filename_component(ASM_DIR ${ASM_SOURCE} DIRECTORY)
@@ -50,13 +50,13 @@ set_target_properties(kernel.elf PROPERTIES
 # 5. The "Normal" Include Strategy
 # We point to the 'include' folder. 
 # Because that folder contains a subfolder 'arch', <arch/types.h> works!
-target_include_directories(kernel.elf PRIVATE 
-    ${CMAKE_CURRENT_SOURCE_DIR}               # Internal kernel headers
-    ${CMAKE_CURRENT_SOURCE_DIR}/arch/${ARCH}/include 
-    ${SRC_DIR}/libs                           # ONLY shared common types/macros
+target_include_directories(kernel.elf PRIVATE
+    ${CMAKE_CURRENT_SOURCE_DIR}/include                    # src/kernel/include/
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/arch/${ARCH}/include   # src/kernel/src/arch/i686/include/
+    ${SRC_DIR}/libs                                        # src/libs/
 )
 
 # 6. Options and Linker (Unchanged)
 target_compile_options(kernel.elf PRIVATE -ffreestanding -nostdlib -g -g3 -O0 -fno-omit-frame-pointer -fno-inline)
-target_link_options(kernel.elf PRIVATE -nostdlib LINKER:-m,${LINKER_TARGET} LINKER:-T,${CMAKE_CURRENT_SOURCE_DIR}/arch/${ARCH}/linker.ld)
+target_link_options(kernel.elf PRIVATE -nostdlib LINKER:-m,${LINKER_TARGET} LINKER:-T,${CMAKE_CURRENT_SOURCE_DIR}/src/arch/${ARCH}/linker.ld)
 
