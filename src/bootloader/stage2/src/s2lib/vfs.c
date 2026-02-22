@@ -1,4 +1,4 @@
-#include "vfs.h"
+#include "s2lib/vfs.h"
 #include "com_one.h"
 #include "vga_text.h"
 

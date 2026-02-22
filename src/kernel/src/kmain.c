@@ -39,7 +39,6 @@ void kmain(uint32_t mb2_ptr) {
   KernelBootInfo *kernel_boot_info =
       parse_multiboot2_early((mb2_info_t *)mb2_ptr);
   mb2_ptr = 0; // disabling use of unparsed, low half params
-  print_memory_map(kernel_boot_info->memory_map);
 
   Range total_memory_range = get_memory_range(&kernel_boot_info->memory_map);
   size_t count;

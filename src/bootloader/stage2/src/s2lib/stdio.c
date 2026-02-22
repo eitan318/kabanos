@@ -1,9 +1,9 @@
 // stage2 stdio.c
+#include "s2lib/stdio.h"
+#include "s2lib/vfs.h"
 #include "utils/math.h"
-#include "vfs.h"
 #include <stdbool.h>
 #include <stdint.h>
-#include <stdio.h>
 
 // ============================================================================
 // Output abstraction layer

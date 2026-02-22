@@ -1,4 +1,4 @@
-#include "string.h"
+#include "s2lib/string.h"
 #include <stddef.h>
 #include <stdint.h>
 

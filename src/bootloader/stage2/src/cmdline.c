@@ -1,6 +1,5 @@
 #include "cmdline.h"
-#include "fat.h"
-#include "string.h"
+#include "s2lib/string.h"
 
 // Parse video mode string
 VideoMode str_to_video(char *str) {

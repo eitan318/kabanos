@@ -11,14 +11,14 @@ set(KERNEL_SECTORS_HEADER ${GENERATED_DIR}/kernel_sectors.inc)
 
 # Define include directories
 set(STAGE2_INCLUDE_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}
+   ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${SRC_DIR}/libs
     ${GENERATED_DIR}
 )
 
 # Gather sources
-file(GLOB_RECURSE STAGE2_C_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.c ${SRC_DIR}/libs/*.c)
-file(GLOB_RECURSE STAGE2_ASM_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/*.asm)
+file(GLOB_RECURSE STAGE2_C_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.c ${SRC_DIR}/libs/*.c)
+file(GLOB_RECURSE STAGE2_ASM_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/*.asm)
 
 # NASM include directories - include generated headers
 set(NASM_INCLUDE_DIRS "")
@@ -54,7 +54,7 @@ add_executable(stage2.elf
 set_target_properties(stage2.elf PROPERTIES
     LINKER_LANGUAGE C
     RUNTIME_OUTPUT_DIRECTORY ${STAGE2_OUT_DIR}
-    LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/linker.ld
+    LINK_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/src/linker.ld
 )
 
 # Compiler flags for 32-bit freestanding build
@@ -70,7 +70,7 @@ target_include_directories(stage2.elf PRIVATE ${STAGE2_INCLUDE_DIRS})
 target_link_options(stage2.elf PRIVATE
     -nostdlib
     LINKER:-m,elf_i386
-    LINKER:-T,${CMAKE_CURRENT_SOURCE_DIR}/linker.ld
+    LINKER:-T,${CMAKE_CURRENT_SOURCE_DIR}/src/linker.ld
 )
 
 # Paths for outputs

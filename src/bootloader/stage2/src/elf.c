@@ -2,8 +2,8 @@
 #include "fat.h"
 #include "memdefs.h"
 #include "memory.h"
-#include "minmax.h"
 #include "stdio.h"
+#include "utils/minmax.h"
 
 // stage2 elf reader
 //

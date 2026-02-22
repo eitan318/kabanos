@@ -1,6 +1,5 @@
 #pragma once
 
-#include "disk.h"
 #include "mbr.h"
 #include <stdint.h>
 
@@ -31,7 +30,8 @@ int fat_read_file(const char *path, void *buffer);
 FAT_File *fat_open(Partition *disk, const char *path);
 bool fat_initialize(Partition *disk);
 
-
-uint32_t fat_read(Partition* disk, FAT_File* file, uint32_t byteCount, void* dataOut);
-bool fat_read_entry(Partition* disk, FAT_File* file, FAT_DirectoryEntry* dirEntry);
-void fat_close(FAT_File* file);
+uint32_t fat_read(Partition *disk, FAT_File *file, uint32_t byteCount,
+                  void *dataOut);
+bool fat_read_entry(Partition *disk, FAT_File *file,
+                    FAT_DirectoryEntry *dirEntry);
+void fat_close(FAT_File *file);

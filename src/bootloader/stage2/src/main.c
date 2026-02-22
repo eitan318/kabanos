@@ -7,7 +7,7 @@
 #include "memdefs.h"
 #include "memory_map.h"
 #include "multiboot2.h"
-#include "stdio.h"
+#include "s2lib/stdio.h"
 #include "string.h"
 #include <stdint.h>
 

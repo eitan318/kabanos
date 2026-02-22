@@ -1,4 +1,4 @@
-#include "queue.h"
+#include "adt/queue.h"
 #include <stddef.h>
 
 void circular_buff_init(circular_buff_t *q) {

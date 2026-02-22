@@ -1,7 +1,7 @@
 #include "fat.h"
 #include "ctype.h"
 #include "memory.h"
-#include "stdio.h"
+#include "s2lib/stdio.h"
 #include "string.h"
 #include "utils/math.h"
 #include <stdbool.h>
