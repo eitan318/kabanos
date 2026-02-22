@@ -128,11 +128,6 @@ long sys_fork() {
   return child_proc->pid; // Parent gets the PID
 }
 
-long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
-  process_exec_noreturn(pathname, PRIORITY_LOW);
-  return 0;
-}
-
 void sys_exit(int status) {
   thread_t *current = dispatch_get_current();
   process_t *proc = current->process;

@@ -30,7 +30,7 @@ extern syscall_handler_entry
     pop es
     pop ds
     popa
-    add esp, 8          ; Skip dummies
+    add esp, 8          ; Skip dummy int and err code
     
     ; Restore for sysexit
     pop edx             ; User EIP

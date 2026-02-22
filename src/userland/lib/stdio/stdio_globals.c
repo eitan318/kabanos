@@ -16,11 +16,28 @@ FILE *stdout = &_stdout_file;
 FILE *stderr = &_stderr_file;
 
 void add_file(FILE *file) {
+  // here is problematic
   file->next = _open_streams_head;
   _open_streams_head = file;
 }
 
 void stdio_init() {
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
   add_file(stdin);
   add_file(stdout);
   add_file(stderr);

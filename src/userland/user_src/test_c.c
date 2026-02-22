@@ -1,10 +1,10 @@
 #include "unistd.h"
 #include <stddef.h>
+#include <stdio.h>
 
 void main(void) {
   for (;;) {
-    write(FD_STDOUT, "C", 1);
-    // Simple delay loop so it doesn't fill the screen too fast
+    printf("C");
     for (volatile int i = 0; i < DELAY_LOOP; i++)
       ;
   }

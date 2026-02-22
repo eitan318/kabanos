@@ -1,4 +1,3 @@
-#include "arch/i686/types.h"
 #include "arch/types.h"
 #include "assert.h"
 #include "hal.h"

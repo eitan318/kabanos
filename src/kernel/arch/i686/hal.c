@@ -4,12 +4,10 @@
 #include "arch/i686/pic.h"
 #include "arch/i686/sysenter.h"
 #include "arch/i686/timer.h"
-#include "arch/i686/types.h"
 #include "assert.h"
 #include "modules/modules.h"
 #include "panic.h"
 #include "sched/sched.h"
-#include "string.h"
 #include <stdint.h>
 
 void hal_interrupts_disable(void) { asm volatile("cli"); }

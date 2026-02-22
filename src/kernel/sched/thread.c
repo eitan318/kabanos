@@ -132,7 +132,7 @@ thread_t *thread_clone(thread_t *src, process_t *dst_proc) {
   child->kstack_top = child_kstack_top;
 
   // 6. ARCH-SPECIFIC COPY
-  if (hal_thread_clone_current(src, child) != 0) {
+  if (hal_thread_clone(src, child) != 0) {
     kdebugf("Fork faild to clone curr thread");
     return NULL;
   }

@@ -6,15 +6,15 @@
 #include <stddef.h>
 #include <stdint.h>
 
-typedef struct trap_frame trap_frame_t;
+// typedef struct trap_frame trap_frame_t;
 typedef void (*interrupt_handler_t)(trap_frame_t *r);
 
 // Init
 int hal_arch_init(module_t *self);
 
 // Panic
-int hal_describe_trap_frame(struct trap_frame *regs, int max,
-                            const char **names, uintptr_t *values);
+int hal_describe_trap_frame(trap_frame_t *regs, int max, const char **names,
+                            uintptr_t *values);
 uintptr_t hal_backtrace(uintptr_t *data, trap_frame_t *regs);
 void hal_halt(void);
 void hal_trap();
@@ -83,11 +83,12 @@ void hal_update_tss_and_syssenter_kstack(int cpu_id, void *kstack_top);
 // Thread
 int hal_thread_init(thread_t *t, uintptr_t entry, uintptr_t user_stack);
 void hal_thread_switch(thread_t *curr, thread_t *next);
-int hal_thread_clone_current(thread_t *parent, thread_t *child);
+int hal_thread_clone(thread_t *parent, thread_t *child);
 void hal_thread_set_return_value(thread_t *t, uint64_t val);
-void hal_thread_set_userspace_state(thread_t *t, uintptr_t entry,
-                                    uintptr_t user_stack);
-int hal_thread_clone_current(thread_t *current_thread, thread_t *dest_thread);
+int hal_thread_clone(thread_t *current_thread, thread_t *dest_thread);
+
+void hal_thread_trap_frame_reset(thread_t *t, uintptr_t entry,
+                                 uintptr_t user_stack);
 
 // Timer
 void hal_timer_enable();

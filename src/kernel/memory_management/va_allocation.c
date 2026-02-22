@@ -41,5 +41,8 @@ void va_free_region(arch_vm_t *vm, uint32_t virt_start, size_t size) {
     }
   }
 
-  hal_vm_unmap_range(vm, virt_start, size);
+  uint32_t start = align_up(virt_start, PAGE_SIZE);
+  size = align_down(virt_start + size, PAGE_SIZE);
+
+  hal_vm_unmap_range(vm, start, size);
 }

@@ -1,5 +1,7 @@
 #include "proc/exec.h"
+#include "arch/types.h"
 #include "fat/fat.h"
+#include "hal.h"
 #include "loader/elf.h"
 #include "memory_management/kmalloc.h"
 #include "memory_management/memdefs.h"
@@ -9,6 +11,7 @@
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
+#include "stdio.h"
 
 int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
   void *data;
@@ -23,35 +26,35 @@ int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
 }
 
 // Return top of stack
-uintptr_t setup_user_stack(vmspace_t *vm) {
+uintptr_t alloc_user_stack(vmspace_t *vm) {
   if (!va_alloc_region(vm->arch, USER_STACK_BOTTOM + 1, USER_STACK_SIZE,
                        PAGE_USER | PAGE_READWRITE)) {
+    kdebugf("user stack creation failed");
     return -1;
   }
+
   return (uintptr_t)(USER_STACK_BOTTOM + USER_STACK_SIZE);
 }
 
-int process_exec_noreturn(const char *path, enum thread_priority p) {
+void free_user_stack(vmspace_t *vm) {
+  va_free_region(vm->arch, USER_STACK_BOTTOM + 1, USER_STACK_SIZE);
+}
+
+long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
   thread_t *current = dispatch_get_current();
   process_t *proc = current->process;
 
-  // 1. Validate the new ELF before we destroy the current address space
   uintptr_t entry;
-  // Note: You'll need a way to "clear" or "reset" the vmspace
-  // instead of just creating a new one.
-  if (exec_load_elf(proc->vmspace, path, &entry) < 0) {
-    return -1; // Fail before destroying the process
+  if (exec_load_elf(proc->vmspace, pathname, &entry) < 0) {
+    kdebugf("elf load failed");
+    return -1;
   }
 
-  // 2. Reset User Stack
-  uintptr_t user_stack = setup_user_stack(proc->vmspace);
+  free_user_stack(proc->vmspace);
+  uintptr_t user_stack = alloc_user_stack(proc->vmspace);
 
-  // 3. Update the current thread's instruction pointer and stack pointer
-  // This usually requires a helper to modify the saved register state
-  // so when we return to user-space, we land at 'entry'.
-  hal_thread_set_userspace_state(current, entry, user_stack);
-
-  return 0; // The syscall return logic will jump to the NEW entry point
+  hal_thread_init(current, entry, user_stack);
+  return 0;
 }
 
 int process_spawn(const char *path, enum thread_priority p) {
@@ -63,7 +66,7 @@ int process_spawn(const char *path, enum thread_priority p) {
     return -1;
   }
 
-  uintptr_t user_stack = setup_user_stack(proc->vmspace);
+  uintptr_t user_stack = alloc_user_stack(proc->vmspace);
   thread_t *t = thread_create_user(proc, entry, user_stack, p);
 
   if (proc && !proc->main_thread) {

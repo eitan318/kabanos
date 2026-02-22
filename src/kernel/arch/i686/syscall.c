@@ -2,7 +2,6 @@
 #include "hal.h"
 #include "memory_management/kmalloc.h"
 #include "syscall.h"
-#include "types.h"
 #include <stdlib.h>
 
 void syscall_handler_entry(trap_frame_t *regs) {
