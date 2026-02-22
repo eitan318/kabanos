@@ -81,8 +81,8 @@ void kmain(uint32_t mb2_ptr) {
     }
   }
 
-  process_spawn("init.elf", PRIORITY_LOW);
-  // process_spawn("test_a.elf", PRIORITY_VERY_HIGH);
+  // process_spawn("init.elf", PRIORITY_LOW);
+  process_spawn("test_a.elf", PRIORITY_VERY_HIGH);
   // process_spawn("test_b.elf", PRIORITY_VERY_HIGH);
   // process_spawn("test_c.elf", PRIORITY_VERY_HIGH);
   //

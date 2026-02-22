@@ -75,7 +75,7 @@ KernelBootInfo *parse_multiboot2_early(mb2_info_t *mbi) {
            entry =
                (mb2_mmap_entry_t *)((uint8_t *)entry + mmap_tag->entry_size)) {
         if (kernel_boot_info->memory_map.region_count < MAX_MEMORY_REGIONS) {
-          MemoryRegion *r =
+          memory_region_t *r =
               &kernel_boot_info->memory_map
                    .regions[kernel_boot_info->memory_map.region_count++];
           r->start = entry->addr;
@@ -97,7 +97,7 @@ KernelBootInfo *parse_multiboot2_early(mb2_info_t *mbi) {
 
 Range *get_unusable_memory_ranges(KernelBootInfo *kbi, Range memory_range,
                                   size_t *out_count) {
-  static RangeList list;
+  static range_list_t list;
   list.count = 0;
 
   collect_non_usable_ranges(&list, &kbi->memory_map, memory_range);

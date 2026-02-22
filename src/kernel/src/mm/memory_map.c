@@ -2,10 +2,10 @@
 #include "boot/bootparams.h"
 #include "mm/pmm.h"
 
-void collect_non_usable_ranges(RangeList *list, MemoryMap *memory_map,
+void collect_non_usable_ranges(range_list_t *list, memory_map_t *memory_map,
                                Range memory_range) {
   for (int i = 0; i < memory_map->region_count; i++) {
-    MemoryRegion *region = &memory_map->regions[i];
+    memory_region_t *region = &memory_map->regions[i];
 
     if (region->type == E820_USABLE)
       continue;
@@ -19,12 +19,12 @@ void collect_non_usable_ranges(RangeList *list, MemoryMap *memory_map,
   }
 }
 
-Range get_memory_range(MemoryMap *memory_map) {
+Range get_memory_range(memory_map_t *memory_map) {
   uintptr_t max_addr = 0;
   uintptr_t min_addr = UINT64_MAX;
 
   for (int i = 0; i < memory_map->region_count; i++) {
-    MemoryRegion *region = &memory_map->regions[i];
+    memory_region_t *region = &memory_map->regions[i];
 
     if (region->type != E820_USABLE)
       continue;

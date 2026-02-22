@@ -111,14 +111,11 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   }
 
   // load kernel
-  printf("HERE");
   void *kernel_entry;
   if (!elf_read(&boot_partition, bcd.kernel, &kernel_entry)) {
     printf("ELF read failed, booting halted!");
     halt();
   }
-
-  printf("HERE");
 
   debugf("Kernel loaded successfully, jumping...\n");
 

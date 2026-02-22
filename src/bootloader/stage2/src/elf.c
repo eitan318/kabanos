@@ -56,6 +56,7 @@ bool elf_read(Partition *part, const char *path, void **entryPoint) {
   for (uint32_t i = 0; i < programHeaderTableEntryCount; i++) {
     ELFProgramHeader *progHeader =
         (ELFProgramHeader *)(headerBuffer + i * programHeaderTableEntrySize);
+    printf("HERE");
     if (progHeader->Type == ELF_PROGRAM_TYPE_LOAD) {
       // TODO: validate that the program doesn't overwrite the stage2
       uint8_t *physAddress = (uint8_t *)progHeader->PhysicalAddress;
@@ -64,6 +65,7 @@ bool elf_read(Partition *part, const char *path, void **entryPoint) {
       // ugly nasty seeking
       // TODO: proper seeking
       fd = fat_open(part, path);
+
       while (progHeader->Offset > 0) {
         // here
         uint32_t shouldRead = min(progHeader->Offset, MEMORY_STAGE2_LOAD_SIZE);

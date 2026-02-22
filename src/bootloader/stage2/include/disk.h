@@ -1,5 +1,4 @@
 #pragma once
-#include "boot/bootparams.h" // <-- for DiskParams
 #include <stdbool.h>
 #include <stdint.h>
 

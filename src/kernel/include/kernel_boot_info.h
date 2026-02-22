@@ -8,7 +8,7 @@ typedef struct {
   char *cmdline;
   module_t *modules;
   int module_count;
-  MemoryMap memory_map;
+  memory_map_t memory_map;
   uint32_t initrd_start;
   uint32_t initrd_size;
 } KernelBootInfo;
