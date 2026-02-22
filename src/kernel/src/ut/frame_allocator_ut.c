@@ -1,4 +1,5 @@
 #include "klib/stdio.h"
+#include "mm/kmalloc.h"
 #include "mm/pmm.h"
 #include "ut/ut_framework.h"
 
@@ -103,9 +104,14 @@ int ut_exhaustion(void) {
 }
 
 static int suite_setup() {
-  Range mem = {0, 64 * 1024 * 1024};
+  Range mem = {0, 64 * 1024 * 1024}; // 64MB
   Range used[] = {{0, 0x100000}, {0x200000, 0x300000}};
+  //
+  // uint64_t meta_size = pmm_get_metadata_size(mem);
+  // void *test_metadata_buffer = kmalloc(meta_size);
+
   pmm_init(mem, used, 2);
+
   return 0;
 }
 

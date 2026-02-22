@@ -28,6 +28,9 @@ typedef struct __attribute__((packed)) {
 
 int fat_read_file(const char *path, void *buffer);
 FAT_File *fat_open(Partition *disk, const char *path);
+bool fat_find_file(Partition *disk, FAT_File *file, const char *name,
+                   FAT_DirectoryEntry *out);
+
 bool fat_initialize(Partition *disk);
 
 uint32_t fat_read(Partition *disk, FAT_File *file, uint32_t byteCount,

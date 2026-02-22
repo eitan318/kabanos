@@ -21,6 +21,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 vmspace_t g_kernel_vmspace_obj;
 vmspace_t *g_kernel_vmspace = &g_kernel_vmspace_obj;
@@ -29,6 +30,8 @@ Range g_kernel_phys_range;
 
 void kmain(uint32_t mb2_ptr) {
   kdebugf("[Kernel starting...]\n");
+  // Reset bss
+
   extern uint8_t _kernel_start[], _kernel_end[];
 
   g_kernel_virt_range.start = (uintptr_t)&_kernel_start;

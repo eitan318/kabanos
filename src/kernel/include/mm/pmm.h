@@ -10,6 +10,8 @@ typedef uint32_t paddr_t;
 
 void pmm_init(Range memory_range, Range *used_ranges, int used_ranges_count);
 
+uint64_t pmm_get_metadata_size(Range total_memory_range);
+
 // Allocates a frame and sets its refcount to 1.
 uint64_t pmm_frame_alloc();
 
