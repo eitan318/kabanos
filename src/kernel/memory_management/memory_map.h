@@ -4,8 +4,8 @@
 #include <stdint.h>
 
 typedef struct {
-  uint32_t start;
-  uint32_t size;
+  uint64_t start;
+  uint64_t size;
   uint32_t type;
 } MemoryRegion;
 

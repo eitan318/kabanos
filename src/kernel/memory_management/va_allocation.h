@@ -4,7 +4,6 @@
 #include <stdint.h>
 
 #include "arch/types.h"
-#include "hal.h"
 
 bool va_alloc_region(arch_vm_t *vm, uint32_t virt_start, size_t size,
                      uint32_t flags);

@@ -2,11 +2,11 @@
 #include "boot/bootparams.h"
 #include "stdio.h"
 
-MemoryRegion g_mem_regions[MAX_MEMORY_REGIONS];
+MemoryRegionInternal g_mem_regions[MAX_MEMORY_REGIONS];
 int g_mem_region_count;
 
-void memory_map_detect(MemoryMap *memory_map) {
-  MemoryRegion block;
+void memory_map_detect(MemoryMapInternal *memory_map) {
+  MemoryRegionInternal block;
   uint32_t continuation = 0;
   int ret;
 

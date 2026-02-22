@@ -7,7 +7,7 @@
 // returns total size
 void multiboot2_build(uint8_t *buffer, char *cmdline, int module_count,
                       void **modules_start, int *modules_size,
-                      char **modules_paths, MemoryMap *memmap) {
+                      char **modules_paths, MemoryMapInternal *memmap) {
   mb2_info_t *mt2_info = (mb2_info_t *)buffer;
   uint8_t *curr_tag = mt2_info->tags;
 
@@ -46,7 +46,7 @@ void multiboot2_build(uint8_t *buffer, char *cmdline, int module_count,
   // Copy memory regions
   mb2_mmap_entry_t *entry_ptr = mmap_tag->entries;
   for (int i = 0; i < memmap->region_count; i++) {
-    MemoryRegion *r = &memmap->regions[i];
+    MemoryRegionInternal *r = &memmap->regions[i];
     entry_ptr->addr = r->base;
     entry_ptr->len = r->length;
     entry_ptr->type = r->type;

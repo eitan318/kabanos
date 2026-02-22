@@ -1,6 +1,6 @@
-// #include "print_boot_info.h"
+#include "print_boot_info.h"
 // #include "boot/bootparams.h"
-// #include "include/stdio.h"
+#include "stdio.h"
 //
 // void print_boot_params(BootParams boot_params) {
 //   print_partition_table(boot_params.partition_table);
@@ -22,18 +22,18 @@
 //   }
 // }
 //
-// void print_memory_map(MemoryMap memory_map) {
-//   debugf("\nMemory map:\n"
-//          "Idx | Base  |  Length    | Type | ACPI\n"
-//          "-----------------------------------------------------------------\n");
-//
-//   for (int i = 0; i < memory_map.region_count; i++) {
-//     const MemoryRegion *e = &memory_map.regions[i];
-//
-//     debugf("%x | %llx | %llx | %x | %x\n", i, e->base, e->length, e->type,
-//            e->acpi_flag);
-//   }
-// }
+void print_memory_map(MemoryMap memory_map) {
+  kdebugf(
+      "\nMemory map:\n"
+      "Idx | start  |  size  | Type\n"
+      "-----------------------------------------------------------------\n");
+
+  for (int i = 0; i < memory_map.region_count; i++) {
+    const MemoryRegion *e = &memory_map.regions[i];
+
+    kdebugf("%x | %llx | %llx | %x\n", i, e->start, e->size, e->type);
+  }
+}
 //
 // void print_disk_params(DiskParams *disk_params) {
 //   debugf("\nDisk Parameters:\n"

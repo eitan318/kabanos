@@ -1,4 +1,5 @@
 #pragma once
+// stage2 elf reader
 #include "mbr.h"
 #include <stdbool.h>
 #include <stdint.h>

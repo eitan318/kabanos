@@ -86,3 +86,18 @@ here is PF
 │    0x4002e7        ret                               │
 │    0x4002e8        push   ebp                        │
 
+
+problematic memcpy
+
+│      235      byte_count = min_uint32(byte_count, fd->public.size - fd->public.position)│
+│      236    }                                                                           │
+│      237                                                                                │
+│      238    while (byte_count > 0) {                                                    │
+│      239      uint32_t left_in_buffer = SECTOR_SIZE - (fd->public.position % SECTOR_SIZE│
+│      240      uint32_t take = min_uint32(byte_count, left_in_buffer);                   │
+│      241                                                                                │
+│      242      memcpy(out8, fd->buffer + (fd->public.position % SECTOR_SIZE), take);     │
+│      243                                                                                │
+
+a phys addr that kmalloc gave;
+0xa1000:

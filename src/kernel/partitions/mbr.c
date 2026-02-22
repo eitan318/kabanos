@@ -1,5 +1,5 @@
 #include "mbr.h"
-#include "disk.h"
+#include "drivers/ata.h"
 #include <string.h> // optional for memset
 
 #define SECTOR_SIZE 512
@@ -15,12 +15,8 @@ static union {
   uint8_t bytes[SECTOR_SIZE];
 } g_mbr;
 
-bool mbr_partition_table_get(DiskParams *disk,
-                             partition_table_t
-                             *partition_table) {
-  if (!disk_read_sectors(disk, 0, 1, g_mbr.bytes)) {
-    return false;
-  }
+bool kmbr_partition_table_get(partition_table_t *partition_table) {
+  ata_read_sector(0, 1, g_mbr.bytes);
   if (g_mbr.mbr.boot_signature != 0xAA55) {
     return false;
   }
@@ -29,10 +25,4 @@ bool mbr_partition_table_get(DiskParams *disk,
   partition_table->partition_entries = g_mbr.mbr.partitions;
 
   return true;
-}
-
-bool Partition_read_sectors(Partition *part, uint32_t lba, uint8_t sectors,
-                            void *lowerDataOut) {
-  return disk_read_sectors(part->disk, lba + part->partitionOffset, sectors,
-                           lowerDataOut);
 }

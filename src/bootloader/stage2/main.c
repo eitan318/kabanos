@@ -1,7 +1,5 @@
 #include "boot/bootparams.h"
 #include "cmdline.h"
-#include "cpu_info.h"
-#include "disk.h"
 #include "elf.h"
 #include "fat.h"
 #include "gdt.h"
@@ -33,7 +31,7 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   }
 
   // Read MBR
-  PartitionTable partition_table;
+  partition_table_t partition_table;
   bool res = mbr_partition_table_get(&disk_params, &partition_table);
 
   MBRPartitionEntry *boot_partition_entry;
@@ -60,11 +58,8 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
     halt();
   }
 
-  MemoryMap memory_map;
+  MemoryMapInternal memory_map;
   memory_map_detect(&memory_map);
-
-  CPUInfo cpu_info;
-  collect_cpu_info(&cpu_info);
 
   char config_buffer[2048];
   int config_size = fat_read_file("/boot.cfg", config_buffer);
@@ -116,11 +111,14 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   }
 
   // load kernel
+  printf("HERE");
   void *kernel_entry;
   if (!elf_read(&boot_partition, bcd.kernel, &kernel_entry)) {
     printf("ELF read failed, booting halted!");
     halt();
   }
+
+  printf("HERE");
 
   debugf("Kernel loaded successfully, jumping...\n");
 

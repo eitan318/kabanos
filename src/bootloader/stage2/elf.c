@@ -5,6 +5,8 @@
 #include "minmax.h"
 #include "stdio.h"
 
+// stage2 elf reader
+//
 bool elf_read(Partition *part, const char *path, void **entryPoint) {
   uint8_t *headerBuffer = MEMORY_STAGE2_ELF_BUFFER;
   uint8_t *loadBuffer = MEMORY_STAGE2_LOAD_BUFFER;

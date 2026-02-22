@@ -1,3 +1,4 @@
+// kernel fat
 #include "fat.h"
 #include "drivers/ata.h"
 #include "memory_management/kmalloc.h"
@@ -407,6 +408,7 @@ int fat_read_file(const char *path, void **buffer, uint32_t *size) {
     return -2;
   }
 
+  // check e001d000
   *buffer = kmalloc(file->size);
   if (!*buffer) {
     fat_close(file);

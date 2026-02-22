@@ -7,14 +7,14 @@
 typedef struct {
   uint64_t base, length;
   uint32_t type, acpi_flag, reserved1, reserved2;
-} __attribute__((packed)) MemoryRegion;
+} __attribute__((packed)) MemoryRegionInternal;
 
 typedef struct {
   int region_count;
-  MemoryRegion *regions;
-} MemoryMap;
+  MemoryRegionInternal *regions;
+} MemoryMapInternal;
 
 int __attribute__((cdecl))
-x86_e820_get_next_block(MemoryRegion *block, uint32_t *continuationId);
+x86_e820_get_next_block(MemoryRegionInternal *block, uint32_t *continuationId);
 
-void memory_map_detect(MemoryMap *memory_map);
+void memory_map_detect(MemoryMapInternal *memory_map);

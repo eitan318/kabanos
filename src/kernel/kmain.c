@@ -7,6 +7,7 @@
 #include "memory_management/pmm.h"
 #include "memory_management/vmspace.h"
 #include "modules/modules.h"
+#include "partitions/mbr.h"
 #include "proc/exec.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
@@ -14,6 +15,7 @@
 #include "string.h"
 #include "ut/ata/ata_ut_main.h"
 #include "ut/frame_allocator/frame_allocator_ut_main.h"
+#include "ut/printing_info/print_boot_info.h"
 #include "utils/range.h"
 #include <stdbool.h>
 #include <stddef.h>
@@ -37,6 +39,7 @@ void kmain(uint32_t mb2_ptr) {
   KernelBootInfo *kernel_boot_info =
       parse_multiboot2_early((mb2_info_t *)mb2_ptr);
   mb2_ptr = 0; // disabling use of unparsed, low half params
+  print_memory_map(kernel_boot_info->memory_map);
 
   Range total_memory_range = get_memory_range(&kernel_boot_info->memory_map);
   size_t count;
@@ -60,16 +63,30 @@ void kmain(uint32_t mb2_ptr) {
   modules_init_registry(kernel_boot_info->modules);
   modules_load();
 
-  if (!fat_initialize(34)) {
+  partition_table_t partition_table;
+  bool res = kmbr_partition_table_get(&partition_table);
+
+  MBRPartitionEntry *boot_partition_entry;
+
+  int active_count = 0;
+  for (int i = 0; i < 4; i++) {
+    if (partition_table.partition_entries[i].boot_flag == BOOTABLE) {
+      active_count++;
+      boot_partition_entry = &partition_table.partition_entries[i];
+    }
+  }
+
+  if (!fat_initialize(boot_partition_entry->lba_start)) {
     kdebugf("Failed to initialize FAT\n");
     for (;;) {
     }
   }
 
   process_spawn("init.elf", PRIORITY_LOW);
-  // process_spawn("test_c.elf", PRIORITY_VERY_HIGH);
+  // process_spawn("test_a.elf", PRIORITY_VERY_HIGH);
   // process_spawn("test_b.elf", PRIORITY_VERY_HIGH);
-
+  // process_spawn("test_c.elf", PRIORITY_VERY_HIGH);
+  //
   hal_timer_enable();
 
   sched_yield();

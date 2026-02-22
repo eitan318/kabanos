@@ -6,7 +6,6 @@ void main(void) {
   for (;;) {
     printf("A");
     fflush(stdout);
-    for (volatile int i = 0; i < DELAY_LOOP; i++)
-      ;
+    execve("test_a.elf", NULL, NULL);
   }
 }

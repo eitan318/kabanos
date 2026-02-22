@@ -1,5 +1,5 @@
 #pragma once
-#include "disk.h"
+#include "boot/bootparams.h"
 #include <stdbool.h>
 #include <stdint.h>
 
@@ -30,18 +30,14 @@ typedef struct __attribute__((packed)) {
 } MBRPartitionEntry;
 
 typedef struct {
+  uint32_t partitionOffset;
+  uint32_t partitionSize;
+} partition_t;
+
+typedef struct {
   int entries_count;
   MBRPartitionEntry *partition_entries;
 } partition_table_t;
 
+bool kmbr_partition_table_get(partition_table_t *partition_table);
 
-
-typedef struct {
-  DiskParams *disk;
-  uint32_t partitionOffset;
-  uint32_t partitionSize;
-} Partition;
-
-bool mbr_partition_table_get(DiskParams *disk, partition_table_t *partition_table);
-bool Partition_read_sectors(Partition *part, uint32_t lba, uint8_t sectors,
-                            void *lowerDataOut);

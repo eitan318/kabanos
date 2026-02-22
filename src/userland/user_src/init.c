@@ -19,10 +19,13 @@ int proc_spawn(char *name) {
 }
 
 int main(int argc, char **argv, char **envp) {
-  proc_spawn("test_a.elf");
-  proc_spawn("test_b.elf");
-  proc_spawn("test_c.elf");
 
+  printf("C");
+  fflush(stdout);
+  for (volatile int i = 0; i < DELAY_LOOP; i++)
+    ;
+
+  execve("init.elf", NULL, NULL);
   for (;;) {
   }
 
