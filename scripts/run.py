@@ -61,7 +61,7 @@ stack_addrs = []
 for line in proc.stdout:
     print(line, end="")
 
-    detect_panic = False
+    detect_panic = True
     if not detect_panic:
         continue
 

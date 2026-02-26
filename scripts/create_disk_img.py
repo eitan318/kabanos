@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 
 SECTOR = 512
-TOTAL_SECTORS = 2880
+TOTAL_SECTORS = 4000
 
 
 def run(cmd):
@@ -116,4 +116,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
