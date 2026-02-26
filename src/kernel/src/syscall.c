@@ -9,6 +9,7 @@
 #include "sched/sleep.h"
 #include "sched/thread.h"
 #include "stdio.h"
+#include "vfs_public.h"
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -61,7 +62,7 @@ static long sys_read(int fd, char *user_buf, size_t count) {
     device_handle = DEVICE_HANDLE_KEYBOARD;
     break;
   default:
-    return -1;
+    return vfs_read(fd, user_buf, count);
   }
 
   device_t *dev = get_device_by_handle(device_handle);

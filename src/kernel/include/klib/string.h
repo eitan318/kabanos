@@ -15,6 +15,9 @@ int strncmp(const char *a, const char *b, unsigned n);
 bool starts_with(const char *str, const char *prefix);
 char *strtok(char *str, const char *delim);
 
+char *strdup(const char *s);
+char *strtok_r(char *str, const char *delim, char **saveptr);
+
 void *memcpy(void *dst, const void *src, uint32_t num);
 void *memset(void *ptr, int value, uint32_t num);
 int memcmp(const void *ptr1, const void *ptr2, uint32_t num);

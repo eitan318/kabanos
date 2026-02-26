@@ -1,27 +1,18 @@
 // kernel fat
-#include "fat.h"
 #include "drivers/ata.h"
+#include "fat.h"
 #include "klib/stdio.h"
 #include "mm/kmalloc.h"
 #include "string.h"
+#include "vfs_internal.h"
 #include <stdbool.h>
+#include <stddef.h>
 #include <stdint.h>
 
 #define SECTOR_SIZE 512
 #define MAX_PATH_SIZE 256
 #define MAX_FILE_HANDLES 10
 #define ROOT_DIRECTORY_HANDLE -1
-
-enum FAT_Attributes {
-  FAT_ATTRIBUTE_READ_ONLY = 0x01,
-  FAT_ATTRIBUTE_HIDDEN = 0x02,
-  FAT_ATTRIBUTE_SYSTEM = 0x04,
-  FAT_ATTRIBUTE_VOLUME_ID = 0x08,
-  FAT_ATTRIBUTE_DIRECTORY = 0x10,
-  FAT_ATTRIBUTE_ARCHIVE = 0x20,
-  FAT_ATTRIBUTE_LFN = FAT_ATTRIBUTE_READ_ONLY | FAT_ATTRIBUTE_HIDDEN |
-                      FAT_ATTRIBUTE_SYSTEM | FAT_ATTRIBUTE_VOLUME_ID
-};
 
 typedef struct __attribute__((packed)) {
   uint8_t boot_jump_instruction[3];
@@ -176,7 +167,7 @@ static uint32_t fat_cluster_to_lba(uint32_t cluster) {
          (cluster - 2) * g_fat_data.boot_sector.sectors_per_cluster;
 }
 
-static FAT_File *fat_open_entry(FAT_DirectoryEntry *entry) {
+FAT_File *fat_open_entry(FAT_DirectoryEntry *entry) {
   int handle = -1;
   for (int i = 0; i < MAX_FILE_HANDLES && handle < 0; i++) {
     if (!g_fat_data.opened_files[i].opened) {
@@ -313,8 +304,7 @@ void fat_close(FAT_File *file) {
   }
 }
 
-static bool fat_find_file(FAT_File *file, const char *name,
-                          FAT_DirectoryEntry *out) {
+bool fat_find_file(FAT_File *file, const char *name, FAT_DirectoryEntry *out) {
   char fat_name[12];
   FAT_DirectoryEntry entry;
 

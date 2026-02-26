@@ -370,3 +370,15 @@ int fat_read_file(const char *path, void *buffer) {
          buffer);
   return read;
 }
+
+void fat_shutdown(void) {
+  if (g_fat_data.fat_table) {
+    kfree(g_fat_data.fat_table);
+    g_fat_data.fat_table = NULL;
+  }
+  if (g_fat_data.root_directory.buffer) {
+    kfree(g_fat_data.root_directory.buffer);
+    g_fat_data.root_directory.buffer = NULL;
+  }
+  g_fat_data.initialized = false;
+}

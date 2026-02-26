@@ -17,6 +17,7 @@
 #include "ut/ata_ut_main.h"
 #include "ut/frame_allocator_ut_main.h"
 #include "ut/print_boot_info.h"
+#include "vfs_public.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -84,6 +85,9 @@ void kmain(uint32_t mb2_ptr) {
       boot_partition_entry = &partition_table.partition_entries[i];
     }
   }
+
+  // my invention
+  vfs_mount("dev", "/", "FAT12", 0, NULL);
 
   if (!fat_initialize(boot_partition_entry->lba_start)) {
     kdebugf("Failed to initialize FAT\n");

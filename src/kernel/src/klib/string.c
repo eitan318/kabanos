@@ -233,3 +233,46 @@ int memcmp(const void *ptr1, const void *ptr2, uint32_t num) {
       return 1;
   return 0;
 }
+
+char *strdup(const char *s) {
+  size_t len = strlen(s) + 1;
+  char *new_str = (char *)kmalloc(len);
+  if (new_str) {
+    strcpy(new_str, s);
+  }
+  return new_str;
+}
+
+char *strtok_r(char *str, const char *delim, char **saveptr) {
+  char *token;
+
+  if (str == NULL) {
+    str = *saveptr;
+  }
+
+  // Skip leading delimiters
+  while (*str && strchr(delim, *str)) {
+    str++;
+  }
+
+  if (*str == '\0') {
+    *saveptr = str;
+    return NULL;
+  }
+
+  token = str;
+
+  // Find end of token
+  while (*str && !strchr(delim, *str)) {
+    str++;
+  }
+
+  if (*str) {
+    *str = '\0';
+    *saveptr = str + 1;
+  } else {
+    *saveptr = str;
+  }
+
+  return token;
+}
