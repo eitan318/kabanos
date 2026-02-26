@@ -125,6 +125,8 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
                    modules_starts, modules_sizes, bcd.modules_paths,
                    &memory_map);
 
+  printf("ONE-");
+
   multiboot2_jump_to_kernel(kernel_entry, multiboot2_info_buffer);
 
   // Should never reach here
