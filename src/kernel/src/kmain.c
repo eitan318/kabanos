@@ -30,7 +30,6 @@ Range g_kernel_phys_range;
 
 void kmain(uint32_t mb2_ptr) {
   kdebugf("[Kernel starting...]\n");
-  // Reset bss
 
   extern uint8_t _kernel_start[], _kernel_end[];
 
@@ -44,12 +43,20 @@ void kmain(uint32_t mb2_ptr) {
   mb2_ptr = 0; // disabling use of unparsed, low half params
 
   Range total_memory_range = get_memory_range(&kernel_boot_info->memory_map);
-  size_t count;
-  Range *unusable_memory_ranges =
-      get_unusable_memory_ranges(kernel_boot_info, total_memory_range, &count);
+  size_t used_memory_ranges_count;
+  Range *used_memory_ranges = get_used_memory_ranges(
+      kernel_boot_info, total_memory_range, &used_memory_ranges_count);
+
+  size_t useable_memory_ranges_count;
+  Range *useable_memory_ranges =
+      get_useable_memory_ranges(kernel_boot_info, &useable_memory_ranges_count);
+
+  print_memory_map(kernel_boot_info->memory_map);
 
   // From now on, no early pmm
-  pmm_init(total_memory_range, unusable_memory_ranges, count);
+  pmm_init(total_memory_range, useable_memory_ranges,
+           useable_memory_ranges_count, used_memory_ranges,
+           used_memory_ranges_count);
 
   kernel_vmspace_create(g_kernel_vmspace, total_memory_range);
   if (g_kernel_vmspace == NULL) {
@@ -85,10 +92,10 @@ void kmain(uint32_t mb2_ptr) {
   }
 
   // process_spawn("init.elf", PRIORITY_LOW);
-  process_spawn("test_a.elf", PRIORITY_VERY_HIGH);
+  process_spawn("init.elf", PRIORITY_VERY_HIGH);
   // process_spawn("test_b.elf", PRIORITY_VERY_HIGH);
   // process_spawn("test_c.elf", PRIORITY_VERY_HIGH);
-  //
+
   hal_timer_enable();
 
   sched_yield();

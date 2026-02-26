@@ -101,3 +101,31 @@ problematic memcpy
 
 a phys addr that kmalloc gave;
 0xa1000:
+
+
+(gdb) x/20wx 0xc00a1000
+0xc00a1000:     0xffffffff      0xffffffff      0xffffffff      0xffffffff
+0xc00a1010:     0xffffffff      0xffffffff      0xffffffff      0xffffffff
+0xc00a1020:     0xffffffff      0xffffffff      0xffffffff      0xffffffff
+0xc00a1030:     0xffffffff      0xffffffff      0xffffffff      0xffffffff
+0xc00a1040:     0xffffffff      0xffffffff      0xffffffff      0xffffffff
+(gdb)
+
+
+0x84000:
+(gdb) x/20 (physical  + 0xc0000000)
+0xc0084000:     0x00000000      0x00000000      0x00000000      0x00000000
+0xc0084010:     0x00000000      0x00000000      0x00000000      0x00000000
+0xc0084020:     0x00000000      0x00000000      0x00000000      0x00000000
+0xc0084030:     0x00000000      0x00000000      0x00000000      0x00000000
+0xc0084040:     0x00000000      0x00000000      0x00000000      0x00000000
+(gdb)
+
+Why would this happen at the start of the run? It seems to be only on phys addrs witch are above 0xa0000
+the fffffff mem is layter not writable, the write succeeds no errors but no fault, so program runs and needless to say it failes....
+
+(gdb) x 0xc00a0000
+0xc00a0000:     0xffffffff
+(gdb) x 0xc009f000
+0xc009f000:     0x00000000
+(gdb)

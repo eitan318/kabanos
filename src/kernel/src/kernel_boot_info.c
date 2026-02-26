@@ -95,12 +95,26 @@ KernelBootInfo *parse_multiboot2_early(mb2_info_t *mbi) {
   return kernel_boot_info;
 }
 
-Range *get_unusable_memory_ranges(KernelBootInfo *kbi, Range memory_range,
-                                  size_t *out_count) {
+Range *get_useable_memory_ranges(KernelBootInfo *kbi, size_t *out_count) {
+  static range_list_t usable_list;
+  usable_list.count = 0;
+
+  for (size_t i = 0; i < kbi->memory_map.region_count; i++) {
+    memory_region_t *region = &kbi->memory_map.regions[i];
+    if (region->type == 1) { // 1 = USABLE_RAM
+      range_list_push(
+          &usable_list,
+          (Range){.start = region->start, .end = region->start + region->size});
+    }
+  }
+  *out_count = usable_list.count;
+  return usable_list.ranges;
+}
+
+Range *get_used_memory_ranges(KernelBootInfo *kbi, Range memory_range,
+                              size_t *out_count) {
   static range_list_t list;
   list.count = 0;
-
-  collect_non_usable_ranges(&list, &kbi->memory_map, memory_range);
 
   if (kbi->initrd_start && kbi->initrd_size) {
     range_list_push(&list, (Range){

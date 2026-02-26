@@ -8,7 +8,8 @@
 
 typedef uint32_t paddr_t;
 
-void pmm_init(Range memory_range, Range *used_ranges, int used_ranges_count);
+void pmm_init(Range total_range, Range *usable_ranges, int usable_ranges_count,
+              Range *critical_ranges, int critical_ranges_count);
 
 uint64_t pmm_get_metadata_size(Range total_memory_range);
 

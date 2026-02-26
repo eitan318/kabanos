@@ -105,12 +105,13 @@ int ut_exhaustion(void) {
 
 static int suite_setup() {
   Range mem = {0, 64 * 1024 * 1024}; // 64MB
-  Range used[] = {{0, 0x100000}, {0x200000, 0x300000}};
+  Range useable[] = {{0, 0x100000}, {0x200000, 0x300000}};
+  Range used[] = {{0x250000, 0x300000}};
   //
   // uint64_t meta_size = pmm_get_metadata_size(mem);
   // void *test_metadata_buffer = kmalloc(meta_size);
 
-  pmm_init(mem, used, 2);
+  pmm_init(mem, useable, 2, used, 1);
 
   return 0;
 }

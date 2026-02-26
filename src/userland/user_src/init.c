@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <unistd.h>
 
-int proc_spawn(char *name) {
+int proc_spawn(char *name, char **argv, char **envp) {
   pid_t pid = fork();
 
   if (pid < 0) {
@@ -11,7 +11,7 @@ int proc_spawn(char *name) {
   }
 
   if (pid == 0) {
-    execve(name, NULL, NULL);
+    execve(name, argv, envp);
     perror("execve failed");
     exit(1);
   }
@@ -19,15 +19,9 @@ int proc_spawn(char *name) {
 }
 
 int main(int argc, char **argv, char **envp) {
-
-  printf("C");
-  fflush(stdout);
-  for (volatile int i = 0; i < DELAY_LOOP; i++)
-    ;
-
-  execve("init.elf", NULL, NULL);
-  for (;;) {
-  }
-
+  proc_spawn("test_a.elf", NULL, NULL);
+  proc_spawn("test_b.elf", NULL, NULL);
+  proc_spawn("test_c.elf", NULL, NULL);
+  exit(1);
   return 0;
 }
