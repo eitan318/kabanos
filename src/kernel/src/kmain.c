@@ -31,9 +31,6 @@ Range g_kernel_phys_range;
 void kmain(uint32_t mb2_ptr) {
   kdebugf("[Kernel starting...]\n");
 
-  kprintf("TWO");
-  for (;;) {
-  }
   extern uint8_t _kernel_start[], _kernel_end[];
 
   g_kernel_virt_range.start = (uintptr_t)&_kernel_start;
@@ -94,10 +91,7 @@ void kmain(uint32_t mb2_ptr) {
     }
   }
 
-  // process_spawn("init.elf", PRIORITY_LOW);
   process_spawn("init.elf", PRIORITY_VERY_HIGH);
-  // process_spawn("test_b.elf", PRIORITY_VERY_HIGH);
-  // process_spawn("test_c.elf", PRIORITY_VERY_HIGH);
 
   hal_timer_enable();
 
