@@ -11,9 +11,9 @@ static struct _IO_FILE _stderr_file = {
 
 FILE *_open_streams_head;
 
-FILE *stdin = &_stdin_file;
-FILE *stdout = &_stdout_file;
-FILE *stderr = &_stderr_file;
+FILE *const stdin = &_stdin_file;
+FILE *const stdout = &_stdout_file;
+FILE *const stderr = &_stderr_file;
 
 void add_file(FILE *file) {
   // here is problematic

@@ -1,131 +1,91 @@
-IMPORTANT TODO
---------------
-
-(gdb) p str
-$4 = 0x804a000 <error: Cannot access memory at address 0x804a000>
-(gdb)
-
-
-Bug on yield in sched_tick after first timeslice of test_c.elf
+compile tcc
+-----------
+gcc -m32 -nostdlib -nostdinc -fno-builtin -static \
+    -I./lib/include \
+    -I./tcc/include \
+    lib/*.c lib/stdio/*.c tcc/*.c \
+    -o tcc.elf
 
 
-(gdb) p $eps
-$2 = void
-(gdb)
+string.h
+
+void  *memmove(void *dest, const void *src, size_t n);
+char  *strstr(const char *haystack, const char *needle);
+char  *strerror(int errnum);
+char  *strpbrk(const char *s, const char *accept);
+
+stdlib.h
+
+long               strtol(const char *nptr, char **endptr, int base);
+unsigned long      strtoul(const char *nptr, char **endptr, int base);
+long long          strtoll(const char *nptr, char **endptr, int base);
+unsigned long long strtoull(const char *nptr, char **endptr, int base);
+double             strtod(const char *nptr, char **endptr);
+long double        ldexpl(long double x, int exp);
+void               qsort(void *base, size_t nmemb, size_t size, int (*compar)(const void *, const void *));
+char              *getenv(const char *name);
+void               free(void *ptr);
+int                abs(int j);
+
+time.h
+
+typedef long time_t;
+
+struct tm {
+    int tm_sec;    /* 0-60 */
+    int tm_min;    /* 0-59 */
+    int tm_hour;   /* 0-23 */
+    int tm_mday;   /* 1-31 */
+    int tm_mon;    /* 0-11 */
+    int tm_year;   /* years since 1900 */
+    int tm_wday;   /* 0-6, Sunday=0 */
+    int tm_yday;   /* 0-365 */
+    int tm_isdst;  /* daylight saving flag */
+};
+
+time_t      time(time_t *tloc);
+struct tm  *localtime(const time_t *timep);
+
+semaphore.h
+
+typedef struct {
+    int value;
+    /* platform-specific wait queue */
+} sem_t;
+
+int sem_init(sem_t *sem, int pshared, unsigned int value);
+int sem_wait(sem_t *sem);
+int sem_post(sem_t *sem);
 
 
-esp            0xf1009eb0          0xf1009eb0
+assert.h
 
+/* macro, not a function, but must be provided */
+#ifdef NDEBUG
+#  define assert(expr) ((void)0)
+#else
+#  define assert(expr) \
+     ((expr) ? (void)0 : __assert_fail(#expr, __FILE__, __LINE__, __func__))
 
+void __assert_fail(const char *expr, const char *file,
+                   unsigned int line, const char *func);
+#endif
 
-The vuluntary switch is not working properly, I need to have 
-an if in sched to decide whether iret ot ret, I cannot do iret each time
+/* flags needed */
+#define O_RDONLY  0
+#define O_WRONLY  1
+#define O_RDWR    2
+#define O_CREAT   0x40
+#define O_TRUNC   0x200
+#define O_BINARY  0       /* no-op on non-Windows */
 
-Make 2 processes yield to eachother properly
+/* 2-arg form (already present) */
+int   open(const char *pathname, int flags);
+/* 3-arg form (missing) */
+int   open(const char *pathname, int flags, mode_t mode);
 
-
-Why fork doesnt return child proc to fork addr
-
------------------------------------
-
-
-Weird:
-
-│    0x400300        push   eax                                                           │
-│  > 0x400301        call   0x4002ce                                                      │
-│    0x400306        add    esp,0x4                                                       │
-│    0x400309        mov    eax,ds:0x4008f4                                               │
-│    0x40030e        push   eax                                                           │
-│    0x40030f        call   0x4002ce                                                      │
-│    0x400314        add    esp,0x4                                                       │
-│    0x400317        mov    eax,ds:0x4008f8                                               │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
-remote Thread 1.1 In:                                                   L??   PC: 0x400301
-(gdb) p/x $eax
-$6 = 0x410940
-(gdb) x/4 $esp
-0xbfffefe8:     0xffffffff      0xffffffff      0xffffffff      0xffffffff
-(gdb) si // doing push of  val 0x410940 when stack is 0xfffffff
-0x00400301 in ?? ()
-(gdb) x/4 $esp // stack did grow down for push, but value wasnt entered to the addr... still fff
-0xbfffefe4:     0xffffffff      0xffffffff      0xffffffff      0xffffffff
-(gdb)
-
-
-
-as you can see, even though push was executed, the pushed vale is nowhere in stack.. why?
-
-
-0xbfffefe4:     0xffffffff      0xffffffff      0xffffffff      0xffffffff
-(gdb) set *(int*)$esp = 0x12345678
-(gdb) x/wx $esp
-0xbfffefe4:     0xffffffff
-(gdb)
-
-0xbfffef5c
-no, the fault is caused becose of the fffffff vals on the stack, it tries to weite to them later so there is a pf, the problem is probably in the fffffff faild push
-
-after AAAAAAAAAAAAAAAAAAAAAABBBB
-and than when switching to CC
-
-
-
-a Page fault is happening on write to addr 0x7
-
-here is PF
-┐
-│  > 0x4002ce        push   ebp                        │
-│    0x4002cf        mov    ebp,esp                    │
-│    0x4002d1        mov    edx,DWORD PTR ds:0x400920  │
-│    0x4002d7        mov    eax,DWORD PTR [ebp+0x8]    │
-│    0x4002da        mov    DWORD PTR [eax+0x8],edx    │
-│    0x4002dd        mov    eax,DWORD PTR [ebp+0x8]    │
-│    0x4002e0        mov    ds:0x400920,eax            │
-│    0x4002e5        nop                               │
-│   N0x4002e6        pop    ebp                        │
-│    0x4002e7        ret                               │
-│    0x4002e8        push   ebp                        │
-
-
-problematic memcpy
-
-│      235      byte_count = min_uint32(byte_count, fd->public.size - fd->public.position)│
-│      236    }                                                                           │
-│      237                                                                                │
-│      238    while (byte_count > 0) {                                                    │
-│      239      uint32_t left_in_buffer = SECTOR_SIZE - (fd->public.position % SECTOR_SIZE│
-│      240      uint32_t take = min_uint32(byte_count, left_in_buffer);                   │
-│      241                                                                                │
-│      242      memcpy(out8, fd->buffer + (fd->public.position % SECTOR_SIZE), take);     │
-│      243                                                                                │
-
-a phys addr that kmalloc gave;
-0xa1000:
-
-
-(gdb) x/20wx 0xc00a1000
-0xc00a1000:     0xffffffff      0xffffffff      0xffffffff      0xffffffff
-0xc00a1010:     0xffffffff      0xffffffff      0xffffffff      0xffffffff
-0xc00a1020:     0xffffffff      0xffffffff      0xffffffff      0xffffffff
-0xc00a1030:     0xffffffff      0xffffffff      0xffffffff      0xffffffff
-0xc00a1040:     0xffffffff      0xffffffff      0xffffffff      0xffffffff
-(gdb)
-
-
-0x84000:
-(gdb) x/20 (physical  + 0xc0000000)
-0xc0084000:     0x00000000      0x00000000      0x00000000      0x00000000
-0xc0084010:     0x00000000      0x00000000      0x00000000      0x00000000
-0xc0084020:     0x00000000      0x00000000      0x00000000      0x00000000
-0xc0084030:     0x00000000      0x00000000      0x00000000      0x00000000
-0xc0084040:     0x00000000      0x00000000      0x00000000      0x00000000
-(gdb)
-
-Why would this happen at the start of the run? It seems to be only on phys addrs witch are above 0xa0000
-the fffffff mem is layter not writable, the write succeeds no errors but no fault, so program runs and needless to say it failes....
-
-(gdb) x 0xc00a0000
-0xc00a0000:     0xffffffff
-(gdb) x 0xc009f000
-0xc009f000:     0x00000000
-(gdb)
+FILE *fdopen(int fd, const char *mode);
+off_t lseek(int fd, off_t offset, int whence);
+int   unlink(const char *pathname);
+char *getcwd(char *buf, size_t size);
+int   execvp(const char *file, char *const argv[]);

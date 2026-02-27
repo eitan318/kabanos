@@ -20,8 +20,8 @@ int proc_spawn(char *name, char **argv, char **envp) {
 
 int main(int argc, char **argv, char **envp) {
   proc_spawn("/boot/test_a.elf", NULL, NULL);
-  // proc_spawn("/boot/test_b.elf", NULL, NULL);
-  // proc_spawn("/boot/test_c.elf", NULL, NULL);
+  proc_spawn("/boot/test_b.elf", NULL, NULL);
+  proc_spawn("/boot/test_c.elf", NULL, NULL);
   while (1) {
   }
 }
