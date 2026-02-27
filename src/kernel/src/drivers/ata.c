@@ -1,4 +1,4 @@
-#include "drivers/ata.h"
+#include "drivers/block/ata.h"
 #include "arch/i686/ata_portmap.h"
 #include "drivers/block/blockdev.h"
 #include "drivers/block/partition.h"
@@ -186,9 +186,9 @@ int ata_init() {
       .read_sectors = ata_read_sector,
       .write_sectors = ata_write_sector,
   };
-  blkdev_register(&dev);
 
   partition_probe(&dev);
+  blkdev_register(&dev);
   return 0;
 }
 

@@ -1,11 +1,11 @@
 #include "arch/i686/errno.h"
 #include "fs/fat/fat.h"
+#include "fs/vfs.h"
+#include "fs/vfs_internal.h"
 #include "klib/stdio.h"
 #include "klib/string.h"
 #include "ksys/stat.h"
 #include "mm/kmalloc.h"
-#include "vfs.h"
-#include "vfs_internal.h"
 
 /* -----------------------------------------------------------------------
  * Per-mount private data (lives in SuperBlock.fs_private)
@@ -194,7 +194,7 @@ static int fat_kill_super(super_block_t *sb) {
 }
 
 /* Op tables – file-scoped so the registration below can take their address */
-static struct file_ops fat_file_ops = {
+static file_ops_t fat_file_ops = {
     .open = fat_vfs_open,
     .read = fat_vfs_read,
     .seek = fat_vfs_lseek,
@@ -266,7 +266,7 @@ int fat_init(module_t *module) {
 static const char *fat_deps[] = {"ata", NULL};
 
 ITER_MODULE(fat) = {
-    .name = "keyboard",
+    .name = "fat",
     .required = fat_deps,
     .init = &fat_init,
     .fini = NULL,

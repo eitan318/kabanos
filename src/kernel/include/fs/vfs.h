@@ -61,3 +61,5 @@ ssize_t vfs_readlink(const char *path, char *buf, size_t bufsize);
 int vfs_mount(const char *source_dev, const char *target_path,
               const char *fs_name, unsigned long mountflags, void *fs_data);
 int vfs_umount(const char *target);
+
+int vfs_bind_vnode_to_fd(vnode_t *vnode, int flags);

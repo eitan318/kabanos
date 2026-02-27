@@ -2,6 +2,7 @@
 #include "boot/bootparams.h"
 #include "drivers/block/blockdev.h"
 #include "fs/fat/fat.h"
+#include "fs/fd.h"
 #include "kernel_boot_info.h"
 #include "klib/stdbool.h"
 #include "klib/stddef.h"
@@ -9,6 +10,7 @@
 #include "klib/stdio.h"
 #include "klib/stdlib.h"
 #include "klib/string.h"
+#include "ksys/fcntl.h"
 #include "mm/kmalloc.h"
 #include "mm/memdefs.h"
 #include "mm/memory_map.h"
@@ -18,11 +20,9 @@
 #include "proc/exec.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
-#include "ut/ata_ut_main.h"
 #include "ut/frame_allocator_ut_main.h"
 #include "ut/fs/fs_ut_main.h"
 #include "ut/print_boot_info.h"
-#include "vfs.h"
 
 vmspace_t g_kernel_vmspace_obj;
 vmspace_t *g_kernel_vmspace = &g_kernel_vmspace_obj;
@@ -70,6 +70,8 @@ void kmain(uint32_t mb2_ptr) {
   // Load static and dynamic modules
   modules_init_registry(kernel_boot_info->modules);
   modules_load();
+
+  vfs_init_stdio();
 
   vfs_mount("atap1", "/boot", "fat", 0, NULL);
   vfs_mount("atap2", "/myos", "myos", 0, NULL);

@@ -2,6 +2,7 @@
 #include "arch/types.h"
 #include "elf.h"
 #include "fs/fat/fat.h"
+#include "fs/vfs.h"
 #include "hal.h"
 #include "klib/errno.h"
 #include "klib/stdio.h"
@@ -14,7 +15,6 @@
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
-#include "vfs.h"
 
 int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
   int fd = vfs_open(path, O_RDONLY);

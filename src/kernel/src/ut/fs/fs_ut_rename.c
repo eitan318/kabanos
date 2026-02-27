@@ -6,7 +6,13 @@
  * using the generic framework.
  */
 
+#include "fs/vfs.h"
 #include "klib/string.h"
+#include "klib/unistd.h"
+#include "ksys/fcntl.h"
+#include "ksys/stat.h"
+#include "ut/ut_framework.h"
+
 #include "ut/fs/fs_ut_helpers.h"
 #include "ut/ut_framework.h"
 

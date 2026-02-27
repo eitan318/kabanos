@@ -1,7 +1,7 @@
 // ============================================================================
 // vga_text.c - VGA Text Mode Driver Implementation
 // ============================================================================
-#include "drivers/vga_text.h"
+#include "drivers/console/vga_text.h"
 #include "hal.h"
 #include "mm/memdefs.h"
 #include "modules.h"

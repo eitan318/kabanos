@@ -1,10 +1,10 @@
 #include "fs/fat/fat.h"
 #include "arch/i686/errno.h"
+#include "fs/vfs.h"
 #include "klib/ctype.h"
 #include "klib/stdio.h"
 #include "klib/string.h"
 #include "mm/kmalloc.h"
-#include "vfs.h"
 
 /* -----------------------------------------------------------------------
  * Internal helpers
@@ -279,15 +279,9 @@ static bool name_to_83(const char *name, char out83[FAT_NAME_LEN]) {
   return true;
 }
 
-/* -----------------------------------------------------------------------
- * LFN reconstruction
- * ---------------------------------------------------------------------- */
-
 #define LFN_MAX_ENTRIES 20
 #define LFN_CHARS_PER 13
 
-/* Decode a UCS-2 LFN entry's characters into an ASCII buffer at `pos`.
- * Returns the number of characters written. */
 static int lfn_decode_entry(const FAT_LFNEntry *lfn, char *buf, int buf_size) {
   const uint16_t *parts[3] = {lfn->name1, lfn->name2, lfn->name3};
   const int counts[3] = {5, 6, 2};
@@ -304,14 +298,6 @@ static int lfn_decode_entry(const FAT_LFNEntry *lfn, char *buf, int buf_size) {
   return written;
 }
 
-/* -----------------------------------------------------------------------
- * Directory scanning
- * ---------------------------------------------------------------------- */
-
-/*
- * Open a raw directory (not path-resolved) from a FAT_DirEntry.
- * For the root directory, pass cluster=0 and is_root_dir=true.
- */
 static fat_file_t *open_dir_from_cluster(fat_fs_t *fs, uint32_t first_cluster,
                                          bool is_root_dir) {
   fat_file_t *dir = kmalloc(sizeof(fat_file_t));
@@ -339,9 +325,7 @@ bool fat_read_dir(fat_file_t *dir, FAT_DirEntry *out) {
   while (1) {
     uint32_t offset = dir->position % fs->bytes_per_sector;
     if (offset == 0 && dir->position > 0) {
-      /* Need next sector */
       int rc = file_advance(dir, 0);
-      /* file_advance with 0 bytes doesn't advance; load current sector */
       (void)rc;
     }
 
@@ -373,11 +357,6 @@ bool fat_read_dir(fat_file_t *dir, FAT_DirEntry *out) {
   }
 }
 
-/*
- * Find a directory entry matching `name` (either 8.3 or LFN) within the
- * open directory `dir`.  Resets position to 0 before scanning.
- * Returns true and fills `out` on match.
- */
 bool dir_find(fat_file_t *dir, const char *name, FAT_DirEntry *out) {
   fat_fs_t *fs = dir->fs;
 

@@ -4,6 +4,13 @@
  * Basic file operation tests using the generic framework.
  */
 
+#include "fs/vfs.h"
+#include "klib/string.h"
+#include "klib/unistd.h"
+#include "ksys/fcntl.h"
+#include "ksys/stat.h"
+#include "ut/ut_framework.h"
+
 #include "klib/stdio.h"
 
 #include "mm/kmalloc.h"

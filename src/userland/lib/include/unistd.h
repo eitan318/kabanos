@@ -9,9 +9,9 @@
 typedef uint32_t pid_t;
 typedef uint64_t ssize_t;
 
-#define FD_STDIN 0
-#define FD_STDOUT 1
-#define FD_STDERR 2
+#define STDIN_FILENO 0  /* Standard input */
+#define STDOUT_FILENO 1 /* Standard output */
+#define STDERR_FILENO 2 /* Standard error */
 
 pid_t fork();
 int execve(const char *pathname, char *const argv[], char *const envp[]);

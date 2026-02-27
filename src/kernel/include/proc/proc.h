@@ -27,3 +27,6 @@ typedef struct process {
 
 process_t *process_create(void);
 void process_destroy(process_t *proc);
+
+long sys_fork();
+void sys_exit(int status);

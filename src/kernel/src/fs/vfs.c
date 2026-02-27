@@ -1,11 +1,12 @@
-#include "vfs.h"
+#include "fs/vfs.h"
+#include "fs/fd.h"
+#include "fs/vfs_internal.h"
 #include "klib/errno.h"
 #include "klib/stdio.h"
 #include "klib/string.h"
 #include "klib/unistd.h"
 #include "ksys/fcntl.h"
 #include "mm/kmalloc.h"
-#include "vfs_internal.h"
 
 mount_point_t *mount_p_table = NULL;
 fs_type_t *fs_registry_table = NULL;
@@ -35,10 +36,10 @@ static int filldir(dir_ctx_t *ctx, const char *name, int namelen, off_t offset,
   return 0; // Success
 }
 int vfs_iter_dir(int fd, VDirEntry *dentry, int count) {
-  if (fd < 0 || fd >= MAX_FD || !fd_table[fd] || !dentry)
+  if (fd < 0 || fd >= MAX_FD || !g_fd_table[fd] || !dentry)
     return -1;
 
-  file_t *file = fd_table[fd];
+  file_t *file = g_fd_table[fd];
 
   off_t entries_read = 0; // Track how many entries we've read
 
@@ -147,8 +148,8 @@ static void vnode_put(vnode_t *vnode) {
 // Allocate a new file descriptor
 static int alloc_fd(file_t *file) {
   for (int i = 0; i < MAX_FD; i++) {
-    if (!fd_table[i]) {
-      fd_table[i] = file;
+    if (!g_fd_table[i]) {
+      g_fd_table[i] = file;
       return i;
     }
   }
@@ -157,10 +158,10 @@ static int alloc_fd(file_t *file) {
 
 // Close a file descriptor
 static void free_fd(int fd) {
-  if (fd < 0 || fd >= MAX_FD || !fd_table[fd])
+  if (fd < 0 || fd >= MAX_FD || !g_fd_table[fd])
     return;
-  file_t *file = fd_table[fd];
-  fd_table[fd] = NULL;
+  file_t *file = g_fd_table[fd];
+  g_fd_table[fd] = NULL;
   file->refcount--;
   if (file->refcount == 0) {
     vnode_put(file->vnode);
@@ -179,25 +180,20 @@ fs_type_t *get_fs_type(const char *name) {
   return NULL;
 }
 
-// Mount a filesystem at a given path
 int vfs_mount(const char *source_dev, const char *target_path,
               const char *fs_name, unsigned long mountflags, void *fs_data) {
 
-  /* 1. Find the Block Device (e.g., /dev/hda) */
-  /* You likely need a function like blkdev_get(name) in your kernel */
   blkdev_t *dev = blkdev_get(source_dev);
   if (!dev) {
     kdebugf("vfs_mount: device %s not found\n", source_dev);
     return -ENODEV;
   }
 
-  /* 2. Find the Filesystem Type (e.g., "fat") */
   fs_type_t *fs_type = get_fs_type(fs_name);
   if (!fs_type) {
     return -ENODEV;
   }
 
-  /* 3. Allocate the Mount Point and Superblock */
   mount_point_t *mount_p = kmalloc(sizeof(*mount_p));
   super_block_t *super_block = kmalloc(sizeof(*super_block));
   if (!mount_p || !super_block) {
@@ -509,47 +505,39 @@ vnode_t *vfs_lookup_path(const char *path, bool follow_final_symlink) {
   return current;
 }
 
-// VFS System Call Interface
+int vfs_bind_vnode_to_fd(vnode_t *vnode, int flags) {
+  file_t *file = kmalloc(sizeof(file_t));
+  if (!file)
+    return -1;
+
+  file->vnode = vnode;
+  file->pos = 0;
+  file->flags = flags;
+  file->refcount = 1;
+
+  file->f_ops = vnode->super_block->f_ops;
+
+  if (file->f_ops && file->f_ops->open) {
+    if (file->f_ops->open(file) < 0) {
+      kfree(file);
+      return -1;
+    }
+  }
+
+  // 3. Put it in the table
+  return alloc_fd(file);
+}
 
 int vfs_open(const char *path, int flags) {
   vnode_t *vnode = vfs_lookup_path(path, true);
   if (!vnode)
     return -1;
 
-  // Create file object
-  file_t *file = kmalloc(sizeof(file_t));
-  if (!file) {
-    vnode_put(vnode);
-    return -1;
-  }
-
-  file->vnode = vnode;
-  file->pos = 0;
-  file->flags = flags;
-  file->refcount = 1;
-  file->f_ops = vnode->super_block->f_ops;
-
-  // Call vnode's open operation if it exists
-  if (vnode->super_block->v_ops && vnode->super_block->f_ops->open) {
-    if (vnode->super_block->f_ops->open(file) < 0) {
-      kfree(file);
-      vnode_put(vnode);
-      return -1;
-    }
-  }
-
-  int fd = alloc_fd(file);
-  if (fd < 0) {
-    kfree(file);
-    vnode_put(vnode);
-    return -1;
-  }
-
-  return fd; // return the file descriptor
+  return vfs_bind_vnode_to_fd(vnode, flags);
 }
 
 off_t vfs_seek(int fd, off_t relative_offset, int whence) {
-  file_t *file = fd_table[fd];
+  file_t *file = g_fd_table[fd];
   off_t whence_off = 0;
   switch (whence) {
   case SEEK_SET:
@@ -573,10 +561,10 @@ off_t vfs_seek(int fd, off_t relative_offset, int whence) {
 }
 
 ssize_t vfs_read(int fd, void *buf, size_t size) {
-  if (fd < 0 || fd >= MAX_FD || !fd_table[fd])
+  if (fd < 0 || fd >= MAX_FD || !g_fd_table[fd])
     return -1;
 
-  file_t *file = fd_table[fd];
+  file_t *file = g_fd_table[fd];
 
   // Use file operations if available, otherwise use vnode operations
   int n = 0;
@@ -593,10 +581,10 @@ ssize_t vfs_read(int fd, void *buf, size_t size) {
 }
 
 int vfs_fstat(int fd, fstat_t *stat) {
-  if (fd < 0 || fd >= MAX_FD || !fd_table[fd])
+  if (fd < 0 || fd >= MAX_FD || !g_fd_table[fd])
     return -1;
 
-  file_t *file = fd_table[fd];
+  file_t *file = g_fd_table[fd];
 
   int n = 0;
   if (file->f_ops && file->f_ops->fstat) {
@@ -609,9 +597,9 @@ int vfs_fstat(int fd, fstat_t *stat) {
 
 // return bytes written
 ssize_t vfs_write(int fd, const void *buf, size_t size) {
-  if (fd < 0 || fd >= MAX_FD || !fd_table[fd])
+  if (fd < 0 || fd >= MAX_FD || !g_fd_table[fd])
     return -1;
-  file_t *file = fd_table[fd];
+  file_t *file = g_fd_table[fd];
 
   // Check write permissions
 
@@ -636,10 +624,10 @@ ssize_t vfs_write(int fd, const void *buf, size_t size) {
 
 // Close a file descriptor
 int vfs_close(int fd) {
-  if (fd < 0 || fd >= MAX_FD || !fd_table[fd])
+  if (fd < 0 || fd >= MAX_FD || !g_fd_table[fd])
     return -1;
 
-  file_t *file = fd_table[fd];
+  file_t *file = g_fd_table[fd];
 
   // Call close operation if available
   int result = 0;

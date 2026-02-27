@@ -1,11 +1,11 @@
 #pragma once
 
 #include "drivers/block/blockdev.h"
+#include "fs/vfs.h"
 #include "klib/stdbool.h"
 #include "klib/stddef.h"
 #include "klib/stdint.h"
 #include "ksys/stat.h"
-#include "vfs.h"
 
 /* -----------------------------------------------------------------------
  * FAT12 / FAT16 / FAT32 kernel driver

@@ -4,7 +4,7 @@
 #include "klib/stdint.h"
 //#include "klib/stdlib.h"
 #include "drivers/block/blockdev.h"
-#include "vfs.h"
+#include "fs/vfs.h"
 
 //#define PATH_SAPERATOR '/'
 #define PATH_LEN_MAX 256
@@ -30,7 +30,7 @@ struct vnode_ops {
   ssize_t (*readlink)(vnode_t *vnode, char *buf, size_t bufsize);
 };
 
-struct file_ops {
+typedef struct {
   int (*open)(file_t *file);
   ssize_t (*read)(file_t *file, void *buf, size_t size);
   ssize_t (*write)(file_t *file, const void *buf, size_t size);
@@ -38,12 +38,12 @@ struct file_ops {
   off_t (*seek)(file_t *file, off_t offset);
   int (*fstat)(file_t *file, fstat_t *stat);
   int (*iter_dir)(file_t *parent_file, dir_ctx_t *ctx);
-};
+} file_ops_t;
 
 // File structure - represents an open file
 struct file {
   vnode_t *vnode; // Pointer to the vnode/inode
-  struct file_ops *f_ops;
+  file_ops_t *f_ops;
   off_t pos;    // Current file position
   int flags;    // O_RDONLY, O_WRONLY, etc
   int refcount; // For multiple opens of the same file
@@ -68,7 +68,7 @@ struct mount_point {
 struct super_block {
   fs_type_t *fs_type;
   vnode_t *fs_root;
-  struct file_ops *f_ops;
+  file_ops_t *f_ops;
   struct vnode_ops *v_ops;
   vnode_t *vnode_cache;
 
@@ -81,6 +81,7 @@ struct vnode {
   void *fs_specific;
   int size;
   int mode;
+  int device_handle;
   uint32_t i_ino;
   int refcount;       // For cache reference counting
   struct vnode *next; // Linked list for cache
@@ -112,6 +113,3 @@ vnode_t *vfs_lookup_path(const char *path, bool follow_final_symlink);
 vnode_t *vfs_vnode_alloc(super_block_t *sb, ino_t ino, mode_t mode, size_t size,
                          void *fs_specific);
 fs_type_t *get_fs_type(const char *name);
-
-#define MAX_FD 256
-static file_t *fd_table[MAX_FD] = {0};

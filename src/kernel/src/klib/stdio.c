@@ -1,7 +1,9 @@
 #include "klib/stdio.h"
+#include "fs/read_write.h"
+#include "fs/vfs.h"
 #include "klib/stdbool.h"
 #include "klib/stdint.h"
-#include "klib/vfs.h"
+#include "klib/unistd.h"
 #include "utils/math.h"
 
 // ============================================================================
@@ -20,8 +22,8 @@ typedef struct {
 
 static void fd_putc(void *ctx, char c) {
   fd_output_ctx_t *fd_ctx = (fd_output_ctx_t *)ctx;
-  uint8_t byte = (uint8_t)c; // Convert to unsigned first
-  pvfs_write(fd_ctx->file, &byte, sizeof(byte));
+  char byte = (char)c; // Convert to unsigned first
+  vfs_write(fd_ctx->file, &byte, sizeof(byte));
 }
 
 // Buffer output context
@@ -291,14 +293,14 @@ void kfprintf(fd_t file, const char *fmt, ...) {
 void kprintf(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  kvfprintf(VFS_FD_STDOUT, fmt, args);
+  kvfprintf(STDOUT_FILENO, fmt, args);
   va_end(args);
 }
 
 void kdebugf(const char *fmt, ...) {
   va_list args;
   va_start(args, fmt);
-  kvfprintf(VFS_FD_DEBUG, fmt, args);
+  kvfprintf(STDDEBUG_FILENO, fmt, args);
   va_end(args);
 }
 
@@ -307,8 +309,8 @@ void kdebugf_and_printf(const char *fmt, ...) {
 
   va_start(args, fmt);
   va_copy(args_copy, args);
-  kvfprintf(VFS_FD_DEBUG, fmt, args_copy);
-  kvfprintf(VFS_FD_STDOUT, fmt, args);
+  kvfprintf(STDOUT_FILENO, fmt, args_copy);
+  kvfprintf(STDOUT_FILENO, fmt, args);
   va_end(args_copy);
   va_end(args);
 }
@@ -333,7 +335,7 @@ int ksprintf(char *buffer, const char *fmt, ...) {
 // Simple character/string functions
 // ============================================================================
 
-void kfputc(char c, fd_t file) { pvfs_write(file, (uint8_t *)&c, sizeof(c)); }
+void kfputc(char c, fd_t file) { vfs_write(file, (uint8_t *)&c, sizeof(c)); }
 
 void kfputs(const char *s, fd_t file) {
   while (*s) {
@@ -342,10 +344,10 @@ void kfputs(const char *s, fd_t file) {
   }
 }
 
-void kputc(char c) { kfputc(c, VFS_FD_STDOUT); }
+void kputc(char c) { kfputc(c, STDOUT_FILENO); }
 
-void kputs(const char *s) { kfputs(s, VFS_FD_STDOUT); }
+void kputs(const char *s) { kfputs(s, STDOUT_FILENO); }
 
-void kdebugc(char c) { kfputc(c, VFS_FD_DEBUG); }
+void kdebugc(char c) { kfputc(c, STDDEBUG_FILENO); }
 
-void kdebugs(const char *s) { kfputs(s, VFS_FD_DEBUG); }
+void kdebugs(const char *s) { kfputs(s, STDDEBUG_FILENO); }

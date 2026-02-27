@@ -1,8 +1,9 @@
 #pragma once
 
-#define STDIN_FILENO 0  /* Standard input */
-#define STDOUT_FILENO 1 /* Standard output */
-#define STDERR_FILENO 2 /* Standard error */
+#define STDIN_FILENO 0    /* Standard input */
+#define STDOUT_FILENO 1   /* Standard output */
+#define STDERR_FILENO 2   /* Standard error */
+#define STDDEBUG_FILENO 3 /* Standard debug */
 
 /* --- Seek Constants (whence) --- */
 /* These match your fat_seek implementation switches */
