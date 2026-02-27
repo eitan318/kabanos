@@ -1,4 +1,4 @@
-#include "ctype.h"
+#include "klib/ctype.h"
 
 bool islower(char chr) { return chr >= 'a' && chr <= 'z'; }
 

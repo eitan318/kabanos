@@ -4,6 +4,7 @@
 #include "klib/string.h"
 #include "ksys/stat.h"
 #include "mm/kmalloc.h"
+#include "vfs.h"
 #include "vfs_internal.h"
 
 /* -----------------------------------------------------------------------
@@ -43,14 +44,13 @@ static int fat_vfs_open(file_t *file) {
   fat_vnode_priv_t *vp = (fat_vnode_priv_t *)vn->fs_specific;
   fat_fs_t *fat = sb_fat(vn->super_block);
 
-  /* Build the path from the vnode's cached path (or use cluster directly) */
-  const char *path = vn->cached_path; /* adjust field name to your VFS */
-  fat_file_t *ff = fat_open(fat, path);
+  /* DON'T use path. Use the cluster ID we stored during lookup! */
+  fat_file_t *ff =
+      fat_open_by_cluster(fat, vp->first_cluster, vp->is_dir, vn->size);
   if (!ff)
     return -ENOENT;
 
   file->private_data = ff;
-  (void)vp;
   return 0;
 }
 
@@ -61,11 +61,18 @@ static ssize_t fat_vfs_read(file_t *file, void *buf, size_t size) {
   return fat_read(ff, buf, size);
 }
 
-static off_t fat_vfs_lseek(file_t *file, off_t offset, int whence) {
+static int fat_vfs_fstat(file_t *file, fstat_t *fstat) {
+  fat_file_t *ff = (fat_file_t *)file->private_data;
+  if (!ff)
+    return -EBADF;
+  return fat_fstat(ff, fstat);
+}
+
+static off_t fat_vfs_lseek(file_t *file, off_t offset) {
   fat_file_t *ff = (fat_file_t *)file->private_data;
   if (!ff)
     return (off_t)-EBADF;
-  return fat_seek(ff, offset, whence);
+  return fat_seek(ff, offset);
 }
 
 static int fat_vfs_close(file_t *file) {
@@ -124,49 +131,44 @@ static vnode_t *fat_vfs_lookup(vnode_t *dir_vn, const char *name) {
   if (!dvp->is_dir)
     return NULL;
 
-  /* Open the parent directory directly from its cluster */
-  fat_file_t *dir_ff;
-  if (dvp->first_cluster == 0 && fat->type != FAT_TYPE_32) {
-    /* FAT12/16 root */
-    dir_ff = fat_open(fat, "/");
-  } else {
-    /* Sub-directory: open the directory via a synthetic path or
-     * use the cached_path from the vnode + "/" + name. Safest approach
-     * is to build the full path: */
-    char path[FAT_MAX_PATH];
-    const char *parent_path = dir_vn->cached_path;
-    int plen = (int)strlen(parent_path);
-    int nlen = (int)strlen(name);
-    if (plen + 1 + nlen + 1 > FAT_MAX_PATH)
-      return NULL;
-    memcpy(path, parent_path, plen);
-    path[plen] = '/';
-    memcpy(path + plen + 1, name, nlen + 1);
-    dir_ff = fat_open(fat, path);
-  }
+  /* 1. Open the current directory vnode as a fat_file_t */
+  /* Note: size is 0 for directories in FAT12/16, but that's handled by
+   * open_by_cluster */
+  fat_file_t *dir_ff =
+      fat_open_by_cluster(fat, dvp->first_cluster, true, dvp->size);
   if (!dir_ff)
     return NULL;
 
-  fat_vnode_priv_t *vp = kmalloc(sizeof(fat_vnode_priv_t));
-  if (!vp) {
+  /* 2. Search ONLY this directory for the specific name provided */
+  FAT_DirEntry entry;
+  if (!dir_find(dir_ff, name, &entry)) {
     fat_close(dir_ff);
-    return NULL;
+    return NULL; // File not found
   }
-  vp->first_cluster = dir_ff->first_cluster;
-  vp->is_dir = dir_ff->is_directory;
-  vp->size = dir_ff->size;
 
-  mode_t mode = dir_ff->is_directory ? (S_IFDIR | 0755) : (S_IFREG | 0644);
-  uint32_t ino = dir_ff->first_cluster;
-
+  /* We are done with the directory handle */
   fat_close(dir_ff);
 
+  /* 3. Prepare the private data for the NEW child vnode */
+  fat_vnode_priv_t *vp = kmalloc(sizeof(fat_vnode_priv_t));
+  if (!vp)
+    return NULL;
+
+  vp->first_cluster = (uint32_t)entry.first_cluster_low |
+                      ((uint32_t)entry.first_cluster_high << 16);
+  vp->is_dir = (entry.attributes & FAT_ATTR_DIRECTORY) != 0;
+  vp->size = entry.size;
+
+  /* 4. Map FAT attributes to VFS mode */
+  mode_t mode = vp->is_dir ? (S_IFDIR | 0755) : (S_IFREG | 0644);
+  uint32_t ino = vp->first_cluster;
+
+  /* 5. Create the vnode */
   vnode_t *vn = vfs_vnode_alloc(dir_vn->super_block, ino, mode, vp->size, vp);
   if (!vn) {
     kfree(vp);
     return NULL;
   }
-
   return vn;
 }
 
@@ -196,6 +198,7 @@ static struct file_ops fat_file_ops = {
     .open = fat_vfs_open,
     .read = fat_vfs_read,
     .seek = fat_vfs_lseek,
+    .fstat = fat_vfs_fstat,
     .close = fat_vfs_close,
     .iter_dir = fat_vfs_readdir,
     /* write / ioctl / mmap = NULL (read-only for now) */
@@ -242,8 +245,6 @@ static int fat_fill_super(super_block_t *sb, blkdev_t *dev) {
     return -ENOMEM;
   }
 
-  /* Store "/" as the cached path for the root vnode */
-  vfs_vnode_set_path(root, "/"); /* adjust to your VFS helper */
   sb->fs_root = root;
 
   kdebugf("fat_vfs: mounted FAT%d filesystem\n", (int)fat->type);
@@ -257,5 +258,16 @@ static fs_type_t fat_fs_type = {
     .next = NULL,
 };
 
-/* Call once during kernel init */
-void fat_vfs_register(void) { vfs_register_fs(&fat_fs_type); }
+int fat_init(module_t *module) {
+  vfs_fs_type_register(&fat_fs_type);
+  return 0;
+}
+
+static const char *fat_deps[] = {"ata", NULL};
+
+ITER_MODULE(fat) = {
+    .name = "keyboard",
+    .required = fat_deps,
+    .init = &fat_init,
+    .fini = NULL,
+};

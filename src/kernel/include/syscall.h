@@ -1,5 +1,5 @@
 #pragma once
-#include <stdint.h>
+#include "klib/stdint.h"
 
 // This corresponds to syscall entry
 typedef struct {

@@ -1,10 +1,11 @@
 #pragma once
 
-#include "device.h"
+#include "drivers/block/blockdev.h"
 #include "klib/stdbool.h"
 #include "klib/stddef.h"
 #include "klib/stdint.h"
 #include "ksys/stat.h"
+#include "vfs.h"
 
 /* -----------------------------------------------------------------------
  * FAT12 / FAT16 / FAT32 kernel driver
@@ -177,7 +178,11 @@ fat_fs_t *fat_mount(blkdev_t *dev);
 void fat_unmount(fat_fs_t *fs);
 fat_file_t *fat_open(fat_fs_t *fs, const char *path);
 ssize_t fat_read(fat_file_t *file, void *buf, size_t size);
-off_t fat_seek(fat_file_t *file, off_t offset, int whence);
+int fat_fstat(fat_file_t *file, fstat_t *fstat);
+off_t fat_seek(fat_file_t *file, off_t offset);
 void fat_close(fat_file_t *file);
 bool fat_read_dir(fat_file_t *dir, FAT_DirEntry *out);
 int fat_stat(fat_fs_t *fs, const char *path, FAT_DirEntry *out);
+fat_file_t *fat_open_by_cluster(fat_fs_t *fs, uint32_t cluster, bool is_dir,
+                                uint32_t size);
+bool dir_find(fat_file_t *dir, const char *name, FAT_DirEntry *out);

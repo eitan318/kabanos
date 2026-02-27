@@ -2,18 +2,18 @@
 #include "device.h"
 #include "drivers/keyboard.h"
 #include "hal.h"
+#include "klib/stddef.h"
+#include "klib/stdint.h"
+#include "klib/stdio.h"
+#include "klib/stdlib.h"
+#include "klib/string.h"
 #include "proc/exec.h"
 #include "proc/proc.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "sched/sleep.h"
 #include "sched/thread.h"
-#include "stdio.h"
-#include "vfs_public.h"
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
+#include "vfs.h"
 
 typedef enum {
   /* --- File & Device I/O --- */

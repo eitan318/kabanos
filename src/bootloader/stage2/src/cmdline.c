@@ -1,4 +1,5 @@
 #include "cmdline.h"
+#include "boot/bootparams.h"
 #include "s2lib/string.h"
 
 // Parse video mode string

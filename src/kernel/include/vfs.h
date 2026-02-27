@@ -14,10 +14,10 @@ typedef unsigned mode_t;
 // Only expose opaque pointers and syscall API
 typedef struct super_block super_block_t;
 typedef struct vnode vnode_t;
-typedef struct fstats Fstats;
+typedef struct fstat fstat_t;
 typedef struct vdir_entry VDirEntry;
 
-struct fstats {
+struct fstat {
   uint32_t size;        // file/directory size in bytes
   int mode;             // file type
   uint32_t links_count; // hard link count
@@ -45,6 +45,8 @@ ssize_t vfs_write(int fd, const void *buf, size_t size);
 int vfs_create(const char *path, mode_t mode);
 int vfs_unlink(const char *path);
 off_t vfs_seek(int fd, off_t offset, int whence);
+
+int vfs_fstat(int fd, fstat_t *stat);
 
 // DIR
 int vfs_iter_dir(int fd, VDirEntry *dentry, int count);

@@ -6,27 +6,26 @@
 
 typedef struct __attribute__((packed)) {
   uint8_t boot_code[446];
-  MBRPartitionEntry partitions[MBR_PARTITIONS];
+  mbr_partition_entry_t partitions[MBR_PARTITIONS];
   uint16_t boot_signature; // should be 0xAA55
-} MBR;
+} mbr_t;
 
 static union {
-  MBR mbr;
+  mbr_t mbr;
   uint8_t bytes[SECTOR_SIZE];
-} g_mbr;
+} mbr_union;
 
 bool mbr_partition_table_get(DiskParams *disk,
-                             partition_table_t
-                             *partition_table) {
-  if (!disk_read_sectors(disk, 0, 1, g_mbr.bytes)) {
+                             partition_table_t *partition_table) {
+  if (!disk_read_sectors(disk, 0, 1, mbr_union.bytes)) {
     return false;
   }
-  if (g_mbr.mbr.boot_signature != 0xAA55) {
+  if (mbr_union.mbr.boot_signature != 0xAA55) {
     return false;
   }
 
   partition_table->entries_count = MBR_PARTITIONS;
-  partition_table->partition_entries = g_mbr.mbr.partitions;
+  partition_table->partition_entries = mbr_union.mbr.partitions;
 
   return true;
 }

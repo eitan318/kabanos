@@ -14,3 +14,7 @@ typedef signed long long int64_t;
 
 typedef unsigned int uintptr_t;
 typedef int intptr_t;
+
+#define MAX(x) ~((x)0)
+#define UINT64_MAX MAX(uint64_t)
+#define UINT64_MAX MAX(uint64_t)

@@ -1,7 +1,7 @@
 #include "initrd.h"
+#include "klib/stddef.h"
 #include "klib/stdio.h"
-#include "string.h"
-#include <stddef.h>
+#include "klib/string.h"
 
 // Simple TAR header for initrd
 typedef struct {

@@ -5,10 +5,10 @@
 #include "arch/i686/sysenter.h"
 #include "arch/i686/timer.h"
 #include "assert.h"
+#include "klib/stdint.h"
 #include "modules.h"
 #include "panic.h"
 #include "sched/sched.h"
-#include <stdint.h>
 
 void hal_interrupts_disable(void) { asm volatile("cli"); }
 void hal_interrupts_enable(void) { asm volatile("sti"); }

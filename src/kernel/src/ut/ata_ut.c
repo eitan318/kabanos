@@ -1,6 +1,6 @@
 #include "drivers/ata.h"
+#include "klib/stdint.h"
 #include "ut/ut_framework.h"
-#include <stdint.h>
 
 int ut_test1(void) {
   uint8_t buff[511];

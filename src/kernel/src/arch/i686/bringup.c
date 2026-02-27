@@ -1,5 +1,5 @@
+#include "klib/stdint.h"
 #include "mm/memdefs.h"
-#include <stdint.h>
 
 // Multiboot header constants
 typedef enum {

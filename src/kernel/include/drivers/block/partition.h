@@ -1,8 +1,5 @@
-#pragma once
-#include "boot/bootparams.h"
-#include <stdbool.h>
-#include <stdint.h>
-
+#include "drivers/block/blockdev.h"
+#include "klib/stdint.h"
 #define MBR_PARTITIONS 4
 
 enum MBRPartitionEntryFlag {
@@ -27,17 +24,13 @@ typedef struct __attribute__((packed)) {
   uint8_t chs_end[3];
   uint32_t lba_start;
   uint32_t total_sectors;
-} MBRPartitionEntry;
+} mbr_partition_entry_t;
 
 typedef struct {
-  uint32_t partitionOffset;
-  uint32_t partitionSize;
-} partition_t;
+  blkdev_t *parent;
+  uint32_t start_lba;
+  uint32_t sector_count;
+  int part_index;
+} partition_info_t;
 
-typedef struct {
-  int entries_count;
-  MBRPartitionEntry *partition_entries;
-} partition_table_t;
-
-bool kmbr_partition_table_get(partition_table_t *partition_table);
-
+void partition_probe(blkdev_t *physical_dev);

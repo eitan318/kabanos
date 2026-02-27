@@ -1,5 +1,5 @@
-#include <stdbool.h>
-#include <stdint.h>
+#include "klib/stdbool.h"
+#include "klib/stdint.h"
 
 static inline void bitmap_set(uint8_t *bitmap, uint64_t bit) {
   bitmap[bit / 8] |= (1 << (bit % 8));

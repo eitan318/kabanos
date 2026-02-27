@@ -1,8 +1,8 @@
 #include "klib/stdio.h"
+#include "klib/stdbool.h"
+#include "klib/stdint.h"
 #include "klib/vfs.h"
 #include "utils/math.h"
-#include <stdbool.h>
-#include <stdint.h>
 
 // ============================================================================
 // Output abstraction layer

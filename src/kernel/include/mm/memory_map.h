@@ -1,7 +1,7 @@
 #pragma once
 #include "adt/range.h"
-#include <stddef.h>
-#include <stdint.h>
+#include "klib/stddef.h"
+#include "klib/stdint.h"
 
 enum E820MemoryBlockType {
   E820_USABLE = 1,

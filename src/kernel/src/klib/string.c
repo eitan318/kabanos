@@ -1,7 +1,7 @@
 #include "klib/string.h"
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#include "klib/stdbool.h"
+#include "klib/stddef.h"
+#include "klib/stdint.h"
 
 const char *strrchr(const char *str, char chr) {
   if (str == NULL)

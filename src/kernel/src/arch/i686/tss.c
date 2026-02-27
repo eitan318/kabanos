@@ -1,6 +1,6 @@
 #include "arch/i686/tss.h"
 #include "arch/i686/gdt.h"
-#include "string.h"
+#include "klib/string.h"
 
 static tss_entry_t tss_entries[MAX_CORES];
 

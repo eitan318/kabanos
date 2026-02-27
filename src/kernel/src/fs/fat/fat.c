@@ -4,6 +4,7 @@
 #include "klib/stdio.h"
 #include "klib/string.h"
 #include "mm/kmalloc.h"
+#include "vfs.h"
 
 /* -----------------------------------------------------------------------
  * Internal helpers
@@ -377,7 +378,7 @@ bool fat_read_dir(fat_file_t *dir, FAT_DirEntry *out) {
  * open directory `dir`.  Resets position to 0 before scanning.
  * Returns true and fills `out` on match.
  */
-static bool dir_find(fat_file_t *dir, const char *name, FAT_DirEntry *out) {
+bool dir_find(fat_file_t *dir, const char *name, FAT_DirEntry *out) {
   fat_fs_t *fs = dir->fs;
 
   /* Reset to start of directory */
@@ -547,6 +548,28 @@ fat_file_t *fat_open(fat_fs_t *fs, const char *path) {
   return current;
 }
 
+int fat_fstat(fat_file_t *file, fstat_t *stat) {
+  if (!file || !stat)
+    return -EINVAL;
+
+  memset(stat, 0, sizeof(fstat_t));
+
+  stat->size = file->size;
+  stat->mode = file->is_directory ? DT_DIR : DT_REG;
+  stat->links_count = 1;
+  stat->uid = 0;
+  stat->gid = 0;
+  stat->permissions = file->is_directory ? 0755 : 0644;
+  stat->ino = (int)file->first_cluster;
+  stat->atime = 0;
+  stat->mtime = 0;
+  stat->ctime = 0;
+
+  stat->name = NULL; /* caller fills this in if needed */
+
+  return 0;
+}
+
 ssize_t fat_read(fat_file_t *file, void *buf, size_t size) {
   if (file->is_directory)
     return -EISDIR;
@@ -582,30 +605,15 @@ ssize_t fat_read(fat_file_t *file, void *buf, size_t size) {
   return (ssize_t)(out - (uint8_t *)buf);
 }
 
-off_t fat_seek(fat_file_t *file, off_t offset, int whence) {
+off_t fat_seek(fat_file_t *file, off_t offset) {
   fat_fs_t *fs = file->fs;
-  int64_t target;
 
-  switch (whence) {
-  case 0:
-    target = offset;
-    break;
-  case 1:
-    target = (int64_t)file->position + offset;
-    break;
-  case 2:
-    target = (int64_t)file->size + offset;
-    break;
-  default:
+  if (offset < 0)
     return (off_t)-EINVAL;
-  }
+  if (!file->is_directory && (uint32_t)offset > file->size)
+    offset = file->size;
 
-  if (target < 0)
-    return (off_t)-EINVAL;
-  if (!file->is_directory && (uint32_t)target > file->size)
-    target = file->size;
-
-  uint32_t new_pos = (uint32_t)target;
+  uint32_t new_pos = (uint32_t)offset;
 
   /* If seeking backwards, restart from first cluster */
   if (new_pos < file->position) {
@@ -642,17 +650,31 @@ void fat_close(fat_file_t *file) {
     kfree(file);
 }
 
-int fat_stat(fat_fs_t *fs, const char *path, FAT_DirEntry *out) {
-  fat_file_t *f = fat_open(fs, path);
-  if (!f)
-    return -ENOENT;
+fat_file_t *fat_open_by_cluster(fat_fs_t *fs, uint32_t cluster, bool is_dir,
+                                uint32_t size) {
+  fat_file_t *file = kmalloc(sizeof(fat_file_t));
+  if (!file)
+    return NULL;
 
-  /* Reconstruct a synthetic DirEntry from the fat_file_t */
-  memset(out, 0, sizeof(FAT_DirEntry));
-  out->size = f->size;
-  out->first_cluster_low = (uint16_t)(f->first_cluster & 0xFFFF);
-  out->first_cluster_high = (uint16_t)(f->first_cluster >> 16);
-  out->attributes = f->is_directory ? FAT_ATTR_DIRECTORY : FAT_ATTR_ARCHIVE;
-  fat_close(f);
-  return 0;
+  memset(file, 0, sizeof(fat_file_t));
+  file->fs = fs;
+  file->is_directory = is_dir;
+  file->size = size;
+  file->first_cluster = cluster;
+  file->current_cluster = cluster;
+  file->current_sector_in_cluster = 0;
+  file->position = 0;
+
+  // Special case for FAT12/16 root directory (which isn't in the cluster area)
+  if (cluster == 0 && fs->type != FAT_TYPE_32) {
+    file->is_root_dir = true;
+  }
+
+  // Pre-load the first sector of the file/dir into the file's internal buffer
+  if (file_ensure_sector(file) < 0) {
+    kfree(file);
+    return NULL;
+  }
+
+  return file;
 }

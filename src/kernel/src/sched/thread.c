@@ -1,13 +1,13 @@
 #include "sched/thread.h"
 #include "arch/types.h"
 #include "hal.h"
+#include "klib/stdio.h"
+#include "klib/string.h"
 #include "mm/kmalloc.h"
 #include "mm/memdefs.h"
 #include "mm/va_allocation.h"
 #include "mm/vmspace.h"
 #include "sched/sched.h"
-#include "stdio.h"
-#include "string.h"
 
 static uint32_t next_tid = 1;
 static uint32_t alloc_tid() { return next_tid++; }

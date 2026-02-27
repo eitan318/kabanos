@@ -1,8 +1,11 @@
+#include "vfs.h"
+#include "klib/errno.h"
 #include "klib/stdio.h"
 #include "klib/string.h"
+#include "klib/unistd.h"
+#include "ksys/fcntl.h"
 #include "mm/kmalloc.h"
 #include "vfs_internal.h"
-#include <unistd.h>
 
 mount_point_t *mount_p_table = NULL;
 fs_type_t *fs_registry_table = NULL;
@@ -97,8 +100,8 @@ int vfs_fs_type_unregister(const char *name) {
   return -1; // not found
 }
 
-vnode_t *vfs_vnode_alloc(struct SuperBlock *sb, ino_t ino, mode_t mode,
-                         size_t size, void *fs_specific) {
+vnode_t *vfs_vnode_alloc(super_block_t *sb, ino_t ino, mode_t mode, size_t size,
+                         void *fs_specific) {
   vnode_t *new_vnode = kmalloc(sizeof(vnode_t));
   if (!new_vnode) {
     return NULL;
@@ -180,27 +183,42 @@ fs_type_t *get_fs_type(const char *name) {
 int vfs_mount(const char *source_dev, const char *target_path,
               const char *fs_name, unsigned long mountflags, void *fs_data) {
 
-  struct mount_point *mount_p;
-  mount_p = kmalloc(sizeof(*mount_p));
-  if (!mount_p)
-    return -1;
+  /* 1. Find the Block Device (e.g., /dev/hda) */
+  /* You likely need a function like blkdev_get(name) in your kernel */
+  blkdev_t *dev = blkdev_get(source_dev);
+  if (!dev) {
+    kdebugf("vfs_mount: device %s not found\n", source_dev);
+    return -ENODEV;
+  }
 
+  /* 2. Find the Filesystem Type (e.g., "fat") */
+  fs_type_t *fs_type = get_fs_type(fs_name);
+  if (!fs_type) {
+    return -ENODEV;
+  }
+
+  /* 3. Allocate the Mount Point and Superblock */
+  mount_point_t *mount_p = kmalloc(sizeof(*mount_p));
+  super_block_t *super_block = kmalloc(sizeof(*super_block));
+  if (!mount_p || !super_block) {
+    // Cleanup if one failed
+    return -ENOMEM;
+  }
+  memset(super_block, 0, sizeof(*super_block));
+
+  if (fs_type->fill_sb(super_block, dev) == -1) {
+    kfree(mount_p);
+    kfree(super_block);
+    return -EIO;
+  }
+
+  /* 5. Finalize Mount Point */
   strncpy(mount_p->path, target_path, sizeof(mount_p->path) - 1);
   mount_p->path[sizeof(mount_p->path) - 1] = '\0';
-
-  fs_type_t *fs_type = get_fs_type(fs_name);
-  if (fs_type == NULL) {
-    return -1;
-  }
-  struct SuperBlock *super_block;
-  super_block = kmalloc(sizeof(*super_block));
-  if (fs_type->fill_sb(super_block) == -1) {
-    return -1;
-  }
-
-  // Add to mount table (insert at head)
-  mount_p->next = mount_p_table;
   mount_p->super_block = super_block;
+
+  // Add to mount table
+  mount_p->next = mount_p_table;
   mount_p_table = mount_p;
 
   return 0;
@@ -273,6 +291,7 @@ static int vfs_remove_mount_point(const char *path) {
 
   return -1;
 }
+
 int vfs_rename(const char *oldpath, const char *newpath) {
   // Parse old path
   char *old_copy = strdup(oldpath);
@@ -559,18 +578,10 @@ ssize_t vfs_read(int fd, void *buf, size_t size) {
 
   file_t *file = fd_table[fd];
 
-  int mode = file->flags & O_ACCMODE;
-  if (mode != O_RDONLY && mode != O_RDWR) {
-    return -1; // not readable
-  }
-
   // Use file operations if available, otherwise use vnode operations
   int n = 0;
   if (file->f_ops && file->f_ops->read) {
     n = file->f_ops->read(file, buf, size);
-  } else if (file->vnode->super_block->v_ops &&
-             file->vnode->super_block->f_ops->read) {
-    n = file->vnode->super_block->f_ops->read(file, buf, size);
   } else {
     return -1; // No read operation available
   }
@@ -578,6 +589,21 @@ ssize_t vfs_read(int fd, void *buf, size_t size) {
   if (n > 0)
     file->pos += n;
 
+  return n;
+}
+
+int vfs_fstat(int fd, fstat_t *stat) {
+  if (fd < 0 || fd >= MAX_FD || !fd_table[fd])
+    return -1;
+
+  file_t *file = fd_table[fd];
+
+  int n = 0;
+  if (file->f_ops && file->f_ops->fstat) {
+    n = file->f_ops->fstat(file, stat);
+  } else {
+    return -1;
+  }
   return n;
 }
 
@@ -598,9 +624,6 @@ ssize_t vfs_write(int fd, const void *buf, size_t size) {
   int n = 0;
   if (file->f_ops && file->f_ops->write) {
     n = file->f_ops->write(file, buf, size);
-  } else if (file->vnode->super_block->v_ops &&
-             file->vnode->super_block->f_ops->write) {
-    n = file->vnode->super_block->f_ops->write(file, buf, size);
   } else {
     return -1; // No write operation available
   }
@@ -622,9 +645,6 @@ int vfs_close(int fd) {
   int result = 0;
   if (file->f_ops && file->f_ops->close) {
     result = file->f_ops->close(file);
-  } else if (file->vnode->super_block->v_ops &&
-             file->vnode->super_block->f_ops->close) {
-    result = file->vnode->super_block->f_ops->close(file);
   }
 
   free_fd(fd);

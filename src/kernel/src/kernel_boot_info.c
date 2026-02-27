@@ -1,8 +1,8 @@
 #include "kernel_boot_info.h"
 #include "adt/range.h"
 #include "boot/bootparams.h"
+#include "klib/string.h"
 #include "mm/memory_map.h"
-#include "string.h"
 #include "utils/math.h"
 
 #define EARLYALLOC_SIZE (5 * 1024)

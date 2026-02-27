@@ -2,11 +2,11 @@
 #include "adt/range.h"
 #include "arch/types.h"
 #include "hal.h"
+#include "klib/stddef.h"
+#include "klib/string.h"
 #include "mm/kmalloc.h"
 #include "mm/memdefs.h"
 #include "mm/pmm.h"
-#include "string.h"
-#include <stddef.h>
 
 static arch_vm_t kernel_arch_vm;
 

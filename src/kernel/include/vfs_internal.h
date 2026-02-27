@@ -3,7 +3,7 @@
 #include "klib/stddef.h"
 #include "klib/stdint.h"
 //#include "klib/stdlib.h"
-#include "device.h"
+#include "drivers/block/blockdev.h"
 #include "vfs.h"
 
 //#define PATH_SAPERATOR '/'
@@ -36,6 +36,7 @@ struct file_ops {
   ssize_t (*write)(file_t *file, const void *buf, size_t size);
   int (*close)(file_t *file);
   off_t (*seek)(file_t *file, off_t offset);
+  int (*fstat)(file_t *file, fstat_t *stat);
   int (*iter_dir)(file_t *parent_file, dir_ctx_t *ctx);
 };
 
@@ -69,7 +70,7 @@ struct super_block {
   vnode_t *fs_root;
   struct file_ops *f_ops;
   struct vnode_ops *v_ops;
-  struct Vnode *vnode_cache;
+  vnode_t *vnode_cache;
 
   void *fs_private;
 };

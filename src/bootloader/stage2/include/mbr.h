@@ -27,14 +27,12 @@ typedef struct __attribute__((packed)) {
   uint8_t chs_end[3];
   uint32_t lba_start;
   uint32_t total_sectors;
-} MBRPartitionEntry;
+} mbr_partition_entry_t;
 
 typedef struct {
   int entries_count;
-  MBRPartitionEntry *partition_entries;
+  mbr_partition_entry_t *partition_entries;
 } partition_table_t;
-
-
 
 typedef struct {
   DiskParams *disk;
@@ -42,6 +40,7 @@ typedef struct {
   uint32_t partitionSize;
 } Partition;
 
-bool mbr_partition_table_get(DiskParams *disk, partition_table_t *partition_table);
+bool mbr_partition_table_get(DiskParams *disk,
+                             partition_table_t *partition_table);
 bool Partition_read_sectors(Partition *part, uint32_t lba, uint8_t sectors,
                             void *lowerDataOut);

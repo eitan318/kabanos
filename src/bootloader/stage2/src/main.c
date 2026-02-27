@@ -34,7 +34,7 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   partition_table_t partition_table;
   bool res = mbr_partition_table_get(&disk_params, &partition_table);
 
-  MBRPartitionEntry *boot_partition_entry;
+  mbr_partition_entry_t *boot_partition_entry;
 
   int active_count = 0;
   for (int i = 0; i < 4; i++) {

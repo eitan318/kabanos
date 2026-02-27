@@ -1,28 +1,28 @@
 #include "adt/range.h"
 #include "boot/bootparams.h"
-#include "fat.h"
+#include "drivers/block/blockdev.h"
+#include "fs/fat/fat.h"
 #include "kernel_boot_info.h"
+#include "klib/stdbool.h"
+#include "klib/stddef.h"
+#include "klib/stdint.h"
 #include "klib/stdio.h"
+#include "klib/stdlib.h"
+#include "klib/string.h"
 #include "mm/kmalloc.h"
 #include "mm/memdefs.h"
 #include "mm/memory_map.h"
 #include "mm/pmm.h"
 #include "mm/vmspace.h"
 #include "modules.h"
-#include "partition.h"
 #include "proc/exec.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
-#include "string.h"
 #include "ut/ata_ut_main.h"
 #include "ut/frame_allocator_ut_main.h"
+#include "ut/fs/fs_ut_main.h"
 #include "ut/print_boot_info.h"
 #include "vfs.h"
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <string.h>
 
 vmspace_t g_kernel_vmspace_obj;
 vmspace_t *g_kernel_vmspace = &g_kernel_vmspace_obj;
@@ -52,8 +52,6 @@ void kmain(uint32_t mb2_ptr) {
   Range *useable_memory_ranges =
       get_useable_memory_ranges(kernel_boot_info, &useable_memory_ranges_count);
 
-  print_memory_map(kernel_boot_info->memory_map);
-
   // From now on, no early pmm
   pmm_init(total_memory_range, useable_memory_ranges,
            useable_memory_ranges_count, used_memory_ranges,
@@ -73,29 +71,10 @@ void kmain(uint32_t mb2_ptr) {
   modules_init_registry(kernel_boot_info->modules);
   modules_load();
 
-  partition_table_t partition_table;
-  bool res = kmbr_partition_table_get(&partition_table);
+  vfs_mount("atap1", "/boot", "fat", 0, NULL);
+  vfs_mount("atap2", "/myos", "myos", 0, NULL);
 
-  MBRPartitionEntry *boot_partition_entry;
-
-  int active_count = 0;
-  for (int i = 0; i < 4; i++) {
-    if (partition_table.partition_entries[i].boot_flag == BOOTABLE) {
-      active_count++;
-      boot_partition_entry = &partition_table.partition_entries[i];
-    }
-  }
-
-  // my invention
-  vfs_mount("dev", "/", "FAT12", 0, NULL);
-
-  if (!fat_initialize(boot_partition_entry->lba_start)) {
-    kdebugf("Failed to initialize FAT\n");
-    for (;;) {
-    }
-  }
-
-  process_spawn("init.elf", PRIORITY_VERY_HIGH);
+  process_spawn("/boot/init.elf", PRIORITY_VERY_HIGH);
 
   hal_timer_enable();
 

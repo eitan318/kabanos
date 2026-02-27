@@ -1,7 +1,7 @@
 #include "modules.h"
 #include "kernel_boot_info.h"
-#include "stdio.h"
-#include "string.h"
+#include "klib/stdio.h"
+#include "klib/string.h"
 
 static module_t *module_registry;
 static int registry_count = 0;
