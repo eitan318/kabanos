@@ -1,6 +1,6 @@
 #pragma once
-#include <stddef.h>
-#include <stdint.h>
+#include "klib/stddef.h"
+#include "klib/stdint.h"
 
 typedef int fd_t;
 

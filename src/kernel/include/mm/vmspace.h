@@ -1,7 +1,7 @@
 #pragma once
 #include "adt/range.h"
 #include "arch/types.h"
-#include <stdint.h>
+#include "klib/stddef.h"
 
 typedef struct vmspace_t {
   arch_vm_t *arch;

@@ -1,8 +1,8 @@
 #pragma once
 #include "arch/types.h"
 #include "hal.h"
-#include <stdbool.h>
-#include <stdint.h>
+#include "klib/stdbool.h"
+#include "klib/stdint.h"
 
 #define ELF_MAGIC                                                              \
   "\x7F"                                                                       \

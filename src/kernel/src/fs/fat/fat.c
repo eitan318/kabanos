@@ -1,5 +1,13 @@
-#include "fat.h"
+#include "fs/fat/fat.h"
+#include "arch/i686/errno.h"
+#include "klib/ctype.h"
+#include "klib/stdio.h"
+#include "klib/string.h"
 #include "mm/kmalloc.h"
+
+/* -----------------------------------------------------------------------
+ * Internal helpers
+ * ---------------------------------------------------------------------- */
 
 static inline void fs_lock(fat_fs_t *fs) {
   if (fs->lock)
@@ -82,7 +90,7 @@ fat_fs_t *fat_mount(blkdev_t *dev) {
   /* Read boot sector into a temporary stack buffer */
   uint8_t boot[FAT_SECTOR_SIZE];
   if (dev->read_sectors(dev, 0, 1, boot) < 0) {
-    debugf("fat_mount: boot sector read failed\n");
+    kdebugf("fat_mount: boot sector read failed\n");
     return NULL;
   }
 
@@ -90,7 +98,7 @@ fat_fs_t *fat_mount(blkdev_t *dev) {
 
   if (bpb->bytes_per_sector == 0 || bpb->sectors_per_cluster == 0 ||
       bpb->reserved_sectors == 0 || bpb->fat_count == 0) {
-    debugf("fat_mount: invalid BPB\n");
+    kdebugf("fat_mount: invalid BPB\n");
     return NULL;
   }
 
@@ -150,12 +158,12 @@ fat_fs_t *fat_mount(blkdev_t *dev) {
     goto err;
 
   if (dev->read_sectors(dev, fs->fat_lba, fs->fat_sectors, fs->fat_table) < 0) {
-    debugf("fat_mount: FAT read failed\n");
+    kdebugf("fat_mount: FAT read failed\n");
     goto err;
   }
 
-  debugf("fat_mount: FAT%d, %u clusters, data_lba=%u\n", (int)fs->type,
-         fs->cluster_count, fs->data_lba);
+  kdebugf("fat_mount: FAT%d, %u clusters, data_lba=%u\n", (int)fs->type,
+          fs->cluster_count, fs->data_lba);
   return fs;
 
 err:
@@ -498,7 +506,7 @@ fat_file_t *fat_open(fat_fs_t *fs, const char *path) {
 
     FAT_DirEntry entry;
     if (!dir_find(current, component, &entry)) {
-      debugf("fat_open: '%s' not found\n", component);
+      kdebugf("fat_open: '%s' not found\n", component);
       fat_close(current);
       return NULL;
     }
@@ -506,7 +514,7 @@ fat_file_t *fat_open(fat_fs_t *fs, const char *path) {
     bool is_dir = (entry.attributes & FAT_ATTR_DIRECTORY) != 0;
 
     if (!is_last && !is_dir) {
-      debugf("fat_open: '%s' is not a directory\n", component);
+      kdebugf("fat_open: '%s' is not a directory\n", component);
       fat_close(current);
       return NULL;
     }

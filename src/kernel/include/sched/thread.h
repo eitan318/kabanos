@@ -1,6 +1,6 @@
 #pragma once
+#include "klib/stdint.h"
 #include "proc/proc.h"
-#include <stdint.h>
 
 enum thread_mode { THREAD_MODE_KERNEL, THREAD_MODE_USER };
 

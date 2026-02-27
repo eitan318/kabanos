@@ -3,10 +3,10 @@
 #include "device.h"
 #include "hal.h"
 #include "isr.h"
+#include "klib/string.h"
 #include "modules.h"
 #include "sched/spinlock.h"
 #include "sched/wait.h"
-#include "string.h"
 
 #define KBD_IRQ 1
 #define KBD_INT 0x21

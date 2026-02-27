@@ -1,7 +1,7 @@
 #pragma once
 
+#include "klib/stdio.h"
 #include "panic.h"
-#include "stdio.h"
 
 #define ASSERT(cond)                                                           \
   do {                                                                         \

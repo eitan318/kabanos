@@ -17,7 +17,7 @@
 #include "ut/ata_ut_main.h"
 #include "ut/frame_allocator_ut_main.h"
 #include "ut/print_boot_info.h"
-#include "vfs_public.h"
+#include "vfs.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>

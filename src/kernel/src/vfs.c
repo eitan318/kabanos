@@ -97,9 +97,9 @@ int vfs_fs_type_unregister(const char *name) {
   return -1; // not found
 }
 
-Vnode *vfs_vnode_alloc(struct SuperBlock *sb, ino_t ino, mode_t mode,
-                       size_t size, void *fs_specific) {
-  Vnode *new_vnode = kmalloc(sizeof(Vnode));
+vnode_t *vfs_vnode_alloc(struct SuperBlock *sb, ino_t ino, mode_t mode,
+                         size_t size, void *fs_specific) {
+  vnode_t *new_vnode = kmalloc(sizeof(vnode_t));
   if (!new_vnode) {
     return NULL;
   }
@@ -116,20 +116,20 @@ Vnode *vfs_vnode_alloc(struct SuperBlock *sb, ino_t ino, mode_t mode,
   return new_vnode;
 }
 
-void vfs_vnode_kfree(Vnode *v) {}
+void vfs_vnode_kfree(vnode_t *v) {}
 
-static void vnode_get(Vnode *vnode) {
+static void vnode_get(vnode_t *vnode) {
   if (vnode)
     vnode->refcount++;
 }
 
-static void vnode_put(Vnode *vnode) {
+static void vnode_put(vnode_t *vnode) {
   if (!vnode)
     return;
   vnode->refcount--;
   if (vnode->refcount == 0) {
     // Remove from cache list
-    Vnode **prev = &(vnode->super_block->vnode_cache);
+    vnode_t **prev = &(vnode->super_block->vnode_cache);
     while (*prev && *prev != vnode)
       prev = &(*prev)->next;
     if (*prev == vnode)
@@ -194,7 +194,7 @@ int vfs_mount(const char *source_dev, const char *target_path,
   }
   struct SuperBlock *super_block;
   super_block = kmalloc(sizeof(*super_block));
-  if (fs_type->fill_super_sb(super_block) == -1) {
+  if (fs_type->fill_sb(super_block) == -1) {
     return -1;
   }
 
@@ -214,7 +214,7 @@ int vfs_symlink(const char *target, const char *linkpath) {
   char *link_name = last_slash + 1;
   char *parent_path = (*path_copy) ? path_copy : "/";
 
-  Vnode *parent = vfs_lookup_path(parent_path, true);
+  vnode_t *parent = vfs_lookup_path(parent_path, true);
   if (!parent) {
     kfree(path_copy);
     return -1;
@@ -228,7 +228,8 @@ int vfs_symlink(const char *target, const char *linkpath) {
 }
 
 ssize_t vfs_readlink(const char *path, char *buf, size_t bufsize) {
-  Vnode *vnode = vfs_lookup_path(path, false); // false = don't follow symlinks
+  vnode_t *vnode =
+      vfs_lookup_path(path, false); // false = don't follow symlinks
 
   if (!vnode) {
     return -1;
@@ -297,8 +298,8 @@ int vfs_rename(const char *oldpath, const char *newpath) {
   const char *new_parent_path = (*new_copy) ? new_copy : "/";
 
   // Lookup parent directories
-  Vnode *old_parent = vfs_lookup_path(old_parent_path, true);
-  Vnode *new_parent = vfs_lookup_path(new_parent_path, true);
+  vnode_t *old_parent = vfs_lookup_path(old_parent_path, true);
+  vnode_t *new_parent = vfs_lookup_path(new_parent_path, true);
 
   if (!old_parent || !new_parent) {
     if (old_parent)
@@ -337,7 +338,7 @@ int vfs_rename(const char *oldpath, const char *newpath) {
 int vfs_umount(const char *target) {
 
   mount_point_t *mp = vfs_find_mount_point(target);
-  SuperBlock *sb = mp->super_block;
+  super_block_t *sb = mp->super_block;
   sb->fs_type->kill_sb(sb);
   vfs_remove_mount_point(target);
   return 0;
@@ -367,7 +368,7 @@ mount_point_t *vfs_find_mount_point(const char *path) {
   return best_match;
 }
 
-Vnode *vfs_lookup_path(const char *path, bool follow_final_symlink) {
+vnode_t *vfs_lookup_path(const char *path, bool follow_final_symlink) {
   if (!path || path[0] != '/') {
     return NULL;
   }
@@ -382,7 +383,7 @@ Vnode *vfs_lookup_path(const char *path, bool follow_final_symlink) {
     relative_path++;
   }
 
-  Vnode *current = mount->super_block->fs_root;
+  vnode_t *current = mount->super_block->fs_root;
   if (!current) {
     return NULL;
   }
@@ -410,7 +411,7 @@ Vnode *vfs_lookup_path(const char *path, bool follow_final_symlink) {
       return NULL;
     }
 
-    Vnode *next = current->super_block->v_ops->lookup(current, token);
+    vnode_t *next = current->super_block->v_ops->lookup(current, token);
     if (!next) {
       vnode_put(current);
       kfree(path_copy);
@@ -492,7 +493,7 @@ Vnode *vfs_lookup_path(const char *path, bool follow_final_symlink) {
 // VFS System Call Interface
 
 int vfs_open(const char *path, int flags) {
-  Vnode *vnode = vfs_lookup_path(path, true);
+  vnode_t *vnode = vfs_lookup_path(path, true);
   if (!vnode)
     return -1;
 
@@ -632,7 +633,7 @@ int vfs_close(int fd) {
 
 // Common helper for operations that need parent dir + child name
 static int vfs_parent_operation(const char *path,
-                                int (*op)(Vnode *parent, const char *name,
+                                int (*op)(vnode_t *parent, const char *name,
                                           mode_t mode),
                                 mode_t mode) {
   if (!path || !op) {
@@ -653,7 +654,7 @@ static int vfs_parent_operation(const char *path,
   char *child_name = last_slash + 1;
   char *parent_path = (*path_copy) ? path_copy : "/";
 
-  Vnode *parent = vfs_lookup_path(parent_path, true);
+  vnode_t *parent = vfs_lookup_path(parent_path, true);
   if (!parent) {
     kfree(path_copy);
     return -1;
@@ -693,7 +694,7 @@ int vfs_rmdir(const char *path) {
     return -1;
   }
   return vfs_parent_operation(
-      path, (int (*)(Vnode *, const char *, mode_t))vnode_ops->rmdir, 0);
+      path, (int (*)(vnode_t *, const char *, mode_t))vnode_ops->rmdir, 0);
 }
 
 int vfs_unlink(const char *path) {
@@ -704,5 +705,5 @@ int vfs_unlink(const char *path) {
   }
   // unlink doesn't use mode, just pass 0
   return vfs_parent_operation(
-      path, (int (*)(Vnode *, const char *, mode_t))vnode_ops->unlink, 0);
+      path, (int (*)(vnode_t *, const char *, mode_t))vnode_ops->unlink, 0);
 }

@@ -1,6 +1,6 @@
 
 #pragma once
-#include <stdint.h>
+#include "klib/stdint.h"
 
 /* Primary ATA I/O ports */
 #define ATA_PRIMARY_DATA 0x1F0       // Data register (16-bit)

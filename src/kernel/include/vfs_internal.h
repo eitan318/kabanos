@@ -1,12 +1,10 @@
 #pragma once
+#include "klib/stdbool.h"
+#include "klib/stddef.h"
+#include "klib/stdint.h"
+//#include "klib/stdlib.h"
+#include "device.h"
 #include "vfs.h"
-#include <fcntl.h>
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <sys/types.h>
 
 //#define PATH_SAPERATOR '/'
 #define PATH_LEN_MAX 256
@@ -18,18 +16,18 @@ typedef struct fs_type fs_type_t;
 typedef struct dir_ctx dir_ctx_t;
 
 struct vnode_ops {
-  int (*create)(Vnode *dir, const char *name, mode_t mode);
-  int (*mkdir)(Vnode *dir, const char *name, mode_t mode);
-  int (*rmdir)(Vnode *parent, const char *dir_name);
-  int (*unlink)(Vnode *dir, const char *name);
-  int (*destroy)(Vnode *vnode);
-  Vnode *(*lookup)(Vnode *dir, const char *name);
-  int (*symlink)(Vnode *dir, const char *link_name, const char *target);
-  int (*rename)(Vnode *old_parent, const char *old_name, Vnode *new_parent,
+  int (*create)(vnode_t *dir, const char *name, mode_t mode);
+  int (*mkdir)(vnode_t *dir, const char *name, mode_t mode);
+  int (*rmdir)(vnode_t *parent, const char *dir_name);
+  int (*unlink)(vnode_t *dir, const char *name);
+  void (*destroy)(vnode_t *vnode);
+  vnode_t *(*lookup)(vnode_t *dir, const char *name);
+  int (*symlink)(vnode_t *dir, const char *link_name, const char *target);
+  int (*rename)(vnode_t *old_parent, const char *old_name, vnode_t *new_parent,
                 const char *new_name);
 
   // returns len of content
-  ssize_t (*readlink)(Vnode *vnode, char *buf, size_t bufsize);
+  ssize_t (*readlink)(vnode_t *vnode, char *buf, size_t bufsize);
 };
 
 struct file_ops {
@@ -43,11 +41,12 @@ struct file_ops {
 
 // File structure - represents an open file
 struct file {
-  Vnode *vnode; // Pointer to the vnode/inode
+  vnode_t *vnode; // Pointer to the vnode/inode
   struct file_ops *f_ops;
   off_t pos;    // Current file position
   int flags;    // O_RDONLY, O_WRONLY, etc
   int refcount; // For multiple opens of the same file
+  void *private_data;
 };
 
 struct dir_ctx {
@@ -61,13 +60,13 @@ struct dir_ctx {
 // Mount point structure
 struct mount_point {
   char path[256]; // Mount path
-  struct SuperBlock *super_block;
+  super_block_t *super_block;
   struct mount_point *next; // Linked list of mount points
 };
 
-struct SuperBlock {
+struct super_block {
   fs_type_t *fs_type;
-  Vnode *fs_root;
+  vnode_t *fs_root;
   struct file_ops *f_ops;
   struct vnode_ops *v_ops;
   struct Vnode *vnode_cache;
@@ -76,21 +75,21 @@ struct SuperBlock {
 };
 
 // Vnode structure - represents a file/directory in the VFS
-struct Vnode {
-  struct SuperBlock *super_block;
+struct vnode {
+  super_block_t *super_block;
   void *fs_specific;
   int size;
   int mode;
   uint32_t i_ino;
   int refcount;       // For cache reference counting
-  struct Vnode *next; // Linked list for cache
+  struct vnode *next; // Linked list for cache
 };
 
 struct fs_type {
   const char *name; // "ext4", "tmpfs", etc.
   int fs_flags;
-  int (*fill_super_sb)(struct SuperBlock *vfs_sb);
-  int (*kill_sb)(SuperBlock *sb);
+  int (*fill_sb)(super_block_t *vfs_sb, blkdev_t *dev);
+  int (*kill_sb)(super_block_t *sb);
   struct fs_type *next;
 };
 
@@ -107,10 +106,10 @@ mount_point_t *vfs_find_mount_point(const char *path);
 int vfs_fs_type_register(fs_type_t *fs_type);
 int vfs_fs_type_unregister(const char *name);
 
-Vnode *vfs_lookup_path(const char *path, bool follow_final_symlink);
+vnode_t *vfs_lookup_path(const char *path, bool follow_final_symlink);
 
-Vnode *vfs_vnode_alloc(struct SuperBlock *sb, ino_t ino, mode_t mode,
-                       size_t size, void *fs_specific);
+vnode_t *vfs_vnode_alloc(super_block_t *sb, ino_t ino, mode_t mode, size_t size,
+                         void *fs_specific);
 fs_type_t *get_fs_type(const char *name);
 
 #define MAX_FD 256

@@ -1,10 +1,10 @@
 #include "device.h"
+#include "klib/stdbool.h"
+#include "klib/stddef.h"
 #include "mm/kmalloc.h"
 #include "sched/dispatcher.h"
 #include "sched/spinlock.h"
 #include "sched/thread.h"
-#include "stdbool.h"
-#include <stddef.h>
 
 #define MAX_DEVICES 32
 

@@ -1,8 +1,7 @@
 #pragma once
-#include <stddef.h>
-#include <stdint.h>
-#include <sys/stat.h>
-#include <sys/types.h>
+#include "klib/stddef.h"
+#include "klib/stdint.h"
+#include "ksys/stat.h"
 
 #define DT_UNKNOWN 0
 #define DT_REG 8 // Regular file
@@ -10,13 +9,15 @@
 #define DT_LNK 10
 #define MAX_SYMLINK_DEPTH 40
 
-// Only expose opaque pointers and syscall API
-typedef struct SuperBlock SuperBlock;
-typedef struct Vnode Vnode;
-typedef struct Fstats Fstats;
-typedef struct VDirEntry VDirEntry;
+typedef unsigned mode_t;
 
-struct Fstats {
+// Only expose opaque pointers and syscall API
+typedef struct super_block super_block_t;
+typedef struct vnode vnode_t;
+typedef struct fstats Fstats;
+typedef struct vdir_entry VDirEntry;
+
+struct fstats {
   uint32_t size;        // file/directory size in bytes
   int mode;             // file type
   uint32_t links_count; // hard link count
@@ -30,7 +31,7 @@ struct Fstats {
   const char *name;
 };
 
-struct VDirEntry {
+struct vdir_entry {
   char file_name[32];
   uint32_t inode_num;
 };

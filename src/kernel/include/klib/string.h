@@ -1,6 +1,6 @@
 #pragma once
-#include <stdbool.h>
-#include <stdint.h>
+#include "klib/stdbool.h"
+#include "klib/stdint.h"
 
 int atoi(const char *str);
 void trim_newline(char *str);
