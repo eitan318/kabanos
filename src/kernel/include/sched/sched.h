@@ -8,3 +8,4 @@ void sched_dequeue(thread_t *t);
 thread_t *sched_pick_next(void);
 void sched_tick(void *context);
 uint32_t sched_time_get();
+void sys_yield();

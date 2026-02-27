@@ -6,7 +6,8 @@ import subprocess
 import tempfile
 
 SECTOR = 512
-TOTAL_SECTORS = 4000
+# Increased to ~32MB to fit a "big" partition
+TOTAL_SECTORS = 65536
 
 
 def run(cmd):
@@ -31,28 +32,26 @@ def main():
     p.add_argument("--boot_dir", required=True)
     args = p.parse_args()
 
-    # Quick existence check
-    for f in [args.boot, args.stage2, args.kernel, args.boot_dir]:
-        if not os.path.exists(f):
-            raise SystemExit(f"Error: {f} not found")
-
     # Geometry calculations
     stage2_sectors = math.ceil(os.path.getsize(args.stage2) / SECTOR)
-    part_start = 1 + stage2_sectors
-    part_sectors = TOTAL_SECTORS - part_start
 
-    if part_start >= TOTAL_SECTORS:
-        raise SystemExit("Error: stage2 is too large for image.")
+    # Partition 1: Boot (FAT12) - Let's give it ~2MB
+    p1_start = 1 + stage2_sectors
+    p1_sectors = 4000
+
+    # Partition 2: Main Data (myfs) - Remainder of the disk
+    p2_start = p1_start + p1_sectors
+    p2_sectors = TOTAL_SECTORS - p2_start - 1  # -1 for safety buffer
 
     print(f"Building {args.image}:")
-    print(f"  Stage2:    {stage2_sectors} sectors (starts @ 1)")
-    print(f"  Partition: {part_sectors} sectors (starts @ {part_start})")
+    print(f"  P1 (Boot): Starts @ {p1_start}, Size: {p1_sectors} sectors")
+    print(f"  P2 (Main): Starts @ {p2_start}, Size: {p2_sectors} sectors")
 
-    # Initialize image
+    # 1. Initialize empty image
     with open(args.image, "wb") as f:
         f.truncate(TOTAL_SECTORS * SECTOR)
 
-    # Write Bootloader & Stage2
+    # 2. Write MBR and Stage2
     run(
         [
             "dd",
@@ -69,49 +68,62 @@ def main():
             f"if={args.stage2}",
             f"of={args.image}",
             "bs=512",
-            "seek=1",
+            f"seek=1",
             "conv=notrunc",
         ]
     )
 
-    # Create & Format Partition
-    with tempfile.NamedTemporaryFile(delete=False) as tmp:
-        part_img = tmp.name
-
+    # 3. Create Partition 1 (FAT12)
+    with tempfile.NamedTemporaryFile(delete=False) as tmp1:
+        p1_img = tmp1.name
     try:
-        with open(part_img, "wb") as f:
-            f.truncate(part_sectors * SECTOR)
+        with open(p1_img, "wb") as f:
+            f.truncate(p1_sectors * SECTOR)
+        run(["mkfs.fat", "-F", "12", p1_img])
+        run(["mcopy", "-i", p1_img, args.kernel, "::kernel.elf"])
+        copy_all_boot_files(args.boot_dir, p1_img)
 
-        run(["mkfs.fat", "-F", "12", part_img])
-        run(["mcopy", "-i", part_img, args.kernel, "::kernel.elf"])
-        copy_all_boot_files(args.boot_dir, part_img)
-
-        # Write Partition to Image
+        # Burn P1 into image
         run(
             [
                 "dd",
-                f"if={part_img}",
+                f"if={p1_img}",
                 f"of={args.image}",
                 "bs=512",
-                f"seek={part_start}",
+                f"seek={p1_start}",
                 "conv=notrunc",
             ]
         )
-
-        # Update Partition Table
-        sfdisk_input = f"{part_start} , {part_sectors} , 1 , *\n"
-        subprocess.run(
-            ["sfdisk", args.image],
-            input=sfdisk_input.encode("utf-8"),
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-
-        print("Success: Image created and partitioned.")
     finally:
-        if os.path.exists(part_img):
-            os.remove(part_img)
+        if os.path.exists(p1_img):
+            os.remove(p1_img)
+
+    # 4. Create Partition 2 (Your custom FS)
+    # Note: This assumes you have a utility or 'dd' approach to zero it out
+    # If you have a 'mkmyfs' utility, run it here.
+    run(
+        [
+            "dd",
+            "if=/dev/zero",
+            f"of={args.image}",
+            "bs=512",
+            f"seek={p2_start}",
+            f"count={p2_sectors}",
+            "conv=notrunc",
+        ]
+    )
+
+    # 5. Update Partition Table with sfdisk
+    # Format: start, size, type, bootable
+    sfdisk_input = (
+        f"{p1_start}, {p1_sectors}, L, *\n"  # P1: Bootable
+        f"{p2_start}, {p2_sectors}, L, -\n"  # P2: Data
+    )
+    subprocess.run(
+        ["sfdisk", args.image], input=sfdisk_input.encode("utf-8"), check=True
+    )
+
+    print("Success: Multi-partition image created.")
 
 
 if __name__ == "__main__":

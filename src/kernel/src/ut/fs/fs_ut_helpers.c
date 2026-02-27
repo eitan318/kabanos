@@ -10,15 +10,52 @@
 #include "ksys/stat.h"
 #include "ut/ut_framework.h"
 
-#include "ut/ut_framework.h"
-
 /*=============================================================================
  * SETUP/TEARDOWN FUNCTIONS
  *===========================================================================*/
 
+static void rmdir_recursive(const char *path, bool delete_self) {
+  int fd = vfs_open(path, O_RDONLY);
+  if (fd < 0)
+    return;
+
+  VDirEntry entries[32];
+  int count;
+
+  while ((count = vfs_iter_dir(fd, entries, 32)) > 0) {
+    for (int i = 0; i < count; i++) {
+      /* Skip . and .. */
+      if (strcmp(entries[i].file_name, ".") == 0)
+        continue;
+      if (strcmp(entries[i].file_name, "..") == 0)
+        continue;
+
+      /* Build full child path */
+      char child[PATH_MAX];
+      ksnprintf(child, sizeof(child), "%s/%s", path, entries[i].file_name);
+
+      fstat_t st;
+      int sfd = vfs_open(child, O_RDONLY);
+      if (sfd < 0)
+        continue;
+      vfs_fstat(sfd, &st);
+      vfs_close(sfd);
+
+      if (st.mode == DT_DIR)
+        rmdir_recursive(child, true);
+      else
+        vfs_unlink(child);
+    }
+  }
+
+  vfs_close(fd);
+  if (delete_self)
+    vfs_rmdir(path);
+}
+
 int fs_test_setup(void) { return 0; }
 
-void fs_test_teardown(void) {}
+void fs_test_teardown(void) { rmdir_recursive("/", false); }
 
 int fs_suite_setup(void) { return 0; }
 

@@ -39,3 +39,10 @@ void enqueue_sleeper(thread_t *t, uint32_t wake_up_time) {
   t->next_sleep = curr->next_sleep;
   curr->next_sleep = t;
 }
+
+void sys_sleep(uint32_t seconds) {
+  thread_t *current = dispatch_get_current();
+  uint32_t curr_tick = sched_time_get();
+  enqueue_sleeper(current, curr_tick + ((seconds * 1000) / TIMER_TICK_MS));
+  sched_yield();
+}

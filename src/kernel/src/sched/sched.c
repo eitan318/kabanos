@@ -276,6 +276,12 @@ void sched_yield() {
   dispatch_switch_to(next);
 }
 
+void sys_yield() {
+  thread_t *curr = dispatch_get_current();
+  sched_enqueue(curr);
+  sched_yield();
+}
+
 uint32_t sched_time_get() { return g_time_tick; }
 
 static const char *sched_deps[] = {"dispatcher", NULL};

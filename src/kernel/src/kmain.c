@@ -1,8 +1,10 @@
 #include "adt/range.h"
 #include "boot/bootparams.h"
+#include "device.h"
 #include "drivers/block/blockdev.h"
 #include "fs/fat/fat.h"
 #include "fs/fd.h"
+#include "fs/myfs/myfs.h"
 #include "kernel_boot_info.h"
 #include "klib/stdbool.h"
 #include "klib/stddef.h"
@@ -74,7 +76,15 @@ void kmain(uint32_t mb2_ptr) {
   vfs_init_stdio();
 
   vfs_mount("atap1", "/boot", "fat", 0, NULL);
-  vfs_mount("atap2", "/myos", "myos", 0, NULL);
+  if (vfs_mount("atap2", "/", "myfs", 0, NULL) < 0) {
+    blkdev_t *blkdev = blkdev_get("atap2");
+    myfs_format(blkdev);
+    vfs_mount("atap2", "/", "myfs", 0, NULL);
+  }
+
+  ut_fs_main();
+  for (;;) {
+  }
 
   process_spawn("/boot/init.elf", PRIORITY_VERY_HIGH);
 

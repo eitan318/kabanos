@@ -1,5 +1,6 @@
 #include "drivers/block/ata.h"
 #include "arch/i686/ata_portmap.h"
+#include "device.h"
 #include "drivers/block/blockdev.h"
 #include "drivers/block/partition.h"
 #include "hal.h"
@@ -181,18 +182,20 @@ int ata_init() {
   // Wait for drive to be ready
   ata_wait_ready();
 
-  static blkdev_t dev = {
+  static blkdev_t blkdev = {
       .name = "ata",
       .read_sectors = ata_read_sector,
       .write_sectors = ata_write_sector,
   };
 
-  partition_probe(&dev);
-  blkdev_register(&dev);
+  partition_probe(&blkdev);
+  blkdev_register(&blkdev);
+
+  device_t *dev = device_init(DEVICE_HANDLE_ATA);
   return 0;
 }
 
-static const char *ata_deps[] = {"hal", "devices", NULL};
+static const char *ata_deps[] = {"hal", NULL};
 
 ITER_MODULE(ata) = {
     .name = "ata",

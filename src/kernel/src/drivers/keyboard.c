@@ -104,7 +104,7 @@ static struct device_ops kbd_ops = {
     .write = NULL // You can't write to a keyboard!
 };
 
-void keyboard_init() {
+int kbd_init(module_t *module) {
   circular_buff_init(&keyboard_buff);
   keyboard_lock = (spinlock_t)SPINLOCK_RELEASED;
   isr_handler_register(KBD_INT, keyboard_isr_handler);
@@ -112,9 +112,8 @@ void keyboard_init() {
 
   device_t *dev = device_init(DEVICE_HANDLE_KEYBOARD);
   dev->ops = &kbd_ops; // Now the keyboard is "hooked up"
+  return 0;
 }
-
-int kbd_init(module_t *module) { return 0; }
 
 static const char *kbd_deps[] = {"hal", "devices", NULL};
 

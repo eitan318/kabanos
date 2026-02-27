@@ -1,7 +1,6 @@
 #include "syscall.h"
 #include "device.h"
-#include "fs/open.h"
-#include "fs/read_write.h"
+#include "fs/fs_syscalls.h"
 #include "hal.h"
 #include "klib/stddef.h"
 #include "klib/stdint.h"
@@ -23,6 +22,16 @@ typedef enum {
   SYSCALL_NUMBER_SYS_CLOSE = 6,
   SYSCALL_NUMBER_SYS_LSEEK = 7,
   SYSCALL_NUMBER_SYS_STAT = 8,
+  SYSCALL_NUMBER_SYS_ITER_DIR = 9,
+  SYSCALL_NUMBER_SYS_CREATE = 17,
+  SYSCALL_NUMBER_SYS_UNLINK = 18,
+  SYSCALL_NUMBER_SYS_RENAME = 19,
+  SYSCALL_NUMBER_SYS_MKDIR = 23,
+  SYSCALL_NUMBER_SYS_RMDIR = 24,
+  SYSCALL_NUMBER_SYS_SYMLINK = 25,
+  SYSCALL_NUMBER_SYS_READLINK = 26,
+  SYSCALL_NUMBER_SYS_MOUNT = 27,
+  SYSCALL_NUMBER_SYS_UMOUNT = 28,
 
   /* --- Process Management --- */
   SYSCALL_NUMBER_SYS_FORK = 10,
@@ -38,7 +47,7 @@ typedef enum {
   SYSCALL_NUMBER_SYS_GETTIMEOFDAY = 16,
 
   /* --- Memory Management --- */
-  SYSCALL_NUMBER_SYS_SBRK = 20, // For malloc/heap expansion
+  SYSCALL_NUMBER_SYS_SBRK = 20,
   SYSCALL_NUMBER_SYS_MMAP = 21,
   SYSCALL_NUMBER_SYS_MUNMAP = 22,
 
@@ -47,29 +56,6 @@ typedef enum {
   SYSCALL_NUMBER_SYS_PIPE = 31,
   SYSCALL_NUMBER_SYS_SIGACTION = 32,
 } SYSCALL_NUMBER;
-
-void sys_yield() {
-  thread_t *curr = dispatch_get_current();
-  sched_enqueue(curr);
-  sched_yield();
-}
-
-void sys_sleep(uint32_t seconds) {
-  thread_t *current = dispatch_get_current();
-  uint32_t curr_tick = sched_time_get();
-  enqueue_sleeper(current, curr_tick + ((seconds * 1000) / TIMER_TICK_MS));
-  sched_yield();
-}
-
-long sys_waitpid(int pid, int *wstatus, int options) {
-  // TODO: Implement waitpid syscall
-  return -1;
-}
-
-void *sys_sbrk(intptr_t increment) {
-  // TODO: Implement sbrk syscall
-  return (void *)-1;
-}
 
 long syscall_dispatch(syscall_info_t f) {
   switch (f.num) {
@@ -92,9 +78,9 @@ long syscall_dispatch(syscall_info_t f) {
     sys_exit(f.args[0]);
     return 0; // Should never reach here
   case SYSCALL_NUMBER_SYS_WAITPID:
-    return sys_waitpid(f.args[0], (int *)f.args[1], f.args[2]);
+    return -1;
   case SYSCALL_NUMBER_SYS_SBRK:
-    return (long)sys_sbrk(f.args[0]);
+    return -1;
   case SYSCALL_NUMBER_SYS_OPEN:
     return sys_open((const char *)f.args[0], f.args[1]);
   case SYSCALL_NUMBER_SYS_CLOSE:

@@ -1,5 +1,6 @@
 #pragma once
 
+#include "drivers/block/blockdev.h"
 #include "klib/stddef.h"
 #include "klib/stdint.h"
 #include "ksys/stat.h"
@@ -111,21 +112,23 @@ typedef struct inode_hash_entry {
  */
 typedef struct {
   MyfsDiskSuperBlock on_disk;
+  blkdev_t *dev; /* ← add this */
+  uint32_t block_bytes;
   uint8_t *block_bitmap;
   uint8_t *inode_bitmap;
   InodeHashEntry *inode_hash_table[INODE_HASH_SIZE];
   int mounted;
-  uint32_t block_bytes;
 } MyfsSuperBlock;
 
 /**
  * myfs_format() - Format a disk with MyFS filesystem
  *
- * Creates the superblock, bitmaps, and inode table structures.
+ * Creates the superblock, bitmaps, and inode table
+ * structures.
  *
  * Return: 0 on success, negative on error
  */
-int myfs_format(void);
+int myfs_format(blkdev_t *dev);
 
 /**
  * myfs_sb_read() - Read superblock from disk
@@ -134,7 +137,7 @@ int myfs_format(void);
  *
  * Return: Pointer to superblock on success, NULL on error
  */
-MyfsSuperBlock *myfs_sb_read(void);
+MyfsSuperBlock *myfs_sb_read(blkdev_t *dev);
 
 /**
  * myfs_sb_kill() - Unmount filesystem and free superblock

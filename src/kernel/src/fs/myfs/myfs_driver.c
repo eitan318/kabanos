@@ -7,6 +7,7 @@
 #include "klib/string.h"
 #include "ksys/stat.h"
 #include "mm/kmalloc.h"
+#include "utils/math.h"
 
 static void myfsd_v_destroy(vnode_t *vnode) {}
 
@@ -37,7 +38,11 @@ static int myfsd_f_dir_iter(file_t *parent_file, dir_ctx_t *ctx) {
   int actual_entries = bytes_read / sizeof(MyfsDirEntry);
   int emitted = 0;
 
-  for (int i = 0; i < actual_entries && emitted < ctx->count; i++) {
+  uint64_t start_index = 0;
+  uint32_t rem = 0;
+  div64_32(parent_file->pos, sizeof(MyfsDirEntry), &start_index, &rem);
+
+  for (int i = start_index; i < actual_entries && emitted < ctx->count; i++) {
     MyfsDirEntry *entry = &entries[i];
     int namelen = strlen(entry->file_name);
 
@@ -48,6 +53,7 @@ static int myfsd_f_dir_iter(file_t *parent_file, dir_ctx_t *ctx) {
     if (dir_emit(ctx, entry->file_name, namelen, i * sizeof(MyfsDirEntry),
                  entry->inode_num, type) == 0) {
       emitted++;
+      parent_file->pos += sizeof(MyfsDirEntry);
     }
   }
 
@@ -317,7 +323,7 @@ struct vnode_ops myfs_vnode_ops = {
 
 static int myfsd_super_sb_fill(super_block_t *vfs_sb, blkdev_t *dev) {
   // Mount the MyFS filesystem
-  MyfsSuperBlock *myfs_sb = myfs_sb_read();
+  MyfsSuperBlock *myfs_sb = myfs_sb_read(dev);
   if (myfs_sb == NULL) {
     return -1;
   }
@@ -357,7 +363,7 @@ int myfs_init(module_t *module) {
   myfs_type->name = MYFS_NAME;
   myfs_type->kill_sb = myfsd_kill_vsb;
 
-  if (vfs_fs_type_register(myfs_type) == -1) {
+  if (vfs_fs_type_register(myfs_type) < 0) {
     return -1;
   }
   return 0;

@@ -50,18 +50,3 @@ device_t *get_device_by_handle(int handle) {
 
   return dev;
 }
-
-int kernel_init_devices(module_t *module) {
-  device_t *kbd = device_init(DEVICE_HANDLE_KEYBOARD);
-  device_t *ata = device_init(DEVICE_HANDLE_ATA);
-  return 0;
-}
-
-static const char *devices_deps[] = {"hal", NULL};
-
-ITER_MODULE(devices) = {
-    .name = "devices",
-    .required = devices_deps,
-    .init = &kernel_init_devices,
-    .fini = NULL,
-};
