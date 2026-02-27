@@ -5,46 +5,6 @@
 #include "stdio_internal.h"
 #include "unistd.h"
 
-static void out_putc(FILE *out, char c) {
-  if (out) {
-    fputc((unsigned char)c, out);
-  } else if (out->buf) {
-    if (out->buf_pos < out->buf_size - 1)
-      out->buf[out->buf_pos] = c;
-    out->buf_pos++;
-  }
-}
-
-static void out_puts(FILE *out, const char *s) {
-  while (*s)
-    out_putc(out, *s++);
-}
-
-static const char g_hex_chars[] = "0123456789abcdef";
-
-static void out_unsigned(FILE *out, unsigned long long n, int radix) {
-  char tmp[32];
-  int pos = 0;
-  do {
-    uint32_t rem;
-    uint64_t quot;
-    div64_32(n, radix, &quot, &rem);
-    tmp[pos++] = g_hex_chars[rem];
-    n = quot;
-  } while (n > 0);
-  for (int i = pos - 1; i >= 0; i--)
-    out_putc(out, tmp[i]);
-}
-
-static void out_signed(FILE *out, long long n, int radix) {
-  if (n < 0) {
-    out_putc(out, '-');
-    out_unsigned(out, (unsigned long long)-n, radix);
-  } else {
-    out_unsigned(out, (unsigned long long)n, radix);
-  }
-}
-
 typedef enum {
   LENGTH_DEFAULT,
   LENGTH_SHORT,
@@ -60,7 +20,7 @@ typedef enum {
   STATE_SPEC
 } PfState;
 
-static int vprintf_core(FILE *out, const char *fmt, va_list args) {
+static int format_core(FILE *out, const char *fmt, va_list args) {
   PfLen length = LENGTH_DEFAULT;
   PfState state = STATE_NORMAL;
   int written = 0;
@@ -192,58 +152,4 @@ static int vprintf_core(FILE *out, const char *fmt, va_list args) {
   }
 
   return written;
-}
-
-int vsnprintf(char *buf, size_t size, const char *fmt, va_list args) {
-  if (size == 0)
-    return 0;
-  FILE tmp = {.fd = -1, .buf = buf, .buf_size = size, .buf_pos = 0};
-  int n = vprintf_core(&tmp, fmt, args);
-  buf[tmp.buf_pos < size ? tmp.buf_pos : size - 1] = '\0';
-  return n;
-}
-
-int vfprintf(FILE *__restrict file, const char *__restrict fmt, va_list args) {
-  return vprintf_core(file, fmt, args);
-}
-
-int vprintf(const char *__restrict fmt, va_list args) {
-  return vfprintf(stdout, fmt, args);
-}
-
-int vsprintf(char *__restrict buf, const char *__restrict fmt, va_list args) {
-  return vsnprintf(buf, SIZE_MAX, fmt, args);
-}
-
-int fprintf(FILE *__restrict file, const char *__restrict fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  int ret = vfprintf(file, fmt, args);
-  va_end(args);
-  return ret;
-}
-
-int printf(const char *__restrict fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  int ret = vfprintf(stdout, fmt, args);
-  va_end(args);
-  return ret;
-}
-
-int snprintf(char *__restrict buf, size_t size, const char *__restrict fmt,
-             ...) {
-  va_list args;
-  va_start(args, fmt);
-  int ret = vsnprintf(buf, size, fmt, args);
-  va_end(args);
-  return ret;
-}
-
-int sprintf(char *__restrict buf, const char *__restrict fmt, ...) {
-  va_list args;
-  va_start(args, fmt);
-  int ret = vsprintf(buf, fmt, args);
-  va_end(args);
-  return ret;
 }

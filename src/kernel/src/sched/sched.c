@@ -216,10 +216,10 @@ void sched_tick(void *context) {
 
   g_time_tick++;
 
-  const int ms_between_logs = 2000;
-  if (g_time_tick % ((ms_between_logs) / TIMER_TICK_MS) == 0) {
-    print_sched_struct();
-  }
+  // const int ms_between_logs = 2000;
+  // if (g_time_tick % ((ms_between_logs) / TIMER_TICK_MS) == 0) {
+  //   print_sched_struct();
+  // }
 
   current->rt_ticks++;
   current->curr_time_quantum_ticks_passed++;

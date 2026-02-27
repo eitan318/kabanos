@@ -81,11 +81,6 @@ void kmain(uint32_t mb2_ptr) {
     myfs_format(blkdev);
     vfs_mount("atap2", "/", "myfs", 0, NULL);
   }
-
-  ut_fs_main();
-  for (;;) {
-  }
-
   process_spawn("/boot/init.elf", PRIORITY_VERY_HIGH);
 
   hal_timer_enable();

@@ -58,6 +58,7 @@ void vfs_init_stdio(void) {
   kbd_vnode_static.super_block = &dev_sb_kbd;
   kbd_vnode_static.mode = S_IFCHR;
   kbd_vnode_static.refcount = 1;
+  kbd_vnode_static.device_handle = DEVICE_HANDLE_KEYBOARD;
 
   con_vnode_static.super_block = &dev_sb_con;
   con_vnode_static.mode = S_IFCHR;
