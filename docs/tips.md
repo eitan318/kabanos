@@ -48,3 +48,11 @@ gcc -m32 -nostdlib -nostdinc -fno-builtin -static \
     -o tcc.elf
 
 
+
+/home/magshimim/repos/1001_myos/src/userland/user_src/init.c:16: warning: implicit declaration of function 'exit'
+[ 92%] TCC Linking init.elf
+tcc: error: file '/home/magshimim/repos/1001_myos/src/userland/musl/obj/crt/i386/crt1.o' not found
+gmake[2]: *** [src/userland/CMakeFiles/init_target.dir/build.make:75: ../BOOT/init.elf] Error 1
+gmake[1]: *** [CMakeFiles/Makefile2:393: src/userland/CMakeFiles/init_target.dir/all] Error 2
+gmake: *** [Makefile:91: all] Error 2
+
