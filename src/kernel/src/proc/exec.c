@@ -1,8 +1,12 @@
 #include "proc/exec.h"
 #include "arch/types.h"
 #include "elf.h"
-#include "fat.h"
+#include "fs/fat/fat.h"
+#include "fs/vfs.h"
 #include "hal.h"
+#include "klib/errno.h"
+#include "klib/stdio.h"
+#include "ksys/fcntl.h"
 #include "mm/kmalloc.h"
 #include "mm/memdefs.h"
 #include "mm/va_allocation.h"
@@ -11,16 +15,35 @@
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
-#include "stdio.h"
 
 int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
-  void *data;
-  size_t size;
-
-  if (fat_read_file(path, &data, &size) < 0) {
-    return -1;
+  int fd = vfs_open(path, O_RDONLY);
+  if (fd < 0) {
+    return fd; // Return the actual error (e.g., -ENOENT)
   }
-  int r = elf_load(vm->arch, data, size, entry);
+
+  fstat_t st;
+  if (vfs_fstat(fd, &st) < 0) {
+    vfs_close(fd);
+    return -EIO;
+  }
+
+  void *data = kmalloc(st.size);
+  if (!data) {
+    vfs_close(fd);
+    return -ENOMEM;
+  }
+
+  ssize_t nread = vfs_read(fd, data, st.size);
+  vfs_close(fd); // We can close now; data is in RAM
+
+  if (nread < 0 || (size_t)nread != (size_t)st.size) {
+    kfree(data);
+    return -EIO;
+  }
+
+  int r = elf_load(vm->arch, data, st.size, entry);
+
   kfree(data);
   return r;
 }

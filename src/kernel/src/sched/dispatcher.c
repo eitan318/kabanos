@@ -1,8 +1,8 @@
 #include "sched/dispatcher.h"
 #include "hal.h"
+#include "klib/stdio.h"
+#include "klib/string.h"
 #include "mm/memdefs.h"
-#include "stdio.h"
-#include "string.h"
 
 thread_t *g_current_thread = NULL;
 

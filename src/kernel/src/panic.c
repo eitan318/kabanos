@@ -1,10 +1,11 @@
 #include "hal.h"
 #include "klib/stdio.h"
+#include "klib/unistd.h"
 
 void __attribute__((noreturn)) panic_halt(const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
-  kvfprintf(VFS_FD_STDOUT, fmt, ap);
+  kvfprintf(STDOUT_FILENO, fmt, ap);
   va_end(ap);
 
   hal_interrupts_disable();

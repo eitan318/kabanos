@@ -8,9 +8,9 @@
 #ifndef UT_FRAMEWORK_H
 #define UT_FRAMEWORK_H
 
-#include "stdio.h"
-#include <stdarg.h>
-#include <stdlib.h>
+#include "klib/stdarg.h"
+#include "klib/stdio.h"
+#include "klib/stdlib.h"
 
 /*=============================================================================
  * TEST RESULT CODES
@@ -81,8 +81,8 @@ typedef struct {
 #define UT_ASSERT(condition, msg)                                              \
   do {                                                                         \
     if (!(condition)) {                                                        \
-      debugf("%sFAIL%s: %s (line %d)\n", UT_COLOR_RED, UT_COLOR_RESET, (msg),  \
-             __LINE__);                                                        \
+      kdebugf("%sFAIL%s: %s (line %d)\n", UT_COLOR_RED, UT_COLOR_RESET, (msg), \
+              __LINE__);                                                       \
       return UT_FAIL;                                                          \
     }                                                                          \
   } while (0)
@@ -90,8 +90,9 @@ typedef struct {
 #define UT_ASSERT_EQUAL(expected, actual, msg)                                 \
   do {                                                                         \
     if ((expected) != (actual)) {                                              \
-      debugf("%sFAIL%s: %s - Expected: %d, Got: %d (line %d)\n", UT_COLOR_RED, \
-             UT_COLOR_RESET, (msg), (expected), (actual), __LINE__);           \
+      kdebugf("%sFAIL%s: %s - Expected: %d, Got: %d (line %d)\n",              \
+              UT_COLOR_RED, UT_COLOR_RESET, (msg), (expected), (actual),       \
+              __LINE__);                                                       \
       return UT_FAIL;                                                          \
     }                                                                          \
   } while (0)
@@ -99,8 +100,8 @@ typedef struct {
 #define UT_ASSERT_NOT_EQUAL(val1, val2, msg)                                   \
   do {                                                                         \
     if ((val1) == (val2)) {                                                    \
-      debugf("%sFAIL%s: %s - Values should not be equal: %d (line %d)\n",      \
-             UT_COLOR_RED, UT_COLOR_RESET, (msg), (val1), __LINE__);           \
+      kdebugf("%sFAIL%s: %s - Values should not be equal: %d (line %d)\n",     \
+              UT_COLOR_RED, UT_COLOR_RESET, (msg), (val1), __LINE__);          \
       return UT_FAIL;                                                          \
     }                                                                          \
   } while (0)
@@ -108,9 +109,9 @@ typedef struct {
 #define UT_ASSERT_STR_EQUAL(expected, actual, msg)                             \
   do {                                                                         \
     if (strcmp((expected), (actual)) != 0) {                                   \
-      debugf("%sFAIL%s: %s - Expected: '%s', Got: '%s' (line %d)\n",           \
-             UT_COLOR_RED, UT_COLOR_RESET, (msg), (expected), (actual),        \
-             __LINE__);                                                        \
+      kdebugf("%sFAIL%s: %s - Expected: '%s', Got: '%s' (line %d)\n",          \
+              UT_COLOR_RED, UT_COLOR_RESET, (msg), (expected), (actual),       \
+              __LINE__);                                                       \
       return UT_FAIL;                                                          \
     }                                                                          \
   } while (0)
@@ -118,8 +119,8 @@ typedef struct {
 #define UT_ASSERT_NOT_NULL(ptr, msg)                                           \
   do {                                                                         \
     if ((ptr) == NULL) {                                                       \
-      debugf("%sFAIL%s: %s - Pointer is NULL (line %d)\n", UT_COLOR_RED,       \
-             UT_COLOR_RESET, (msg), __LINE__);                                 \
+      kdebugf("%sFAIL%s: %s - Pointer is NULL (line %d)\n", UT_COLOR_RED,      \
+              UT_COLOR_RESET, (msg), __LINE__);                                \
       return UT_FAIL;                                                          \
     }                                                                          \
   } while (0)
@@ -127,8 +128,8 @@ typedef struct {
 #define UT_ASSERT_NULL(ptr, msg)                                               \
   do {                                                                         \
     if ((ptr) != NULL) {                                                       \
-      debugf("%sFAIL%s: %s - Pointer should be NULL (line %d)\n",              \
-             UT_COLOR_RED, UT_COLOR_RESET, (msg), __LINE__);                   \
+      kdebugf("%sFAIL%s: %s - Pointer should be NULL (line %d)\n",             \
+              UT_COLOR_RED, UT_COLOR_RESET, (msg), __LINE__);                  \
       return UT_FAIL;                                                          \
     }                                                                          \
   } while (0)
@@ -145,8 +146,8 @@ typedef struct {
 #define UT_ASSERT_FAIL(result, msg)                                            \
   do {                                                                         \
     if ((result) >= 0) {                                                       \
-      debugf("%sFAIL%s: %s - Operation should have failed (line %d)\n",        \
-             UT_COLOR_RED, UT_COLOR_RESET, (msg), __LINE__);                   \
+      kdebugf("%sFAIL%s: %s - Operation should have failed (line %d)\n",       \
+              UT_COLOR_RED, UT_COLOR_RESET, (msg), __LINE__);                  \
       return UT_FAIL;                                                          \
     }                                                                          \
   } while (0)
@@ -154,8 +155,8 @@ typedef struct {
 #define UT_ASSERT_SUCCESS_CLEAN(result, msg, cleanup)                          \
   do {                                                                         \
     if ((result) < 0) {                                                        \
-      debugf("%sFAIL%s: %s - code %d (line %d)\n", UT_COLOR_RED,               \
-             UT_COLOR_RESET, (msg), (result), __LINE__);                       \
+      kdebugf("%sFAIL%s: %s - code %d (line %d)\n", UT_COLOR_RED,              \
+              UT_COLOR_RESET, (msg), (result), __LINE__);                      \
       cleanup;                                                                 \
       return UT_FAIL;                                                          \
     }                                                                          \
@@ -164,8 +165,8 @@ typedef struct {
 #define UT_ASSERT_MEM_EQUAL(expected, actual, size, msg)                       \
   do {                                                                         \
     if (memcmp((expected), (actual), (size)) != 0) {                           \
-      debugf("%sFAIL%s: %s - Memory contents differ (line %d)\n",              \
-             UT_COLOR_RED, UT_COLOR_RESET, (msg), __LINE__);                   \
+      kdebugf("%sFAIL%s: %s - Memory contents differ (line %d)\n",             \
+              UT_COLOR_RED, UT_COLOR_RESET, (msg), __LINE__);                  \
       return UT_FAIL;                                                          \
     }                                                                          \
   } while (0)
@@ -177,7 +178,7 @@ typedef struct {
 // Skip a test (useful for temporarily disabling tests)
 #define UT_SKIP_TEST(msg)                                                      \
   do {                                                                         \
-    debugf("%sSKIP%s: %s\n", UT_COLOR_YELLOW, UT_COLOR_RESET, (msg));          \
+    kdebugf("%sSKIP%s: %s\n", UT_COLOR_YELLOW, UT_COLOR_RESET, (msg));         \
     return UT_SKIP;                                                            \
   } while (0)
 

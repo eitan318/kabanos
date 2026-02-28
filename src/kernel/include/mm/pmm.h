@@ -1,8 +1,8 @@
 #pragma once
 
 #include "adt/range.h"
-#include <stdbool.h>
-#include <stdint.h>
+#include "klib/stdbool.h"
+#include "klib/stdint.h"
 
 #define FRAME_SIZE 4096
 

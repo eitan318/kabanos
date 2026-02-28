@@ -1,7 +1,7 @@
 #include "arch/i686/gdt.h"
 #include "arch/i686/tss.h"
-#include "string.h"
-#include <stdint.h>
+#include "klib/stdint.h"
+#include "klib/string.h"
 #define TY_CODE 0x8 // Executable
 #define TY_DATA 0x0
 #define TY_READABLE 0x2

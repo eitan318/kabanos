@@ -1,8 +1,8 @@
 #pragma once
-#include "vfs.h"
-#include <stdarg.h>
-#include <stddef.h>
-#include <stdint.h>
+#include "fs/fd.h"
+#include "fs/vfs.h"
+#include "klib/stdarg.h"
+#include "klib/stdint.h"
 
 // File-based character/string output
 void kfputc(char c, fd_t file);

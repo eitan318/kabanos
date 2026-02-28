@@ -3,8 +3,8 @@
 #include "adt/range.h"
 #include "assert.h"
 #include "klib/stdio.h"
+#include "klib/string.h"
 #include "utils/math.h"
-#include <string.h>
 
 #define MAX_FRAMES (1024 * 1024)               // 4GB worth of 4KB frames
 #define MAX_BITMAP_SIZE ((MAX_FRAMES + 7) / 8) // 128KB

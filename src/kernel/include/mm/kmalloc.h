@@ -1,8 +1,8 @@
 #pragma once
 #include "hal.h"
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
+#include "klib/stdbool.h"
+#include "klib/stddef.h"
+#include "klib/stdint.h"
 
 void kmalloc_init();
 void *kmalloc(size_t size);

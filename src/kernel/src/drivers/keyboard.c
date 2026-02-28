@@ -1,12 +1,12 @@
-#include "drivers/keyboard.h"
+#include "drivers/keyboard/keyboard.h"
 #include "adt/circular_buffer.h"
 #include "device.h"
 #include "hal.h"
 #include "isr.h"
+#include "klib/string.h"
 #include "modules.h"
 #include "sched/spinlock.h"
 #include "sched/wait.h"
-#include "string.h"
 
 #define KBD_IRQ 1
 #define KBD_INT 0x21
@@ -80,8 +80,7 @@ eoi:
   hal_irq_send_eoi(KBD_IRQ);
 }
 
-int kbd_read(char *buf, size_t count) {
-  device_t *dev = get_device_by_handle(DEVICE_HANDLE_KEYBOARD);
+size_t kbd_read(device_t *dev, void *buf, size_t count) {
   size_t i = 0;
 
   while (i < count) {
@@ -92,9 +91,7 @@ int kbd_read(char *buf, size_t count) {
       wait_on_queue(&dev->wait_queue, &keyboard_lock);
     }
 
-    // 4. Now we have data AND the lock
-    buf[i++] =
-        (char)(uintptr_t)circular_buff_dequeue(&keyboard_buff); // No _unlocked!
+    ((char *)buf)[i++] = (char)(uintptr_t)circular_buff_dequeue(&keyboard_buff);
 
     spinlock_release(&keyboard_lock); // 5. Unlock
   }
@@ -102,11 +99,19 @@ int kbd_read(char *buf, size_t count) {
   return i;
 }
 
+static struct device_ops kbd_ops = {
+    .read = kbd_read,
+    .write = NULL // You can't write to a keyboard!
+};
+
 int kbd_init(module_t *module) {
   circular_buff_init(&keyboard_buff);
   keyboard_lock = (spinlock_t)SPINLOCK_RELEASED;
   isr_handler_register(KBD_INT, keyboard_isr_handler);
   hal_irq_enable(KBD_IRQ);
+
+  device_t *dev = device_init(DEVICE_HANDLE_KEYBOARD);
+  dev->ops = &kbd_ops; // Now the keyboard is "hooked up"
   return 0;
 }
 

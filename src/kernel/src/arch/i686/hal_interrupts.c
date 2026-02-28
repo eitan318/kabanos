@@ -2,9 +2,9 @@
 #include "arch/i686/gdt.h"
 #include "arch/i686/pic.h"
 #include "hal.h"
-#include <stdarg.h>
-#include <stddef.h>
-#include <stdint.h>
+#include "klib/stdarg.h"
+#include "klib/stddef.h"
+#include "klib/stdint.h"
 
 //
 // IDT

@@ -1,9 +1,9 @@
 #include "mm/kmalloc.h"
 #include "arch/types.h"
+#include "klib/string.h"
 #include "mm/memdefs.h"
 #include "mm/pmm.h"
 #include "mm/vmspace.h"
-#include <string.h>
 
 // Size classes for slab allocator (in bytes)
 static const size_t SIZE_CLASSES[] = {8,   16,  32,   64,   128,

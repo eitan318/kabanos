@@ -1,6 +1,6 @@
 #pragma once
+#include "klib/stdint.h"
 #include "mm/vmspace.h"
-#include <stdint.h>
 
 typedef struct {
   struct device *devices[16]; // This process can open 16 things
@@ -27,3 +27,6 @@ typedef struct process {
 
 process_t *process_create(void);
 void process_destroy(process_t *proc);
+
+long sys_fork();
+void sys_exit(int status);

@@ -1,8 +1,8 @@
 #pragma once
 #include "boot/bootparams.h"
+#include "klib/stddef.h"
 #include "mm/memory_map.h"
 #include "modules.h"
-#include <stddef.h>
 
 typedef struct {
   char *cmdline;

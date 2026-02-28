@@ -1,5 +1,8 @@
-#include "drivers/ata.h"
+#include "drivers/block/ata.h"
 #include "arch/i686/ata_portmap.h"
+#include "device.h"
+#include "drivers/block/blockdev.h"
+#include "drivers/block/partition.h"
 #include "hal.h"
 
 // ATA Commands
@@ -76,14 +79,14 @@ static int ata_wait_drq(void) {
 }
 
 // Read a sector from disk
-void ata_read_sector(uint32_t lba, int count, uint8_t *buffer) {
+int ata_read_sector(blkdev_t *dev, uint32_t lba, uint32_t count, void *buffer) {
   if (count == 0 || count > 256) {
-    return;
+    return -1;
   }
 
   // Wait for drive to be ready
   if (ata_wait_ready() != 0) {
-    return;
+    return -1;
   }
 
   // Select drive (master) and set LBA mode with highest 4 bits of LBA
@@ -105,7 +108,7 @@ void ata_read_sector(uint32_t lba, int count, uint8_t *buffer) {
   for (int i = 0; i < count; i++) {
     // Wait for data to be ready
     if (ata_wait_drq() != 0) {
-      return;
+      return -1;
     }
 
     // Read 256 words (512 bytes)
@@ -117,10 +120,13 @@ void ata_read_sector(uint32_t lba, int count, uint8_t *buffer) {
 
     ata_delay_400ns();
   }
+
+  return 0;
 }
 
 // Write a sector to disk
-int ata_write_sector(uint32_t lba, int count, const uint8_t *buffer) {
+int ata_write_sector(blkdev_t *dev, uint32_t lba, uint32_t count,
+                     const void *buffer) {
   if (count == 0 || count > 256) {
     return -1;
   }
@@ -168,11 +174,32 @@ int ata_write_sector(uint32_t lba, int count, const uint8_t *buffer) {
 }
 
 // Initialize ATA driver
-void ata_init(void) {
+int ata_init() {
   // Select master drive
   hal_out8(ATA_PRIMARY_DRIVE_HEAD, 0xE0);
   ata_delay_400ns();
 
   // Wait for drive to be ready
   ata_wait_ready();
+
+  static blkdev_t blkdev = {
+      .name = "ata",
+      .read_sectors = ata_read_sector,
+      .write_sectors = ata_write_sector,
+  };
+
+  partition_probe(&blkdev);
+  blkdev_register(&blkdev);
+
+  device_t *dev = device_init(DEVICE_HANDLE_ATA);
+  return 0;
 }
+
+static const char *ata_deps[] = {"hal", NULL};
+
+ITER_MODULE(ata) = {
+    .name = "ata",
+    .required = ata_deps,
+    .init = &ata_init,
+    .fini = NULL,
+};

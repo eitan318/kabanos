@@ -1,4 +1,4 @@
-#include <stdint.h>
+#include "klib/stdint.h"
 
 uint8_t hal_in8(uint16_t port) {
   uint8_t value;

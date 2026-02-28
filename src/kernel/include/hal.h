@@ -1,10 +1,10 @@
 #pragma once
 #include "arch/types.h"
+#include "klib/stdbool.h"
+#include "klib/stddef.h"
+#include "klib/stdint.h"
 #include "modules.h"
 #include "sched/thread.h"
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
 
 // typedef struct trap_frame trap_frame_t;
 typedef void (*interrupt_handler_t)(trap_frame_t *r);

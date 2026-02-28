@@ -1,5 +1,5 @@
 #pragma once
-#include <stdint.h>
+#include "klib/stdint.h"
 
 /* Mask operations */
 #define MASK_SET(buf, flag_mask) ((buf) |= (flag_mask))

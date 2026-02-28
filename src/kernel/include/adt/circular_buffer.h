@@ -1,7 +1,7 @@
 #ifndef QUEUE_H
 #define QUEUE_H
 
-#include <stdbool.h>
+#include "klib/stdbool.h"
 
 #define QUEUE_SIZE 256
 

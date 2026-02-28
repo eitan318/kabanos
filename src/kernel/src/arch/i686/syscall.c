@@ -1,8 +1,8 @@
 #include "syscall.h"
 #include "hal.h"
+#include "klib/stdlib.h"
 #include "mm/kmalloc.h"
 #include "syscall.h"
-#include <stdlib.h>
 
 void syscall_handler_entry(trap_frame_t *regs) {
   syscall_info_t info;

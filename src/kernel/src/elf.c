@@ -1,18 +1,14 @@
 #include "elf.h"
-#include "adt/range.h"
 #include "arch/types.h"
 #include "assert.h"
-#include "fat.h"
 #include "hal.h"
+#include "klib/stdarg.h"
 #include "klib/stdio.h"
-#include "mm/kmalloc.h"
+#include "klib/string.h"
 #include "mm/memdefs.h"
 #include "mm/pmm.h"
 #include "mm/va_allocation.h"
-#include "mm/vmspace.h"
-#include "string.h"
 #include "utils/math.h"
-#include <stdarg.h>
 
 // Load segment: allocate, zero, and copy from file data
 // currently menually touch frame alloc and page_map

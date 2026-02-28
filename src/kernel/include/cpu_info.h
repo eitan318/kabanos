@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdbool.h>
-#include <stdint.h>
+#include "klib/stdbool.h"
+#include "klib/stdint.h"
 
 // Structure to pass CPU info to kernel
 typedef struct {

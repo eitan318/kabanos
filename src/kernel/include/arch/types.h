@@ -1,5 +1,5 @@
 #pragma once
-#include <stdint.h>
+#include "klib/stdint.h"
 
 // On i686, addresses are 32-bit
 typedef uint32_t arch_vaddr_t;

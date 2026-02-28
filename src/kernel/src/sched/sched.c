@@ -216,10 +216,10 @@ void sched_tick(void *context) {
 
   g_time_tick++;
 
-  const int ms_between_logs = 2000;
-  if (g_time_tick % ((ms_between_logs) / TIMER_TICK_MS) == 0) {
-    print_sched_struct();
-  }
+  // const int ms_between_logs = 2000;
+  // if (g_time_tick % ((ms_between_logs) / TIMER_TICK_MS) == 0) {
+  //   print_sched_struct();
+  // }
 
   current->rt_ticks++;
   current->curr_time_quantum_ticks_passed++;
@@ -274,6 +274,12 @@ void sched_dequeue(thread_t *t) {
 void sched_yield() {
   thread_t *next = sched_pick_next();
   dispatch_switch_to(next);
+}
+
+void sys_yield() {
+  thread_t *curr = dispatch_get_current();
+  sched_enqueue(curr);
+  sched_yield();
 }
 
 uint32_t sched_time_get() { return g_time_tick; }

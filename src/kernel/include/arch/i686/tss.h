@@ -1,5 +1,5 @@
 #pragma once
-#include <stdint.h>
+#include "klib/stdint.h"
 
 typedef struct tss_entry {
   uint32_t prev;

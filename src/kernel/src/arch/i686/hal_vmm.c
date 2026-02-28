@@ -1,16 +1,15 @@
 #include "arch/types.h"
 #include "assert.h"
 #include "hal.h"
+#include "klib/stdbool.h"
+#include "klib/stddef.h"
+#include "klib/stdint.h"
 #include "klib/stdio.h"
+#include "klib/string.h"
 #include "mm/kmalloc.h"
 #include "mm/memdefs.h"
 #include "mm/pmm.h"
-#include "string.h"
 #include "utils/math.h"
-#include <stdbool.h>
-#include <stddef.h>
-#include <stdint.h>
-#include <string.h>
 
 typedef uint32_t page_dir_entry_t;
 

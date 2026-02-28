@@ -1,6 +1,4 @@
 #pragma once
-#include <stdbool.h>
-#include <stdint.h>
 
 #define MAX_MODULES 16
 #define MAX_MEMORY_REGIONS 256
@@ -14,6 +12,16 @@
 #define MB2_TAG_BOOT_LOADER_NAME 2
 #define MB2_TAG_MODULE 3
 #define MB2_TAG_MMAP 6
+
+// We use the compiler defined defs because including s2lib/stdint.h or
+// klib/stdint.h cannot be done because both includes this file
+#ifndef __UINT32_TYPE__
+#error "Compiler does not support __UINT32_TYPE__ built-ins"
+#else
+typedef __UINT8_TYPE__ uint8_t;
+typedef __UINT32_TYPE__ uint32_t;
+typedef __UINT64_TYPE__ uint64_t;
+#endif
 
 typedef struct mb2_tag_t {
   uint32_t type;

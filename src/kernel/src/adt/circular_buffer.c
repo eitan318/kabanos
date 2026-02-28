@@ -1,5 +1,5 @@
 #include "adt/circular_buffer.h"
-#include <stddef.h>
+#include "klib/stddef.h"
 
 void circular_buff_init(circular_buff_t *q) {
   q->head = q->tail = q->count = 0;

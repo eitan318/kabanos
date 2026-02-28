@@ -1,8 +1,8 @@
 #include "mm/va_allocation.h"
 #include "arch/types.h"
 #include "hal.h"
+#include "klib/stdio.h"
 #include "mm/pmm.h"
-#include "stdio.h"
 #include "utils/math.h"
 
 bool va_alloc_region(arch_vm_t *vm, uint32_t virt_start, size_t size,

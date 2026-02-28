@@ -19,9 +19,9 @@ int proc_spawn(char *name, char **argv, char **envp) {
 }
 
 int main(int argc, char **argv, char **envp) {
-  proc_spawn("test_a.elf", NULL, NULL);
-  proc_spawn("test_b.elf", NULL, NULL);
-  proc_spawn("test_c.elf", NULL, NULL);
-  exit(1);
-  return 0;
+  proc_spawn("/boot/test_a.elf", NULL, NULL);
+  proc_spawn("/boot/test_b.elf", NULL, NULL);
+  proc_spawn("/boot/test_c.elf", NULL, NULL);
+  while (1) {
+  }
 }

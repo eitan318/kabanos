@@ -1,9 +1,9 @@
 #include "arch/i686/gdt.h"
 #include "arch/types.h"
 #include "hal.h"
+#include "klib/string.h"
 #include "mm/memdefs.h"
 #include "sched/sched.h"
-#include "string.h"
 
 extern void __attribute__((naked))
 thread_switch_to(void **curr_kernel_esp, void *next_kernel_esp,

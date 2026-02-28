@@ -24,7 +24,7 @@ static int file_putc(int c, FILE *file) {
       file->buf_pos = 0;
     }
   } else {
-    write(file->fd, &byte, FD_STDOUT);
+    write(file->fd, &byte, STDOUT_FILENO);
   }
 
   return (unsigned char)c;

@@ -1,7 +1,7 @@
 #include "sched/sleep.h"
+#include "klib/stddef.h"
+#include "klib/stdio.h"
 #include "sched/sched.h"
-#include <stddef.h>
-#include <stdio.h>
 
 thread_t *sleep_queue_head;
 
@@ -38,4 +38,11 @@ void enqueue_sleeper(thread_t *t, uint32_t wake_up_time) {
   // Insert t between curr and curr->next_sleep
   t->next_sleep = curr->next_sleep;
   curr->next_sleep = t;
+}
+
+void sys_sleep(uint32_t seconds) {
+  thread_t *current = dispatch_get_current();
+  uint32_t curr_tick = sched_time_get();
+  enqueue_sleeper(current, curr_tick + ((seconds * 1000) / TIMER_TICK_MS));
+  sched_yield();
 }
