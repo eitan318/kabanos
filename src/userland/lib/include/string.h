@@ -1,30 +1,70 @@
-#pragma once
-#include <stdbool.h>
+#ifndef _STRING_H
+#define _STRING_H
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 #include <stddef.h>
-#include <stdint.h>
 
-int atoi(const char *str);
-void trim_newline(char *str);
-void itoa(unsigned value, char *str);
-const char *strchr(const char *str, char chr);
-const char *strrchr(const char *str, char chr);
-char *strcpy(char *dst, const char *src);
-char *strncpy(char *dst, const char *src, unsigned n);
-unsigned strlen(const char *str);
-int strcmp(const char *a, const char *b);
-int strncmp(const char *a, const char *b, unsigned n);
-bool starts_with(const char *str, const char *prefix);
-char *strtok(char *str, const char *delim);
+#ifndef NULL
+#define NULL ((void *)0)
+#endif
 
-char *strdup(const char *s);
-char *strtok_r(char *str, const char *delim, char **saveptr);
+void *memcpy(void *__restrict, const void *__restrict, size_t);
+void *memmove(void *, const void *, size_t);
+void *memset(void *, int, size_t);
+int memcmp(const void *, const void *, size_t);
+void *memchr(const void *, int, size_t);
 
-void *memcpy(void *dst, const void *src, uint32_t num);
-void *memset(void *ptr, int value, uint32_t num);
-int memcmp(const void *ptr1, const void *ptr2, uint32_t num);
+char *strcpy(char *__restrict, const char *__restrict);
+char *strncpy(char *__restrict, const char *__restrict, size_t);
 
-// missing
-void *memmove(void *dest, const void *src, size_t n);
-char *strstr(const char *haystack, const char *needle);
-char *strerror(int errnum);
-char *strpbrk(const char *s, const char *accept);
+char *strcat(char *__restrict, const char *__restrict);
+char *strncat(char *__restrict, const char *__restrict, size_t);
+
+int strcmp(const char *, const char *);
+int strncmp(const char *, const char *, size_t);
+
+int strcoll(const char *, const char *);
+size_t strxfrm(char *__restrict, const char *__restrict, size_t);
+
+char *strchr(const char *, int);
+char *strrchr(const char *, int);
+
+size_t strcspn(const char *, const char *);
+size_t strspn(const char *, const char *);
+char *strpbrk(const char *, const char *);
+char *strstr(const char *, const char *);
+char *strtok(char *__restrict, const char *__restrict);
+
+size_t strlen(const char *);
+
+char *strerror(int);
+
+char *strtok_r(char *__restrict, const char *__restrict, char **__restrict);
+int strerror_r(int, char *, size_t);
+char *stpcpy(char *__restrict, const char *__restrict);
+char *stpncpy(char *__restrict, const char *__restrict, size_t);
+size_t strnlen(const char *, size_t);
+char *strdup(const char *);
+char *strndup(const char *, size_t);
+char *strsignal(int);
+void *memmem(const void *, size_t, const void *, size_t);
+
+char *strsep(char **, const char *);
+size_t strlcat(char *, const char *, size_t);
+size_t strlcpy(char *, const char *, size_t);
+void explicit_bzero(void *, size_t);
+
+int strverscmp(const char *, const char *);
+char *strchrnul(const char *, int);
+char *strcasestr(const char *, const char *);
+void *memrchr(const void *, int, size_t);
+void *mempcpy(void *, const void *, size_t);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif
