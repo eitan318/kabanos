@@ -39,7 +39,8 @@ int main(int argc, char **argv, char **envp) {
   asm volatile("nop");
   asm volatile("nop");
   asm volatile("nop");
-  zwrite(STDOUT_FILENO, "hello", 5);
+  // zwrite(STDOUT_FILENO, "hello", 5);
+  printf("hello %d", 9);
   // proc_spawn("/boot/test_a.elf", NULL, NULL);
   // proc_spawn("/boot/test_b.elf", NULL, NULL);
   // proc_spawn("/boot/test_c.elf", NULL, NULL);

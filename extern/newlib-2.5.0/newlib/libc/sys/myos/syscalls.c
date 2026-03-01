@@ -133,7 +133,7 @@ int read(int file, char *ptr, int len) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_READ, file, (long)ptr, len, 0, 0, 0);
 }
 
-int zwrite(int file, char *ptr, int len) {
+int write(int file, char *ptr, int len) {
   asm volatile("nop");
   asm volatile("nop");
   asm volatile("nop");
