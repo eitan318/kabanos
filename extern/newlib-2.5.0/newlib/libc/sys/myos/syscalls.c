@@ -1,10 +1,13 @@
+#include <stddef.h>
 #include <stdio.h>
 #include <sys/errno.h>
 #include <sys/fcntl.h>
+#include <sys/mman.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <sys/times.h>
 #include <sys/types.h>
+#include <sys/unistd.h>
 
 static inline long __syscall6(long num, long a1, long a2, long a3, long a4,
                               long a5, long a6) {
@@ -87,9 +90,119 @@ typedef enum {
   SYSCALL_NUMBER_SYS_SIGACTION = 32,
   SYSCALL_NUMBER_SYS_LINK = 34,
   SYSCALL_NUMBER_SYS_TIMES = 35,
+  SYSCALL_NUMBER_SYS_GETCWD = 36,
+  SYSCALL_NUMBER_SYS_MPROTECT = 37,
+  SYSCALL_NUMBER_SYS_SIGPROCMASK = 38,
+
 } SYSCALL_NUMBER;
 
-char **environ;
+/* getcwd */
+
+char *getcwd(char *__buf, size_t __size) {
+  long ret = _syscall6(SYSCALL_NUMBER_SYS_GETCWD, (long)__buf, (long)__size, 0,
+                       0, 0, 0);
+  if (ret < 0)
+    return NULL;
+  return __buf;
+}
+
+/* realpath - simple implementation using getcwd */
+char *realpath(const char *path, char *resolved) {
+  static char buf[4096];
+  if (!resolved)
+    resolved = buf;
+  /* If absolute path, just copy it */
+  if (path[0] == '/') {
+    int i = 0;
+    while (path[i] && i < 4095) {
+      resolved[i] = path[i];
+      i++;
+    }
+    resolved[i] = '\0';
+    return resolved;
+  }
+  /* Relative: prepend cwd */
+  if (!getcwd(resolved, 4096))
+    return NULL;
+  int len = 0;
+  while (resolved[len])
+    len++;
+  resolved[len++] = '/';
+  int i = 0;
+  while (path[i] && len < 4095) {
+    resolved[len++] = path[i++];
+  }
+  resolved[len] = '\0';
+  return resolved;
+}
+
+/* sysconf */
+
+long sysconf(int __name) {
+  switch (__name) {
+  case _SC_PAGESIZE:
+    return 4096;
+  case _SC_PHYS_PAGES:
+    return 1024;
+  default:
+    return -1;
+  }
+}
+
+/* mprotect */
+int mprotect(void *addr, size_t len, int prot) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_MPROTECT, (long)addr, (long)len,
+                        prot, 0, 0, 0);
+}
+
+/* execvp - search PATH and call execve */
+
+int execvp(const char *__file, char *const __argv[]) {
+  return execve((char *)__file, (char **)__argv, environ);
+}
+
+/* ldexpl stub - TCC uses this for float parsing */
+long double ldexpl(long double x, int exp) {
+  while (exp > 0) {
+    x *= 2.0L;
+    exp--;
+  }
+  while (exp < 0) {
+    x /= 2.0L;
+    exp++;
+  }
+  return x;
+}
+
+/* signal set management */
+int sigemptyset(sigset_t *set) {
+  *set = 0;
+  return 0;
+}
+
+int sigfillset(sigset_t *set) {
+  *set = ~(sigset_t)0;
+  return 0;
+}
+
+int sigaddset(sigset_t *set, int signo) {
+  *set |= (1UL << (signo - 1));
+  return 0;
+}
+
+int sigdelset(sigset_t *set, int signo) {
+  *set &= ~(1UL << (signo - 1));
+  return 0;
+}
+
+int sigismember(const sigset_t *set, int signo) {
+  return (*set & (1UL << (signo - 1))) != 0;
+}
+
+int sigprocmask(int how, const sigset_t *set, sigset_t *oset) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_SIGPROCMASK, how, (long)set,
+                        (long)oset, 0, 0, 0);
+}
 
 int isatty(int file) {
   if (file >= 0 && file <= 2)
@@ -101,13 +214,13 @@ int fork(void) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_FORK, 0, 0, 0, 0, 0, 0);
 }
 
-int execve(char *name, char **argv, char **env) {
-  return (int)_syscall6(SYSCALL_NUMBER_SYS_EXECVE, (long)name, (long)argv,
-                        (long)env, 0, 0, 0);
+int execve(const char *__path, char *const __argv[], char *const __envp[]) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_EXECVE, (long)__envp, (long)__argv,
+                        (long)__envp, 0, 0, 0);
 }
 
-void _exit(int status) {
-  _syscall6(SYSCALL_NUMBER_SYS_EXIT, status, 0, 0, 0, 0, 0);
+void _exit(int __status) {
+  _syscall6(SYSCALL_NUMBER_SYS_EXIT, __status, 0, 0, 0, 0, 0);
   while (1)
     ;
 }
@@ -117,35 +230,31 @@ int wait(int *status) {
                         0);
 }
 
-caddr_t sbrk(int incr) {
-  return (caddr_t)_syscall6(SYSCALL_NUMBER_SYS_SBRK, incr, 0, 0, 0, 0, 0);
+void *sbrk(ptrdiff_t __incr) {
+  return (caddr_t)_syscall6(SYSCALL_NUMBER_SYS_SBRK, __incr, 0, 0, 0, 0, 0);
 }
 
 int open(const char *name, int flags, ...) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_OPEN, (long)name, flags, 0, 0, 0, 0);
 }
 
-int close(int file) {
-  return (int)_syscall6(SYSCALL_NUMBER_SYS_CLOSE, file, 0, 0, 0, 0, 0);
+int _close(int __fildes) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_CLOSE, __fildes, 0, 0, 0, 0, 0);
 }
 
-int read(int file, char *ptr, int len) {
-  return (int)_syscall6(SYSCALL_NUMBER_SYS_READ, file, (long)ptr, len, 0, 0, 0);
+_READ_WRITE_RETURN_TYPE _read(int __fd, void *__buf, size_t __nbyte) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_READ, __fd, (long)__buf, __nbyte, 0,
+                        0, 0);
 }
 
-int write(int file, char *ptr, int len) {
-  asm volatile("nop");
-  asm volatile("nop");
-  asm volatile("nop");
-  asm volatile("nop");
-  asm volatile("nop");
-  asm volatile("nop");
-  return (int)_syscall6(SYSCALL_NUMBER_SYS_WRITE, file, (long)ptr, len, 0, 0,
-                        0);
+_READ_WRITE_RETURN_TYPE write(int __fd, const void *__buf, size_t __nbyte) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_WRITE, __fd, (long)__buf, __nbyte, 0,
+                        0, 0);
 }
 
-int lseek(int file, int ptr, int dir) {
-  return (int)_syscall6(SYSCALL_NUMBER_SYS_LSEEK, file, ptr, dir, 0, 0, 0);
+off_t lseek(int __fildes, off_t __offset, int __whence) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_LSEEK, __fildes, __offset, __whence,
+                        0, 0, 0);
 }
 
 int fstat(int file, struct stat *st) {
@@ -157,7 +266,7 @@ int stat(const char *file, struct stat *st) {
                         0);
 }
 
-int getpid(void) {
+pid_t getpid(void) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_GETPID, 0, 0, 0, 0, 0, 0);
 }
 
@@ -165,22 +274,27 @@ int kill(int pid, int sig) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_KILL, pid, sig, 0, 0, 0, 0);
 }
 
-int link(char *old, char *new) {
-  return (int)_syscall6(SYSCALL_NUMBER_SYS_LINK, (long)old, (long)new, 0, 0, 0,
-                        0);
+int link(const char *__path1, const char *__path2) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_LINK, (long)__path1, (long)__path2,
+                        0, 0, 0, 0);
 }
 
-int unlink(char *name) {
-  return (int)_syscall6(SYSCALL_NUMBER_SYS_UNLINK, (long)name, 0, 0, 0, 0, 0);
+int unlink(const char *__path) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_UNLINK, (long)__path, 0, 0, 0, 0, 0);
 }
 
 clock_t times(struct tms *buf) {
   return (clock_t)_syscall6(SYSCALL_NUMBER_SYS_TIMES, (long)buf, 0, 0, 0, 0, 0);
 }
 
-unsigned int sleep(unsigned int seconds) {
-  return (unsigned int)_syscall6(SYSCALL_NUMBER_SYS_SLEEP, seconds, 0, 0, 0, 0,
-                                 0);
+unsigned sleep(unsigned int __seconds) {
+  return (unsigned int)_syscall6(SYSCALL_NUMBER_SYS_SLEEP, __seconds, 0, 0, 0,
+                                 0, 0);
 }
 
 void yield(void) { _syscall6(SYSCALL_NUMBER_SYS_YIELD, 0, 0, 0, 0, 0, 0); }
+
+int sigaction(int signum, const struct sigaction *act, struct sigaction *oact) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_SIGACTION, signum, (long)act,
+                        (long)oact, 0, 0, 0);
+}

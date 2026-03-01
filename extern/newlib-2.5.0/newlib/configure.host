@@ -47,8 +47,8 @@
 #   have_crt0		"yes"/"no" if crt0 is/isn't provided.
 #			"" if crt0 is provided when sys_dir is set
 #   noinclude		list of include files to not install
-
-newlib_cflags=
+#
+newlib_cflags="${newlib_cflags} -DSIGNAL_PROVIDED"
 libm_machine_dir=
 machine_dir=
 sys_dir=

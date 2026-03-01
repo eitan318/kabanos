@@ -51,7 +51,7 @@ CONFIG_CLEAN_VPATH_FILES =
 LIBRARIES = $(noinst_LIBRARIES)
 ARFLAGS = cru
 lib_a_AR = $(AR) $(ARFLAGS)
-@MAY_SUPPLY_SYSCALLS_TRUE@am__DEPENDENCIES_1 = syscalls.o
+@MAY_SUPPLY_SYSCALLS_TRUE@am__DEPENDENCIES_1 = syscalls.o helpers.o
 am_lib_a_OBJECTS =
 lib_a_OBJECTS = $(am_lib_a_OBJECTS)
 DEFAULT_INCLUDES = -I.@am__isrc@
@@ -173,15 +173,19 @@ INCLUDES = $(NEWLIB_CFLAGS) $(CROSS_CFLAGS) $(TARGET_CFLAGS)
 AM_CCASFLAGS = $(INCLUDES)
 noinst_LIBRARIES = lib.a
 @MAY_SUPPLY_SYSCALLS_FALSE@extra_objs = 
-@MAY_SUPPLY_SYSCALLS_TRUE@extra_objs = syscalls.o
+@MAY_SUPPLY_SYSCALLS_TRUE@extra_objs = syscalls.o helpers.o
 lib_a_SOURCES = 
 lib_a_LIBADD = $(extra_objs)
-EXTRA_lib_a_SOURCES = syscalls.c crt0.c
+EXTRA_lib_a_SOURCES = syscalls.c crt0.c helpers.c
 lib_a_DEPENDENCIES = $(extra_objs)
 lib_a_CCASFLAGS = $(AM_CCASFLAGS)
 lib_a_CFLAGS = $(AM_CFLAGS)
 ACLOCAL_AMFLAGS = -I ../../..
 CONFIG_STATUS_DEPENDENCIES = $(newlib_basedir)/configure.host
+
+# Define where the headers should go in the final sysroot
+# tooldir is usually /usr/i686-myos or similar
+set_header_dir = $(DESTDIR)$(tooldir)/include
 all: all-am
 
 .SUFFIXES:
@@ -251,6 +255,12 @@ lib_a-crt0.o: crt0.c
 
 lib_a-crt0.obj: crt0.c
 	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-crt0.obj `if test -f 'crt0.c'; then $(CYGPATH_W) 'crt0.c'; else $(CYGPATH_W) '$(srcdir)/crt0.c'; fi`
+
+lib_a-helpers.o: helpers.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-helpers.o `test -f 'helpers.c' || echo '$(srcdir)/'`helpers.c
+
+lib_a-helpers.obj: helpers.c
+	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(lib_a_CFLAGS) $(CFLAGS) -c -o lib_a-helpers.obj `if test -f 'helpers.c'; then $(CYGPATH_W) 'helpers.c'; else $(CYGPATH_W) '$(srcdir)/helpers.c'; fi`
 
 ID: $(HEADERS) $(SOURCES) $(LISP) $(TAGS_FILES)
 	list='$(SOURCES) $(HEADERS) $(LISP) $(TAGS_FILES)'; \
@@ -354,7 +364,7 @@ info: info-am
 
 info-am:
 
-install-data-am:
+install-data-am: install-data-local
 
 install-dvi: install-dvi-am
 
@@ -400,7 +410,7 @@ ps: ps-am
 
 ps-am:
 
-uninstall-am:
+uninstall-am: uninstall-local
 
 .MAKE: install-am install-strip
 
@@ -408,14 +418,14 @@ uninstall-am:
 	clean-generic clean-noinstLIBRARIES ctags distclean \
 	distclean-compile distclean-generic distclean-tags dvi dvi-am \
 	html html-am info info-am install install-am install-data \
-	install-data-am install-dvi install-dvi-am install-exec \
-	install-exec-am install-html install-html-am install-info \
-	install-info-am install-man install-pdf install-pdf-am \
-	install-ps install-ps-am install-strip installcheck \
-	installcheck-am installdirs maintainer-clean \
+	install-data-am install-data-local install-dvi install-dvi-am \
+	install-exec install-exec-am install-html install-html-am \
+	install-info install-info-am install-man install-pdf \
+	install-pdf-am install-ps install-ps-am install-strip \
+	installcheck installcheck-am installdirs maintainer-clean \
 	maintainer-clean-generic mostlyclean mostlyclean-compile \
 	mostlyclean-generic pdf pdf-am ps ps-am tags uninstall \
-	uninstall-am
+	uninstall-am uninstall-local
 
 
 # This is what the parent sys/Makefile actually looks for
@@ -423,6 +433,14 @@ crt0.o: $(srcdir)/crt0.c
 	$(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) $(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS) -c -o $@ $(srcdir)/crt0.c
 
 all: lib.a crt0.o
+
+install-data-local:
+	$(mkinstalldirs) $(set_header_dir)
+	$(INSTALL_DATA) $(srcdir)/include/semaphore.h $(set_header_dir)/semaphore.h
+
+# Optional: Add a hook to uninstall if needed
+uninstall-local:
+	rm -f $(set_header_dir)/semaphore.h
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
