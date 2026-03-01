@@ -65,7 +65,7 @@ typedef struct {
   uint32_t MemorySize;
   uint32_t Flags;
   uint32_t Align;
-} ELFProgramHeader;
+} elf_program_header;
 
 enum ELFProgramType {
   ELF_PROGRAM_TYPE_NULL = 0,
@@ -84,4 +84,5 @@ enum ELFProgramFlags {
   ELF_PROGRAM_FLAG_READABLE = 0x4,
 };
 
-int elf_load(arch_vm_t *vm, void *elf_data, uint32_t size, uintptr_t *entry);
+int elf_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size, uintptr_t *entry,
+             uintptr_t *load_base);

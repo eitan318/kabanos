@@ -215,7 +215,7 @@ int fork(void) {
 }
 
 int execve(const char *__path, char *const __argv[], char *const __envp[]) {
-  return (int)_syscall6(SYSCALL_NUMBER_SYS_EXECVE, (long)__envp, (long)__argv,
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_EXECVE, (long)__path, (long)__argv,
                         (long)__envp, 0, 0, 0);
 }
 
@@ -242,7 +242,7 @@ int _close(int __fildes) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_CLOSE, __fildes, 0, 0, 0, 0, 0);
 }
 
-_READ_WRITE_RETURN_TYPE _read(int __fd, void *__buf, size_t __nbyte) {
+_READ_WRITE_RETURN_TYPE read(int __fd, void *__buf, size_t __nbyte) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_READ, __fd, (long)__buf, __nbyte, 0,
                         0, 0);
 }

@@ -34,14 +34,12 @@ int hal_thread_init(thread_t *t, uintptr_t entry, uintptr_t user_stack) {
     tf->esp_user = user_stack;
     uint32_t ds = i686_GDT_USER_DS_SEL;
     tf->ds = tf->es = tf->fs = tf->gs = ds;
-  } else {
-    tf->cs = i686_GDT_KERNEL_CS_SEL;
-    // TODO
-    // In kernel mode, the hardware doesn't pop SS/ESP on IRET
-    // Some designs use a smaller struct for kernel threads
-  }
 
-  t->arch->kernel_esp = (void *)tf;
+    t->arch->kernel_esp = (void *)tf;
+  } else {
+
+    t->arch->kernel_esp = (void *)tf + 8;
+  }
 
   return 0;
 }

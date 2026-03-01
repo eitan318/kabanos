@@ -1,3 +1,5 @@
+option(REBUILD_NEWLIB "Force rebuild and reinstall newlib" OFF)
+
 set(NEWLIB_SRC_DIR "${CMAKE_SOURCE_DIR}/extern/newlib-2.5.0")
 set(NEWLIB_SYS_MYOS "${NEWLIB_SRC_DIR}/newlib/libc/sys/myos")
 set(NEWLIB_BUILD_DIR "${CMAKE_BINARY_DIR}/build-newlib")
@@ -7,38 +9,40 @@ set(TCC_BIN "${CMAKE_SOURCE_DIR}/extern/tcc/tcc")
 set(TCC_DIR "${CMAKE_SOURCE_DIR}/extern/tcc")
 set(USER_OUTPUT_DIR "${CMAKE_SOURCE_DIR}/BOOT")
 
+if(REBUILD_NEWLIB)
+    include(ExternalProject)
+    ExternalProject_Add(newlib_project
+        SOURCE_DIR "${NEWLIB_SRC_DIR}"
+        BINARY_DIR "${NEWLIB_BUILD_DIR}"
+        CONFIGURE_COMMAND 
+            bash -c "cd ${NEWLIB_SYS_MYOS} && \
+                     ~/automake-1.11-install/bin/aclocal-1.11 -I ../../.. -I ../../../.. && \
+                     autoconf && \
+                     ~/automake-1.11-install/bin/automake-1.11 --cygnus"
+        COMMAND "${NEWLIB_SRC_DIR}/configure"
+                    --target=i686-myos
+                    --prefix=/usr
+                    --with-sysroot=${NEWLIB_SYSROOT}
+                    --enable-newlib-io-long-long
+        BUILD_COMMAND make all -j${PROCESSOR_COUNT}
+        INSTALL_COMMAND make DESTDIR=${NEWLIB_SYSROOT} install
+        BUILD_BYPRODUCTS 
+            "${NEWLIB_SYSROOT}/usr/lib/libc.a"
+            "${NEWLIB_SYSROOT}/usr/lib/crt0.o"
+    )
+    ExternalProject_Add_Step(newlib_project flatten
+        COMMAND bash -c "cp -af ${NEWLIB_SYSROOT}/usr/i686-myos/* ${NEWLIB_SYSROOT}/usr/ && \
+                         rm -rf ${NEWLIB_SYSROOT}/usr/i686-myos"
+        DEPENDEES install
+        DEPENDERS build
+    )
+    set(NEWLIB_DEP newlib_project)
+else()
+    # Create a dummy target so DEPENDS newlib_project still works everywhere
+    add_custom_target(newlib_project)
+    set(NEWLIB_DEP newlib_project)
+endif()
 
-# --- 2. Automate Newlib Build & Install ---
-include(ExternalProject)
-
-ExternalProject_Add(newlib_project
-    SOURCE_DIR "${NEWLIB_SRC_DIR}"
-    BINARY_DIR "${NEWLIB_BUILD_DIR}"
-    
-    CONFIGURE_COMMAND 
-        bash -c "cd ${NEWLIB_SYS_MYOS} && \
-                 ~/automake-1.11-install/bin/aclocal-1.11 -I  ../../.. -I ../../../.. && \
-                 autoconf && \
-                 ~/automake-1.11-install/bin/automake-1.11 --cygnus"
-
-    COMMAND "${NEWLIB_SRC_DIR}/configure"
-                --target=i686-myos
-                --prefix=/usr
-                --with-sysroot=${NEWLIB_SYSROOT}
-                --enable-newlib-io-long-long
-    BUILD_COMMAND make all -j${PROCESSOR_COUNT}
-    INSTALL_COMMAND make DESTDIR=${NEWLIB_SYSROOT} install
-    BUILD_BYPRODUCTS 
-        "${NEWLIB_SYSROOT}/usr/lib/libc.a"
-        "${NEWLIB_SYSROOT}/usr/lib/crt0.o"
-)
-
-ExternalProject_Add_Step(newlib_project flatten
-    COMMAND bash -c "cp -af ${NEWLIB_SYSROOT}/usr/i686-myos/* ${NEWLIB_SYSROOT}/usr/ && \
-                     rm -rf ${NEWLIB_SYSROOT}/usr/i686-myos"
-    DEPENDEES install        # runs after install
-    DEPENDERS build          # anything depending on newlib_project waits for this
-)
 
 file(GLOB USER_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/user_src/*")
 foreach(USER_DIR ${USER_DIRS})
@@ -66,6 +70,7 @@ foreach(USER_DIR ${USER_DIRS})
             "-I${USER_DIR}"
             "-I${USER_DIR}/include"
             "-I${NEWLIB_SYSROOT}/usr/include"
+            -g
         )
         add_custom_command(
             OUTPUT "${TCC_MAIN_OBJ}"
@@ -89,7 +94,7 @@ foreach(USER_DIR ${USER_DIRS})
         add_custom_command(
             OUTPUT "${USER_ELF}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${USER_OUTPUT_DIR}"
-            COMMAND i686-myos-gcc -m32 -o "${USER_ELF}" -static -nostdlib
+            COMMAND i686-myos-gcc -m32 -g -o "${USER_ELF}" -static -nostdlib
                     "-Wl,-Ttext=0x400000"
                     "-Wl,--allow-multiple-definition"
                     "${NEWLIB_SYSROOT}/usr/lib/crt0.o"
@@ -112,7 +117,7 @@ foreach(USER_DIR ${USER_DIRS})
             add_custom_command(
                 OUTPUT "${USER_OBJ}"
                 COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/user_objs/${USER_NAME}"
-                COMMAND "${TCC_BIN}" -m32 -c "${USER_FILE}" -o "${USER_OBJ}"
+                COMMAND "${TCC_BIN}" -m32 -g -c "${USER_FILE}" -o "${USER_OBJ}"
                         -nostdinc
                         "-I${TCC_DIR}/include"
                         "-I${NEWLIB_SYSROOT}/usr/include"
@@ -125,7 +130,7 @@ foreach(USER_DIR ${USER_DIRS})
         add_custom_command(
             OUTPUT "${USER_ELF}"
             COMMAND ${CMAKE_COMMAND} -E make_directory "${USER_OUTPUT_DIR}"
-            COMMAND "${TCC_BIN}" -m32 -o "${USER_ELF}" -static -nostdlib
+            COMMAND "${TCC_BIN}" -m32 -g -o "${USER_ELF}" -static -nostdlib
                     "-Wl,-Ttext=0x400000"
                     "${NEWLIB_SYSROOT}/usr/lib/crt0.o"
                     ${USER_OBJS}

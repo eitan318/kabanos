@@ -70,3 +70,5 @@ extern/tcc/tcc -m32 \
     /home/magshimim/myos/usr/lib/crt0.o \
     hello.c -o hello \
     -lc -lnosys
+
+

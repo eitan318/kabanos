@@ -67,7 +67,7 @@ typedef struct {
   uint32_t Flags;
   uint32_t Align;
 
-} ELFProgramHeader;
+} elf_program_header;
 
 enum ELFProgramType {
   // Program header table entry unused.

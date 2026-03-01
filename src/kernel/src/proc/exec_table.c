@@ -1,0 +1,14 @@
+#include "proc/exec_table.h"
+#include <klib/string.h>
+
+exec_table_entry_t g_exec_table[EXEC_TABLE_MAX];
+int g_exec_table_count = 0;
+
+void exec_table_add(const char *path, uintptr_t load_base) {
+  if (g_exec_table_count >= EXEC_TABLE_MAX)
+    return;
+  exec_table_entry_t *e = &g_exec_table[g_exec_table_count++];
+  strncpy(e->path, path, sizeof(e->path) - 1);
+  e->load_base = load_base;
+  e->loaded = 1;
+}

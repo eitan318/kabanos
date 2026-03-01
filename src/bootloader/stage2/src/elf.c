@@ -72,7 +72,8 @@ bool elf_read(Partition *part, const char *path, void **entryPoint) {
 
   // 4. Load each PT_LOAD segment — still the same fd, just seek within it
   for (uint32_t i = 0; i < phEntCount; i++) {
-    ELFProgramHeader *ph = (ELFProgramHeader *)(headerBuffer + i * phEntSize);
+    elf_program_header *ph =
+        (elf_program_header *)(headerBuffer + i * phEntSize);
 
     if (ph->Type != ELF_PROGRAM_TYPE_LOAD)
       continue;

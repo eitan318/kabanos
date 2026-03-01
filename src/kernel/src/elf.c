@@ -9,6 +9,7 @@
 #include "mm/pmm.h"
 #include "mm/va_allocation.h"
 #include "utils/math.h"
+#include <klib/stdint.h>
 
 // Load segment: allocate, zero, and copy from file data
 // currently menually touch frame alloc and page_map
@@ -59,8 +60,8 @@ static int load_segment(arch_vm_t *vm, vaddr_t va_start, size_t mem_size,
 }
 
 // Load ELF file
-int elf_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
-             uintptr_t *entry) {
+int elf_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size, uintptr_t *entry,
+             uintptr_t *load_base) {
   ASSERT(vm && elf_data && entry);
 
   if (elf_size < sizeof(ELFHeader)) {
@@ -92,9 +93,10 @@ int elf_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
   // Load segments
   uint8_t *phdrs = (uint8_t *)elf_data + hdr->ProgramHeaderTablePosition;
 
+  uintptr_t base = 0xFFFFFFFF; // Start max
   for (uint32_t i = 0; i < hdr->ProgramHeaderTableEntryCount; i++) {
-    ELFProgramHeader *ph =
-        (ELFProgramHeader *)(phdrs + i * hdr->ProgramHeaderTableEntrySize);
+    elf_program_header *ph =
+        (elf_program_header *)(phdrs + i * hdr->ProgramHeaderTableEntrySize);
 
     if (ph->Type != ELF_PROGRAM_TYPE_LOAD || ph->MemorySize == 0) {
       continue;
@@ -113,6 +115,10 @@ int elf_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
     void *file_data =
         (ph->FileSize > 0) ? ((uint8_t *)elf_data + ph->Offset) : NULL;
 
+    if (ph->VirtualAddress < base) {
+      base = ph->VirtualAddress;
+    }
+
     if (load_segment(vm, ph->VirtualAddress, ph->MemorySize, file_data,
                      ph->FileSize, flags) != 0) {
       kdebugf("ELF: Failed to load segment %u\n", i);
@@ -120,6 +126,7 @@ int elf_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
     }
   }
 
+  *load_base = base;
   *entry = hdr->ProgramEntryPosition;
   return 0;
 }

@@ -11,19 +11,24 @@
 #include "mm/memdefs.h"
 #include "mm/va_allocation.h"
 #include "mm/vmspace.h"
+#include "proc/exec_table.h"
 #include "proc/proc.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
 
 int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
+  kdebugf("exec_load_elf: loading '%s'\n", path);
+
   int fd = vfs_open(path, O_RDONLY);
   if (fd < 0) {
-    return fd; // Return the actual error (e.g., -ENOENT)
+    kdebugf("exec_load_elf: vfs_open('%s') failed: %d\n", path, fd);
+    return fd;
   }
 
   fstat_t st;
   if (vfs_fstat(fd, &st) < 0) {
+    kdebugf("exec_load_elf: vfs_fstat failed for '%s'\n", path);
     vfs_close(fd);
     return -EIO;
   }
@@ -35,14 +40,22 @@ int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
   }
 
   ssize_t nread = vfs_read(fd, data, st.size);
-  vfs_close(fd); // We can close now; data is in RAM
+  vfs_close(fd);
 
   if (nread < 0 || (size_t)nread != (size_t)st.size) {
     kfree(data);
     return -EIO;
   }
 
-  int r = elf_load(vm->arch, data, st.size, entry);
+  uintptr_t load_base = 0;
+  int r = elf_load(vm->arch, data, st.size, entry, &load_base);
+  if (r == 0) {
+    kdebugf("exec_load_elf: loaded '%s' base=0x%x entry=0x%x\n", path,
+            load_base, *entry);
+    exec_table_add(path, load_base);
+  } else {
+    kdebugf("exec_load_elf: elf_load failed: %d\n", r);
+  }
 
   kfree(data);
   return r;

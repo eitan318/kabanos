@@ -37,7 +37,7 @@ def main():
 
     # Partition 1: Boot (FAT12) - Let's give it ~2MB
     p1_start = 1 + stage2_sectors
-    p1_sectors = 4000
+    p1_sectors = 30000
 
     # Partition 2: Main Data (myfs) - Remainder of the disk
     p2_start = p1_start + p1_sectors
