@@ -1,8 +1,15 @@
 ENTRY(_start)
 SECTIONS
 {
-    . = 0x400000; /* Standard starting address for many ELFs */
+    . = 0x400000;
     .text : { *(.text) }
     .data : { *(.data) }
-    .bss  : { *(.bss) }
+    .bss  : { 
+        *(.bss) 
+        *(COMMON) /* Important: TCC/GCC put some variables here */
+    }
+    
+    /* The Magic Markers */
+    _end = .; 
+    end = .;
 }

@@ -56,3 +56,17 @@ gmake[2]: *** [src/userland/CMakeFiles/init_target.dir/build.make:75: ../BOOT/in
 gmake[1]: *** [CMakeFiles/Makefile2:393: src/userland/CMakeFiles/init_target.dir/all] Error 2
 gmake: *** [Makefile:91: all] Error 2
 
+
+compile with tcc and newlib
+------------------
+
+extern/tcc/tcc -m32 \
+    -nostdinc \
+    -I$(pwd)/extern/tcc/include \
+    -isystem /home/magshimim/myos/usr/include \
+    -L/home/magshimim/myos/usr/lib \
+    -nostdlib \
+    -I$(pwd)/src/userland/user_src/linker.ld \
+    /home/magshimim/myos/usr/lib/crt0.o \
+    hello.c -o hello \
+    -lc -lnosys

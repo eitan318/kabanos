@@ -1,3 +1,4 @@
+#include "user.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -19,9 +20,29 @@ int proc_spawn(char *name, char **argv, char **envp) {
 }
 
 int main(int argc, char **argv, char **envp) {
-  proc_spawn("/boot/test_a.elf", NULL, NULL);
-  proc_spawn("/boot/test_b.elf", NULL, NULL);
-  proc_spawn("/boot/test_c.elf", NULL, NULL);
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  zwrite(STDOUT_FILENO, "hello", 5);
+  // proc_spawn("/boot/test_a.elf", NULL, NULL);
+  // proc_spawn("/boot/test_b.elf", NULL, NULL);
+  // proc_spawn("/boot/test_c.elf", NULL, NULL);
   while (1) {
   }
 }
