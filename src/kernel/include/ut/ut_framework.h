@@ -5,23 +5,15 @@
  * No external dependencies required.
  */
 
-#ifndef UT_FRAMEWORK_H
-#define UT_FRAMEWORK_H
+#pragma once
 
 #include "klib/stdarg.h"
 #include "klib/stdio.h"
-#include "klib/stdlib.h"
 
-/*=============================================================================
- * TEST RESULT CODES
- *===========================================================================*/
 #define UT_PASS 0
 #define UT_FAIL -1
 #define UT_SKIP -2
 
-/*=============================================================================
- * COLOR OUTPUT (can be disabled by defining UT_NO_COLOR)
- *===========================================================================*/
 #ifndef UT_NO_COLOR
 #define UT_COLOR_RED "\x1b[31m"
 #define UT_COLOR_GREEN "\x1b[32m"
@@ -38,22 +30,13 @@
 #define UT_COLOR_RESET ""
 #endif
 
-/*=============================================================================
- * TEST FUNCTION SIGNATURE
- *===========================================================================*/
 typedef int (*ut_test_func_t)(void);
 
-/*=============================================================================
- * TEST CASE STRUCTURE
- *===========================================================================*/
 typedef struct {
   const char *name;
   ut_test_func_t func;
 } ut_test_case_t;
 
-/*=============================================================================
- * TEST SUITE STRUCTURE
- *===========================================================================*/
 typedef struct {
   const char *suite_name;
   ut_test_case_t *tests;
@@ -64,19 +47,12 @@ typedef struct {
   int (*suite_teardown)(void); // Called once after suite (optional)
 } ut_test_suite_t;
 
-/*=============================================================================
- * TEST CONFIGURATION
- *===========================================================================*/
 typedef struct {
   int verbose;      // Print detailed output
   int stop_on_fail; // Stop on first failure
   int show_passed;  // Show passed test names
   int quiet;        // Minimal output
 } ut_config_t;
-
-/*=============================================================================
- * ASSERTION MACROS
- *===========================================================================*/
 
 #define UT_ASSERT(condition, msg)                                              \
   do {                                                                         \
@@ -171,10 +147,6 @@ typedef struct {
     }                                                                          \
   } while (0)
 
-/*=============================================================================
- * HELPER MACROS
- *===========================================================================*/
-
 // Skip a test (useful for temporarily disabling tests)
 #define UT_SKIP_TEST(msg)                                                      \
   do {                                                                         \
@@ -186,26 +158,12 @@ typedef struct {
 #define UT_TEST(func)                                                          \
   { #func, func }
 
-/*=============================================================================
- * TEST RUNNER FUNCTIONS
- *===========================================================================*/
-
-// Run a single test suite
 int ut_run_suite(ut_test_suite_t *suite, ut_config_t *config);
-
-// Run multiple test suites
 int ut_run_suites(ut_test_suite_t *suites, int num_suites, ut_config_t *config);
-
-// Print test summary
 void ut_print_summary(int total, int passed, int failed, int skipped);
 
-/*=============================================================================
- * DEFAULT CONFIGURATION
- *===========================================================================*/
 static inline ut_config_t ut_default_config(void) {
   ut_config_t config = {
       .verbose = 1, .stop_on_fail = 0, .show_passed = 0, .quiet = 0};
   return config;
 }
-
-#endif /* UT_FRAMEWORK_H */

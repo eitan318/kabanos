@@ -1,6 +1,5 @@
 #include "syscall.h"
 #include "hal.h"
-#include "klib/stdlib.h"
 #include "mm/kmalloc.h"
 #include "syscall.h"
 

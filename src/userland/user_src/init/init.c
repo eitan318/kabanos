@@ -1,7 +1,6 @@
 #include "user.h"
 #include <stddef.h>
 #include <stdio.h>
-#include <string.h>
 #include <unistd.h>
 
 int proc_spawn(char *name, char **argv, char **envp) {
@@ -21,14 +20,8 @@ int proc_spawn(char *name, char **argv, char **envp) {
 }
 
 int main(int argc, char **argv, char **envp) {
-  int num = 0;
-
-  printf("Enter num: ");
-  scanf("%d", &num);
-  printf("You entered: %d", num);
-  // // proc_spawn("/boot/test_a.elf", NULL, NULL);
-  // // proc_spawn("/boot/test_b.elf", NULL, NULL);
-  // // proc_spawn("/boot/test_c.elf", NULL, NULL);
+  printf("Success");
+  // proc_spawn("/boot/shell.elf", NULL, NULL);
   while (1) {
   }
 }

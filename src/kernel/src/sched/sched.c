@@ -5,8 +5,8 @@
 #include "modules.h"
 #include "sched/dispatcher.h"
 #include "sched/sleep.h"
-#include "sched/spinlock.h"
 #include "sched/thread.h"
+#include "spinlock.h"
 
 #define AGING_THRESHOLD_MS 500
 
@@ -288,7 +288,7 @@ static const char *sched_deps[] = {"dispatcher", NULL};
 
 ITER_MODULE(sched) = {
     .name = "sched",
-    .required = sched_deps,
+    .required_modules_names = sched_deps,
     .init = &sched_init,
     .fini = NULL,
 };

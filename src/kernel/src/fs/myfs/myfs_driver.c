@@ -3,7 +3,6 @@
 #include "fs/vfs.h"
 #include "fs/vfs_internal.h"
 #include "klib/stdio.h"
-#include "klib/stdlib.h"
 #include "klib/string.h"
 #include "ksys/stat.h"
 #include "mm/kmalloc.h"
@@ -21,8 +20,8 @@ static int myfsd_f_dir_iter(file_t *parent_file, dir_ctx_t *ctx) {
     return -1;
   }
 
-  int entries_count = parent->size / sizeof(MyfsDirEntry);
-  MyfsDirEntry *entries = kmalloc(parent->size);
+  int entries_count = parent->size / sizeof(MyfsDiskDirEntry);
+  MyfsDiskDirEntry *entries = kmalloc(parent->size);
   if (!entries) {
     myfs_iput(myfs_sb, parent);
     return -1;
@@ -35,25 +34,25 @@ static int myfsd_f_dir_iter(file_t *parent_file, dir_ctx_t *ctx) {
     return -1;
   }
 
-  int actual_entries = bytes_read / sizeof(MyfsDirEntry);
+  int actual_entries = bytes_read / sizeof(MyfsDiskDirEntry);
   int emitted = 0;
 
   uint64_t start_index = 0;
   uint32_t rem = 0;
-  div64_32(parent_file->pos, sizeof(MyfsDirEntry), &start_index, &rem);
+  div64_32(parent_file->pos, sizeof(MyfsDiskDirEntry), &start_index, &rem);
 
   for (int i = start_index; i < actual_entries && emitted < ctx->count; i++) {
-    MyfsDirEntry *entry = &entries[i];
+    MyfsDiskDirEntry *entry = &entries[i];
     int namelen = strlen(entry->file_name);
 
     MyfsInode *child = myfs_iget(myfs_sb, entry->inode_num);
     unsigned type = S_ISDIR(child->mode) ? DT_DIR : DT_REG;
     myfs_iput(myfs_sb, child);
 
-    if (dir_emit(ctx, entry->file_name, namelen, i * sizeof(MyfsDirEntry),
+    if (dir_emit(ctx, entry->file_name, namelen, i * sizeof(MyfsDiskDirEntry),
                  entry->inode_num, type) == 0) {
       emitted++;
-      parent_file->pos += sizeof(MyfsDirEntry);
+      parent_file->pos += sizeof(MyfsDiskDirEntry);
     }
   }
 
@@ -373,7 +372,7 @@ static const char *myfs_deps[] = {"ata", NULL};
 
 ITER_MODULE(myfs) = {
     .name = "myfs",
-    .required = myfs_deps,
+    .required_modules_names = myfs_deps,
     .init = &myfs_init,
     .fini = NULL,
 };

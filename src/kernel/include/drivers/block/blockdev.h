@@ -8,7 +8,7 @@
 
 typedef struct blkdev blkdev_t;
 struct blkdev {
-  char name[32];     // e.g., "hda"
+  char name[32];
   device_t *generic; // Link to your generic device table entry
 
   // Function pointers for disk I/O

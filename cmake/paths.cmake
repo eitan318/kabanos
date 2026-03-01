@@ -16,7 +16,6 @@ set(STAGE2_BIN ${STAGE2_OUT_DIR}/stage2.bin)
 set(OS_IMAGE_OUT ${OUT_DIR}/os.img)
 
 set(BOOT_DIR ${CMAKE_SOURCE_DIR}/BOOT)
-set(INITRD_DIR ${CMAKE_SOURCE_DIR}/initrd_files)
 set(INITRD_IMG ${BOOT_DIR}/initrd.tar)
 
 set(CREATE_IMAGE_PY "${CMAKE_SOURCE_DIR}/scripts/create_disk_img.py")

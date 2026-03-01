@@ -3,8 +3,8 @@
 #include "klib/stddef.h"
 #include "mm/kmalloc.h"
 #include "sched/dispatcher.h"
-#include "sched/spinlock.h"
 #include "sched/thread.h"
+#include "spinlock.h"
 
 #define MAX_DEVICES 32
 

@@ -1,7 +1,6 @@
 #pragma once
-#include "hal.h" // for spinlock_t
-#include "sched/spinlock.h"
 #include "sched/thread.h"
+#include "spinlock.h"
 
 typedef struct wait_queue {
   thread_t *head;

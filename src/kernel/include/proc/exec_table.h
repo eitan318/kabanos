@@ -6,11 +6,11 @@
 
 typedef struct {
   char path[64];
-  uintptr_t load_base; /* lowest PT_LOAD vaddr */
-  int loaded;          /* 1 = valid entry */
+  uintptr_t load_base; // lowest PT_LOAD vaddr
+  int loaded;          // 1 = valid entry
 } exec_table_entry_t;
 
-/* This symbol is visible to GDB */
+// This symbol is visible to GDB
 extern exec_table_entry_t g_exec_table[EXEC_TABLE_MAX];
 extern int g_exec_table_count;
 

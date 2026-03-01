@@ -10,7 +10,6 @@
 #include "klib/stddef.h"
 #include "klib/stdint.h"
 #include "klib/stdio.h"
-#include "klib/stdlib.h"
 #include "klib/string.h"
 #include "ksys/fcntl.h"
 #include "mm/kmalloc.h"
@@ -75,13 +74,12 @@ void kmain(uint32_t mb2_ptr) {
 
   vfs_init_stdio();
 
-  vfs_mount("atap1", "/boot", "fat", 0, NULL);
   if (vfs_mount("atap2", "/", "myfs", 0, NULL) < 0) {
     blkdev_t *blkdev = blkdev_get("atap2");
     myfs_format(blkdev);
     vfs_mount("atap2", "/", "myfs", 0, NULL);
   }
-  process_spawn("/boot/init.elf", PRIORITY_VERY_HIGH);
+  process_spawn("/lib/init.elf", PRIORITY_VERY_HIGH);
 
   hal_timer_enable();
 

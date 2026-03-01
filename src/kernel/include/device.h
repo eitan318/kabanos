@@ -15,8 +15,8 @@ typedef struct device {
 } device_t;
 
 struct device_ops {
-  size_t (*read)(device_t *dev, void *buf, size_t size);
-  size_t (*write)(device_t *dev, const void *buf, size_t size);
+  ssize_t (*read)(device_t *dev, void *buf, size_t size);
+  ssize_t (*write)(device_t *dev, const void *buf, size_t size);
 };
 
 typedef enum {

@@ -1,6 +1,6 @@
 #include "proc/exec.h"
 #include "arch/types.h"
-#include "elf.h"
+#include "elf32.h"
 #include "fs/fat/fat.h"
 #include "fs/vfs.h"
 #include "hal.h"
@@ -18,7 +18,6 @@
 #include "sched/thread.h"
 
 int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
-  kdebugf("exec_load_elf: loading '%s'\n", path);
 
   int fd = vfs_open(path, O_RDONLY);
   if (fd < 0) {
@@ -48,11 +47,10 @@ int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
   }
 
   uintptr_t load_base = 0;
-  int r = elf_load(vm->arch, data, st.size, entry, &load_base);
+  int r = elf32_load(vm->arch, data, st.size, entry, &load_base);
   if (r == 0) {
-    kdebugf("exec_load_elf: loaded '%s' base=0x%x entry=0x%x\n", path,
-            load_base, *entry);
     exec_table_add(path, load_base);
+
   } else {
     kdebugf("exec_load_elf: elf_load failed: %d\n", r);
   }

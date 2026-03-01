@@ -5,7 +5,6 @@
 #include "klib/stddef.h"
 #include "klib/stdint.h"
 #include "klib/stdio.h"
-#include "klib/stdlib.h"
 #include "klib/string.h"
 #include "proc/exec.h"
 #include "proc/proc.h"

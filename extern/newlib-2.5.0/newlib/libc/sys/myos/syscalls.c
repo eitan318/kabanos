@@ -31,10 +31,6 @@ static inline long __syscall6(long num, long a1, long a2, long a3, long a4,
 
 static int __myos_errno;
 static inline long __syscall_ret(unsigned long r) {
-  asm volatile("nop");
-  asm volatile("nop");
-  asm volatile("nop");
-  asm volatile("nop");
   if (r > -4096) {
     __myos_errno = -r;
     return -1;

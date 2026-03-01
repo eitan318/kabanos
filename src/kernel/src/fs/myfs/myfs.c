@@ -144,7 +144,7 @@ static int disk_rw_spanning(MyfsSuperBlock *sb, uint32_t start_block,
 
   while (remaining > 0) {
     uint8_t block_buf[sb->block_bytes];
-    size_t chunk = min_int(sb->block_bytes - offset, remaining);
+    size_t chunk = min(sb->block_bytes - offset, remaining);
 
     if (is_write) {
       /* Read-modify-write when not writing a full block */
@@ -448,8 +448,8 @@ int myfs_inode_alloc(MyfsSuperBlock *sb, MyfsInode **inode, int mode) {
   uint32_t bitmap_block_idx = inode_num / (sb->block_bytes * 8);
   size_t bitmap_size_bytes = (sb->on_disk.total_inodes + 7) / 8;
   int bytes_to_write =
-      min_int((int)(bitmap_size_bytes - bitmap_block_idx * sb->block_bytes),
-              (int)sb->block_bytes);
+      min((int)(bitmap_size_bytes - bitmap_block_idx * sb->block_bytes),
+          (int)sb->block_bytes);
   disk_write_bitmap(sb, sb->on_disk.inode_bitmap_start + bitmap_block_idx,
                     sb->inode_bitmap + bitmap_block_idx * sb->block_bytes,
                     bytes_to_write);
@@ -522,8 +522,7 @@ ssize_t myfs_node_read(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
   while (bytes_read < count) {
     uint32_t block_idx = offset / sb->block_bytes;
     uint32_t block_offset = offset % sb->block_bytes;
-    uint32_t to_read =
-        min_int(sb->block_bytes - block_offset, count - bytes_read);
+    uint32_t to_read = min(sb->block_bytes - block_offset, count - bytes_read);
 
     if (block_idx >= inode->block_count)
       break;
@@ -566,8 +565,7 @@ ssize_t myfs_node_write(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
   while (bytes_written < count) {
     uint32_t block_idx = offset / block_bytes;
     uint32_t block_offset = offset % block_bytes;
-    uint32_t to_write =
-        min_int(block_bytes - block_offset, count - bytes_written);
+    uint32_t to_write = min(block_bytes - block_offset, count - bytes_written);
 
     if (to_write < (uint32_t)block_bytes)
       disk_read_block(sb, inode->direct_blocks[block_idx], block_buf);
@@ -613,7 +611,7 @@ int myfs_inode_truncate(MyfsSuperBlock *sb, MyfsInode *inode,
  * Directory helpers
  * ---------------------------------------------------------------------- */
 
-int myfs_entry_idx_find(MyfsDirEntry *entries, int entries_count,
+int myfs_entry_idx_find(MyfsDiskDirEntry *entries, int entries_count,
                         const char *name) {
   for (int i = 0; i < entries_count; i++)
     if (strcmp(entries[i].file_name, name) == 0)
@@ -628,8 +626,8 @@ int myfs_lookup(MyfsSuperBlock *sb, MyfsInode *dir_inode, const char *name,
   if (dir_inode->size == 0)
     return -1;
 
-  int entries_count = dir_inode->size / sizeof(MyfsDirEntry);
-  MyfsDirEntry *entries = kmalloc(dir_inode->size);
+  int entries_count = dir_inode->size / sizeof(MyfsDiskDirEntry);
+  MyfsDiskDirEntry *entries = kmalloc(dir_inode->size);
   if (!entries)
     return -1;
 
@@ -658,7 +656,7 @@ int myfs_dir_add_entry(MyfsSuperBlock *sb, MyfsInode *dir_inode,
   if (myfs_lookup(sb, dir_inode, name, &existing) == 0)
     return -1;
 
-  MyfsDirEntry e;
+  MyfsDiskDirEntry e;
   e.inode_num = inode_num;
   strncpy(e.file_name, name, sizeof(e.file_name) - 1);
   e.file_name[sizeof(e.file_name) - 1] = '\0';
@@ -671,8 +669,8 @@ int myfs_dir_rm_entry(MyfsSuperBlock *sb, MyfsInode *dir_inode,
   if (!dir_inode || !S_ISDIR(dir_inode->mode))
     return -1;
 
-  int entries_count = dir_inode->size / sizeof(MyfsDirEntry);
-  MyfsDirEntry *entries = kmalloc(dir_inode->size);
+  int entries_count = dir_inode->size / sizeof(MyfsDiskDirEntry);
+  MyfsDiskDirEntry *entries = kmalloc(dir_inode->size);
   if (!entries)
     return -1;
 
@@ -690,7 +688,7 @@ int myfs_dir_rm_entry(MyfsSuperBlock *sb, MyfsInode *dir_inode,
   for (int i = idx; i < entries_count - 1; i++)
     entries[i] = entries[i + 1];
 
-  int new_size = (entries_count - 1) * sizeof(MyfsDirEntry);
+  int new_size = (entries_count - 1) * sizeof(MyfsDiskDirEntry);
   myfs_node_write(sb, dir_inode, 0, entries, new_size);
   myfs_inode_truncate(sb, dir_inode, new_size);
 
@@ -699,12 +697,12 @@ int myfs_dir_rm_entry(MyfsSuperBlock *sb, MyfsInode *dir_inode,
 }
 
 int myfs_readdir(MyfsSuperBlock *sb, MyfsInode *dir_inode, uint32_t offset,
-                 MyfsDirEntry *entry) {
+                 MyfsDiskDirEntry *entry) {
   if (!dir_inode || !S_ISDIR(dir_inode->mode) || !entry)
     return -1;
   if (offset >= dir_inode->size)
     return 0;
-  return myfs_node_read(sb, dir_inode, offset, entry, sizeof(MyfsDirEntry));
+  return myfs_node_read(sb, dir_inode, offset, entry, sizeof(MyfsDiskDirEntry));
 }
 
 /* -----------------------------------------------------------------------
@@ -787,7 +785,7 @@ ssize_t myfs_symlink_read(MyfsSuperBlock *sb, MyfsInode *inode, char *buf,
                           size_t bufsize) {
   if (!S_ISLNK(inode->mode))
     return -1;
-  return myfs_node_read(sb, inode, 0, buf, min_int(inode->size, bufsize));
+  return myfs_node_read(sb, inode, 0, buf, min(inode->size, bufsize));
 }
 
 int myfs_create_symlink(MyfsSuperBlock *sb, MyfsInode *parent_dir,

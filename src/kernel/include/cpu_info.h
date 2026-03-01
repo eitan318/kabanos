@@ -1,9 +1,7 @@
 #pragma once
-
 #include "klib/stdbool.h"
 #include "klib/stdint.h"
 
-// Structure to pass CPU info to kernel
 typedef struct {
   // Basic CPUID info
   uint32_t max_basic_cpuid;
@@ -37,11 +35,11 @@ typedef struct {
   bool htt;   // Hyper-Threading Technology
 
   // Feature flags from ECX (CPUID.01H)
-  bool sse3;   // SSE3
-  bool ssse3;  // SSSE3
-  bool sse4_1; // SSE4.1
-  bool sse4_2; // SSE4.2
-  bool x2apic; // x2APIC
+  bool sse3;
+  bool ssse3;
+  bool sse4_1;
+  bool sse4_2;
+  bool x2apic;
   bool aes;    // AES instruction set
   bool xsave;  // XSAVE/XRSTOR
   bool avx;    // AVX
@@ -55,20 +53,20 @@ typedef struct {
   bool smep;     // Supervisor Mode Execution Prevention
   bool smap;     // Supervisor Mode Access Prevention
   bool avx512f;  // AVX-512 Foundation
-  bool rdseed;   // RDSEED instruction
-  bool sha;      // SHA extensions
+  bool rdseed;
+  bool sha; // SHA extensions
 
   // Extended CPUID info
   bool syscall; // SYSCALL/SYSRET
-  bool nx;      // No-Execute bit
+  bool nx_bit;  // No-Execute bit
   bool pdpe1gb; // 1GB pages
-  bool rdtscp;  // RDTSCP instruction
-  bool lm;      // Long mode (64-bit)
+  bool rdtscp_instruction;
+  bool long_mode;
 
   // Cache info
   uint32_t cache_line_size;
-  uint32_t l2_cache_size; // KB
-  uint32_t l3_cache_size; // KB
+  uint32_t l2_cache_size_kb;
+  uint32_t l3_cache_size_kb;
 
   // Processor counts
   uint32_t logical_processors;

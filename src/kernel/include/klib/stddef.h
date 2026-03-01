@@ -3,6 +3,7 @@
 #define NULL ((void *)0)
 
 typedef unsigned int size_t;
+typedef unsigned long ssize_t;
 typedef long ptrdiff_t;
 
 #define SIZE_MAX ~((size_t)0)

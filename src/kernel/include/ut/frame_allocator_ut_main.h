@@ -4,7 +4,6 @@
 
 extern ut_test_suite_t frame_allocator_suite;
 
-// Add to suites array in main():
 int ut_frame_allocator_main() {
   ut_test_suite_t suites[] = {frame_allocator_suite};
 

@@ -53,7 +53,7 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   boot_partition.partitionSize = boot_partition_entry->total_sectors;
   boot_partition.disk = &disk_params;
 
-  if (!fat_initialize(&boot_partition)) {
+  if (!FAT_Initialize(&boot_partition)) {
     debugf("ERROR: Failed to initialize FAT filesystem!\n");
     halt();
   }
@@ -61,26 +61,34 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   MemoryMapInternal memory_map;
   memory_map_detect(&memory_map);
 
-  char config_buffer[2048];
-  int config_size = fat_read_file("/boot.cfg", config_buffer);
+  FAT_File *boot_cfg_file = FAT_Open(&boot_partition, "/boot.cfg");
+
+  char config_buffer[boot_cfg_file->Size];
+  int config_size = FAT_Read(&boot_partition, boot_cfg_file,
+                             boot_cfg_file->Size, config_buffer);
   if (config_size < 0) {
+    FAT_Close(boot_cfg_file);
     debugf("ERROR: Failed to read config (error code: %d)!\n", config_size);
     halt();
   }
+  FAT_Close(boot_cfg_file);
 
   BCD bcd;
   bcd_parse_into(config_buffer, &bcd);
   char cmdline[CMDLINE_SIZE];
   bcd_cmdline_construct(bcd.cmdline, strlen(bcd.cmdline), cmdline);
 
+  FAT_File *initrd_file = FAT_Open(&boot_partition, bcd.initrd);
   // Read initrd, not passed to kernel for now
-  int initrd_size = fat_read_file(bcd.initrd, (void *)INITRD_LOAD_ADDR);
+  int initrd_size = FAT_Read(&boot_partition, initrd_file, initrd_file->Size,
+                             (void *)INITRD_LOAD_ADDR);
+
   if (initrd_size < 0) {
+    FAT_Close(initrd_file);
     debugf("ERROR: Failed to load initrd (error code: %d)!\n", initrd_size);
     halt();
   }
-
-  // Load modules
+  FAT_Close(initrd_file);
 
   void *module_load_addr = (void *)MODULE_LOAD_ADDR;
   uint32_t modules_count = 0;
@@ -90,12 +98,17 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   for (int i = 0; i < bcd.module_count; i++) {
     debugf("Loading module %d: %s\n", i, bcd.modules_paths[i]);
 
-    int module_size = fat_read_file(bcd.modules_paths[i], module_load_addr);
+    FAT_File *module_file = FAT_Open(&boot_partition, bcd.modules_paths[i]);
+
+    int module_size = FAT_Read(&boot_partition, module_file, module_file->Size,
+                               module_load_addr);
     if (module_size < 0) {
       debugf("WARNING: Failed to load module %s (error: %d)\n",
              bcd.modules_paths[i], module_size);
+      FAT_Close(module_file);
       continue;
     }
+    FAT_Close(module_file);
 
     debugf("Module %d loaded at 0x%p, size: %d bytes\n", i, module_load_addr,
            module_size);

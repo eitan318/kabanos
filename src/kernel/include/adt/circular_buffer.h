@@ -22,4 +22,6 @@ void circular_buff_enqueue(circular_buff_t *q, void *val);
 
 void *circular_buff_dequeue(circular_buff_t *q);
 
+bool circular_buff_dequeue_last(circular_buff_t *cb);
+
 #endif

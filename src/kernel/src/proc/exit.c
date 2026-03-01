@@ -1,6 +1,5 @@
 #include "device.h"
 #include "klib/stdio.h"
-#include "klib/stdlib.h"
 #include "proc/proc.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"

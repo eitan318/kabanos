@@ -55,7 +55,7 @@ static const char *dispatch_deps[] = {"hal", NULL};
 
 ITER_MODULE(dispatcher) = {
     .name = "dispatcher",
-    .required = dispatch_deps,
+    .required_modules_names = dispatch_deps,
     .init = &dispatch_init,
     .fini = NULL,
 };

@@ -6,8 +6,7 @@ import subprocess
 import tempfile
 
 SECTOR = 512
-# Increased to ~32MB to fit a "big" partition
-TOTAL_SECTORS = 65536
+TOTAL_SECTORS = 2 * 131072  # 64MB
 
 
 def run(cmd):
@@ -32,26 +31,27 @@ def main():
     p.add_argument("--boot_dir", required=True)
     args = p.parse_args()
 
-    # Geometry calculations
     stage2_sectors = math.ceil(os.path.getsize(args.stage2) / SECTOR)
 
-    # Partition 1: Boot (FAT12) - Let's give it ~2MB
-    p1_start = 1 + stage2_sectors
-    p1_sectors = 30000
+    # Leave some gap after stage2 before partition starts
+    p1_start = 1 + stage2_sectors + 1
+    p1_sectors = 131072
 
-    # Partition 2: Main Data (myfs) - Remainder of the disk
     p2_start = p1_start + p1_sectors
-    p2_sectors = TOTAL_SECTORS - p2_start - 1  # -1 for safety buffer
+    p2_sectors = TOTAL_SECTORS - p2_start - 1
 
     print(f"Building {args.image}:")
-    print(f"  P1 (Boot): Starts @ {p1_start}, Size: {p1_sectors} sectors")
-    print(f"  P2 (Main): Starts @ {p2_start}, Size: {p2_sectors} sectors")
+    print(f"  Stage2:    sectors 1..{stage2_sectors}")
+    print(
+        f"  P1 (FAT32): start={p1_start}, size={p1_sectors} ({p1_sectors*SECTOR//1024//1024}MB)"
+    )
+    print(f"  P2 (myfs):  start={p2_start}, size={p2_sectors} sectors")
 
     # 1. Initialize empty image
     with open(args.image, "wb") as f:
         f.truncate(TOTAL_SECTORS * SECTOR)
 
-    # 2. Write MBR and Stage2
+    # 2. Write MBR bootloader (sector 0)
     run(
         [
             "dd",
@@ -62,28 +62,31 @@ def main():
             "conv=notrunc",
         ]
     )
+
+    # 3. Write Stage2 (sectors 1..stage2_sectors)
     run(
         [
             "dd",
             f"if={args.stage2}",
             f"of={args.image}",
             "bs=512",
-            f"seek=1",
+            "seek=1",
             "conv=notrunc",
         ]
     )
 
-    # 3. Create Partition 1 (FAT12)
-    with tempfile.NamedTemporaryFile(delete=False) as tmp1:
-        p1_img = tmp1.name
+    # 4. Create FAT32 partition image
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        p1_img = tmp.name
     try:
         with open(p1_img, "wb") as f:
             f.truncate(p1_sectors * SECTOR)
-        run(["mkfs.fat", "-F", "12", p1_img])
+
+        run(["mkfs.vfat", "-s", "1", "-F", "32", p1_img])
+
         run(["mcopy", "-i", p1_img, args.kernel, "::kernel.elf"])
         copy_all_boot_files(args.boot_dir, p1_img)
 
-        # Burn P1 into image
         run(
             [
                 "dd",
@@ -98,9 +101,7 @@ def main():
         if os.path.exists(p1_img):
             os.remove(p1_img)
 
-    # 4. Create Partition 2 (Your custom FS)
-    # Note: This assumes you have a utility or 'dd' approach to zero it out
-    # If you have a 'mkmyfs' utility, run it here.
+    # 5. Zero out partition 2
     run(
         [
             "dd",
@@ -113,17 +114,16 @@ def main():
         ]
     )
 
-    # 5. Update Partition Table with sfdisk
-    # Format: start, size, type, bootable
+    # 6. Write partition table (type 'b' = FAT32, 'L' = Linux/custom)
     sfdisk_input = (
-        f"{p1_start}, {p1_sectors}, L, *\n"  # P1: Bootable
-        f"{p2_start}, {p2_sectors}, L, -\n"  # P2: Data
+        f"{p1_start}, {p1_sectors}, b, *\n"  # FAT32, bootable
+        f"{p2_start}, {p2_sectors}, L, -\n"  # custom fs
     )
     subprocess.run(
         ["sfdisk", args.image], input=sfdisk_input.encode("utf-8"), check=True
     )
 
-    print("Success: Multi-partition image created.")
+    print("Done.")
 
 
 if __name__ == "__main__":

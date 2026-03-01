@@ -195,9 +195,14 @@ int vfs_mount(const char *source_dev, const char *target_path,
   }
 
   mount_point_t *mount_p = kmalloc(sizeof(*mount_p));
+  if (!mount_p) {
+    kfree(mount_p);
+    return -ENOMEM;
+  }
   super_block_t *super_block = kmalloc(sizeof(*super_block));
-  if (!mount_p || !super_block) {
-    // Cleanup if one failed
+  if (!super_block) {
+    kfree(mount_p);
+    kfree(super_block);
     return -ENOMEM;
   }
   memset(super_block, 0, sizeof(*super_block));

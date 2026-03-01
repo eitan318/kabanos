@@ -1,31 +1,21 @@
 #pragma once
 
-#define STDIN_FILENO 0    /* Standard input */
-#define STDOUT_FILENO 1   /* Standard output */
-#define STDERR_FILENO 2   /* Standard error */
-#define STDDEBUG_FILENO 3 /* Standard debug */
+// File descriptors of std streams
+#define STDIN_FILENO 0
+#define STDOUT_FILENO 1
+#define STDERR_FILENO 2
+#define STDDEBUG_FILENO 3
 
-/* --- Seek Constants (whence) --- */
-/* These match your fat_seek implementation switches */
-#ifndef SEEK_SET
-#define SEEK_SET 0 /* Seek from beginning of file */
-#endif
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
 
-#ifndef SEEK_CUR
-#define SEEK_CUR 1 /* Seek from current position */
-#endif
+// Access Modes (for access())
+#define R_OK 4
+#define W_OK 2
+#define X_OK 1
+#define F_OK 0
 
-#ifndef SEEK_END
-#define SEEK_END 2 /* Seek from end of file */
-#endif
-
-/* --- Access Modes (for access()) --- */
-#define R_OK 4 /* Test for read permission */
-#define W_OK 2 /* Test for write permission */
-#define X_OK 1 /* Test for execute permission */
-#define F_OK 0 /* Test for existence of file */
-
-/* --- Path and Name Limits --- */
-/* Note: FAT has its own limits, but these are VFS-wide */
+// Path and name vfs limits
 #define PATH_MAX 4096
 #define NAME_MAX 255

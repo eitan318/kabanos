@@ -267,7 +267,7 @@ static const char *fat_deps[] = {"ata", NULL};
 
 ITER_MODULE(fat) = {
     .name = "fat",
-    .required = fat_deps,
+    .required_modules_names = fat_deps,
     .init = &fat_init,
     .fini = NULL,
 };

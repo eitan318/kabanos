@@ -99,18 +99,18 @@ void collect_cpu_info(CPUInfo *info) {
     cpuid(0x80000001, 0, &eax, &ebx, &ecx, &edx);
 
     info->syscall = (edx >> 11) & 1;
-    info->nx = (edx >> 20) & 1;
+    info->nx_bit = (edx >> 20) & 1;
     info->pdpe1gb = (edx >> 26) & 1;
-    info->rdtscp = (edx >> 27) & 1;
-    info->lm = (edx >> 29) & 1; // Long mode (64-bit)
+    info->rdtscp_instruction = (edx >> 27) & 1;
+    info->long_mode = (edx >> 29) & 1;
   }
 
   // CPUID.80000006H - Cache information
   if (info->max_extended_cpuid >= 0x80000006) {
     cpuid(0x80000006, 0, &eax, &ebx, &ecx, &edx);
 
-    info->l2_cache_size = (ecx >> 16) & 0xFFFF;         // KB
-    info->l3_cache_size = ((edx >> 18) & 0x3FFF) * 512; // KB
+    info->l2_cache_size_kb = (ecx >> 16) & 0xFFFF;
+    info->l3_cache_size_kb = ((edx >> 18) & 0x3FFF) * 512;
   }
 
   // CPUID.80000008H - Address sizes

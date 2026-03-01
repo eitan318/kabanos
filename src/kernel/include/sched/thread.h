@@ -1,5 +1,4 @@
 #pragma once
-#include "klib/stdint.h"
 #include "proc/proc.h"
 
 enum thread_mode { THREAD_MODE_KERNEL, THREAD_MODE_USER };
@@ -7,7 +6,7 @@ enum thread_mode { THREAD_MODE_KERNEL, THREAD_MODE_USER };
 typedef struct thread {
   arch_thread_t *arch;
   uint32_t tid;
-  process_t *process; // Parent process (contains CR3)
+  process_t *process;
 
   // sched info
   uint32_t rt_ticks;
@@ -38,19 +37,15 @@ typedef struct thread {
 
   enum thread_mode mode;
 
-  /* Stack tracking (for cleanup only) */
   void *kstack_top; // Top of kernel stack (for deallocation)
 
   // Scheduler linkage
   struct thread *next;
-
   // Sleeping linkage
   struct thread *next_sleep;
 } thread_t;
 
 thread_t *thread_create_user(process_t *proc, uintptr_t entry,
                              uintptr_t user_stack, enum thread_priority p);
-
 thread_t *thread_create_kernel(process_t *proc, uintptr_t entry);
-
 thread_t *thread_clone(thread_t *parent, process_t *child_proc);

@@ -49,9 +49,9 @@ void module_load(module_t *mod) {
 
   mod->state = MODULE_LOADING;
 
-  if (mod->required) {
-    for (int i = 0; mod->required[i] != NULL; i++) {
-      module_t *dep = find_module_by_name(mod->required[i]);
+  if (mod->required_modules_names) {
+    for (int i = 0; mod->required_modules_names[i] != NULL; i++) {
+      module_t *dep = find_module_by_name(mod->required_modules_names[i]);
       if (dep)
         module_load(dep);
     }

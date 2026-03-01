@@ -1,30 +1,38 @@
 #include "adt/circular_buffer.h"
 #include "klib/stddef.h"
 
-void circular_buff_init(circular_buff_t *q) {
-  q->head = q->tail = q->count = 0;
+void circular_buff_init(circular_buff_t *cb) {
+  cb->head = cb->tail = cb->count = 0;
 }
 
-bool circular_buff_is_empty(circular_buff_t *q) { return q->count == 0; }
+bool circular_buff_is_empty(circular_buff_t *cb) { return cb->count == 0; }
 
-bool circular_buff_is_full(circular_buff_t *q) {
-  return q->count == QUEUE_SIZE;
+bool circular_buff_is_full(circular_buff_t *cb) {
+  return cb->count == QUEUE_SIZE;
 }
 
-void circular_buff_enqueue(circular_buff_t *q, void *val) {
-  if (circular_buff_is_full(q))
+void circular_buff_enqueue(circular_buff_t *cb, void *val) {
+  if (circular_buff_is_full(cb))
     return;
-  q->data[q->head] = val;
-  q->head = (q->head + 1) %
-            QUEUE_SIZE; // it was % q->count and made an error on some cases
-  q->count++;
+  cb->data[cb->head] = val;
+  cb->head = (cb->head + 1) %
+             QUEUE_SIZE; // it was % q->count and made an error on some cases
+  cb->count++;
 }
 
-void *circular_buff_dequeue(circular_buff_t *q) {
-  if (circular_buff_is_empty(q))
+void *circular_buff_dequeue(circular_buff_t *cb) {
+  if (circular_buff_is_empty(cb))
     return NULL;
-  void *val = q->data[q->tail];
-  q->tail = (q->tail + 1) % QUEUE_SIZE; // same as above
-  q->count--;
+  void *val = cb->data[cb->tail];
+  cb->tail = (cb->tail + 1) % QUEUE_SIZE; // same as above
+  cb->count--;
   return val;
+}
+
+bool circular_buff_dequeue_last(circular_buff_t *cb) {
+  if (cb->count == 0)
+    return false;
+  cb->tail = (cb->tail == 0) ? cb->count - 1 : cb->tail - 1;
+  cb->count--;
+  return true;
 }

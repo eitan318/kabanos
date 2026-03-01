@@ -29,7 +29,7 @@ static const char *pf_handler_deps[] = {"hal", "dispatcher", NULL};
 
 ITER_MODULE(keyboard) = {
     .name = "pf_handler",
-    .required = pf_handler_deps,
+    .required_modules_names = pf_handler_deps,
     .init = &pf_handler_init,
     .fini = NULL,
 };
