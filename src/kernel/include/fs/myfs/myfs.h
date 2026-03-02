@@ -1,9 +1,11 @@
 #pragma once
 
+#ifdef MKFS_MYFS
+#include "../../drivers/block/blockdev.h"
+#else
 #include "drivers/block/blockdev.h"
-#include "klib/stddef.h"
 #include "klib/stdint.h"
-#include "ksys/stat.h"
+#endif
 
 #define SECTOR_BYTES 512
 

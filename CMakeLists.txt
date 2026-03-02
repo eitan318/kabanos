@@ -11,7 +11,7 @@ include(cmake/paths.cmake)
 add_subdirectory("${SRC_DIR}/bootloader")
 add_subdirectory("${SRC_DIR}/kernel")
 add_subdirectory("${SRC_DIR}/userland")
-#add_subdirectory("tools/mkfs_myfs")
+add_subdirectory("tools/mkfs_myfs")
 
 configure_file(
     "${CMAKE_SOURCE_DIR}/boot.cfg" 

@@ -1,16 +1,24 @@
-#include "fs/myfs/myfs.h"
+#ifdef MKFS_MYFS
+#include "myfs.h"
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#define kmalloc malloc
+#define kfree free
+#include <unistd.h>
+#else
 #include "drivers/block/blockdev.h"
-#include "klib/stdbool.h"
-#include "klib/stdint.h"
-#include "klib/string.h"
-#include "ksys/fcntl.h"
+#include "fs/myfs/myfs.h"
 #include "ksys/stat.h"
 #include "mm/kmalloc.h"
-#include "utils/math.h"
+#endif
 
-/* -----------------------------------------------------------------------
- * Block I/O – all disk access goes through sb->dev, never raw ATA
- * ---------------------------------------------------------------------- */
+#include "klib/stdbool.h"
+#include "utils/math.h"
 
 static void disk_read_block(MyfsSuperBlock *sb, uint32_t block_addr,
                             void *buf) {
@@ -230,14 +238,12 @@ static void inodes_flush(MyfsSuperBlock *sb) {
  * Format  (takes blkdev_t* – no raw ATA)
  * ---------------------------------------------------------------------- */
 
-int myfs_format(blkdev_t *dev, uint32_t max_blocks) {
-  enum {
-    MYFS_BLOCK_SECTORS = 4,
-    MYFS_FILE_INIT_BLOCK_COUNT = 1,
-  };
+int myfs_format(blkdev_t *dev, uint32_t max_sectors) {
+#define MYFS_BLOCK_SECTORS 4
+#define MYFS_FILE_INIT_BLOCK_COUNT 1
+#define MYFS_BLOCK_BYTES SECTOR_BYTES *MYFS_BLOCK_SECTORS
 
-  const int MYFS_BLOCK_BYTES = MYFS_BLOCK_SECTORS * SECTOR_BYTES;
-  uint32_t total_blocks = max_blocks;
+  uint32_t total_blocks = max_sectors / MYFS_BLOCK_SECTORS;
   uint32_t total_inodes = total_blocks / 4;
 
   uint32_t block_bitmap_start = 1;
