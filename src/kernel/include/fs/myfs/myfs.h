@@ -22,7 +22,7 @@
 typedef struct {
   char file_name[32];
   uint32_t inode_num;
-} MyfsDirEntry;
+} __attribute__((packed)) MyfsDirEntry;
 
 /**
  * struct MyfsInode - Filesystem inode structure
@@ -46,9 +46,9 @@ typedef struct {
 typedef struct {
   uint32_t i_ino;
   uint32_t direct_blocks[MYFS_DIRECT_BLOCKS_MAX];
-  int block_count;
+  uint32_t block_count;
   uint32_t size;
-  int mode;
+  uint32_t mode;
   uint32_t ref_count;
   uint32_t links_count;
   uint32_t uid;
@@ -57,8 +57,8 @@ typedef struct {
   uint64_t atime;
   uint64_t mtime;
   uint64_t ctime;
-  int dirty;
-} MyfsInode;
+  uint32_t dirty;
+} __attribute__((packed)) MyfsInode;
 
 /**
  * struct MyfsDiskSuperBlock - On-disk superblock structure
@@ -119,7 +119,7 @@ typedef struct {
   uint8_t *block_bitmap;
   uint8_t *inode_bitmap;
   InodeHashEntry *inode_hash_table[INODE_HASH_SIZE];
-  int mounted;
+  uint32_t mounted;
 } MyfsSuperBlock;
 
 /**

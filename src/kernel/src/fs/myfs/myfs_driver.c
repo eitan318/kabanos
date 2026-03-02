@@ -182,10 +182,7 @@ static int myfsd_v_unlink(vnode_t *dir, const char *name) {
   return result;
 }
 
-static fstat_t *myfsd_getattr(MyfsInode *inode) {
-  fstat_t *stats;
-  stats = kmalloc(sizeof(*stats));
-
+static int myfsd_getattr(MyfsInode *inode, fstat_t *stats) {
   stats->size = inode->size;
   stats->mode = inode->mode;
   stats->atime = inode->atime;
@@ -196,7 +193,19 @@ static fstat_t *myfsd_getattr(MyfsInode *inode) {
   stats->uid = inode->uid;
   stats->permissions = inode->permissions;
   stats->ino = inode->i_ino;
-  return stats;
+  return 0;
+}
+
+int myfsd_f_fstat(file_t *file, fstat_t *stat) {
+  vnode_t *vnode = file->vnode;
+  MyfsSuperBlock *myfs_sb = vnode->super_block->fs_private;
+
+  MyfsInode *inode = myfs_iget(myfs_sb, vnode->i_ino);
+  if (!inode) {
+    return -1;
+  }
+
+  return myfsd_getattr(inode, stat);
 }
 
 static ssize_t myfsd_f_read(file_t *file, void *buf, size_t size) {
@@ -307,6 +316,7 @@ file_ops_t myfs_f_ops = {
     .write = myfsd_f_write,
     .close = myfsd_f_close,
     .iter_dir = myfsd_f_dir_iter,
+    .fstat = myfsd_f_fstat,
 };
 
 struct vnode_ops myfs_vnode_ops = {

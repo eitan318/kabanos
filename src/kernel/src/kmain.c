@@ -112,13 +112,9 @@ void kmain(uint32_t mb2_ptr) {
     kprintf("couldnt moount!");
   }
 
-  ut_fs_main();
-
-  for (;;) {
-  }
+  process_spawn("/bin/init.elf", PRIORITY_HIGH);
 
   hal_timer_enable();
-
   sched_yield();
 
   kprintf("problematic return");

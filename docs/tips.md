@@ -35,3 +35,7 @@ $1 = {magic = 268549871, total_inodes = 8189, total_blocks = 32759, free_inodes 
   inode_bitmap_start = 17, block_bitmap_start = 1, inode_table_start = 21,
   data_blocks_start = 501, root_inode = 1}
 (gdb)
+
+in driver
+static vnode_t *myfsd_v_lookup(vnode_t *dir, const char *name) {
+  MyfsInode *child_inode = myfs_iget(myfs_sb, child_ino);

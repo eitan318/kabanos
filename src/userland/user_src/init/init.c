@@ -20,7 +20,7 @@ int proc_spawn(char *name, char **argv, char **envp) {
 }
 
 int main(int argc, char **argv, char **envp) {
-  proc_spawn("/lib/shell.elf", NULL, NULL);
+  proc_spawn("/bin/shell.elf", NULL, NULL);
   while (1) {
   }
 }

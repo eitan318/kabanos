@@ -54,7 +54,8 @@ static void rmdir_recursive(const char *path, bool delete_self) {
 
 int fs_test_setup(void) { return 0; }
 
-void fs_test_teardown(void) { rmdir_recursive("/", false); }
+void fs_test_teardown(void) { /*rmdir_recursive("/", false);*/
+}
 
 int fs_suite_setup(void) { return 0; }
 
