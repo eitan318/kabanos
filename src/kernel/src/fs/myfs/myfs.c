@@ -1,5 +1,9 @@
 #include "fs/myfs/myfs.h"
 
+#define MYFS_BLOCK_SECTORS 4
+#define MYFS_BLOCK_BYTES (MYFS_BLOCK_SECTORS * SECTOR_BYTES)
+#define MYFS_BLOCK_BYTES (MYFS_BLOCK_SECTORS * SECTOR_BYTES)
+
 static void disk_read_bitmap(MyfsSuperBlock *sb, uint32_t block_addr,
                              void *buffer, int bytes_to_read) {
   uint8_t *buf = buffer;
@@ -193,11 +197,9 @@ static void inodes_flush(MyfsSuperBlock *sb) {
 int myfs_format(void *dev, fs_platform_t *plt) {
   enum {
     MYFS_MAX_BLOCKS = 4096,
-    MYFS_BLOCK_SECTORS = 4,
     MYFS_FILE_INIT_BLOCK_COUNT = 1,
   };
 
-  const int MYFS_BLOCK_BYTES = MYFS_BLOCK_SECTORS * SECTOR_BYTES;
   uint32_t total_blocks = MYFS_MAX_BLOCKS;
   uint32_t total_inodes = total_blocks / 4;
 
@@ -271,17 +273,17 @@ MyfsSuperBlock *myfs_sb_read(void *dev, fs_platform_t *plt) {
   sb->plt = plt;
   sb->dev = dev;
 
-  /* Read sector 0 to get the on-disk superblock */
-  uint8_t tmp[SECTOR_BYTES];
+  /* read block 0 to get the on-disk superblock */
+  uint8_t tmp[MYFS_BLOCK_BYTES];
   plt->read_block(dev, 0, tmp);
   memcpy(&sb->on_disk, tmp, sizeof(sb->on_disk));
-
-  sb->block_bytes = sb->on_disk.block_sectors * SECTOR_BYTES;
 
   if (sb->on_disk.magic != MYFS_MAGIC) {
     sb->plt->free(sb);
     return NULL;
   }
+
+  sb->block_bytes = sb->on_disk.block_sectors * SECTOR_BYTES;
 
   int block_bitmap_bytes = (sb->on_disk.total_blocks + 7) / 8;
   int inode_bitmap_bytes = (sb->on_disk.total_inodes + 7) / 8;
