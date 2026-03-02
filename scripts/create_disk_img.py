@@ -10,9 +10,7 @@ TOTAL_SECTORS = 2 * 131072  # 64MB
 
 
 def run(cmd):
-    subprocess.run(
-        cmd, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
-    )
+    subprocess.run(cmd, check=True, stderr=subprocess.DEVNULL)
 
 
 def main():
@@ -69,22 +67,25 @@ def main():
         ]
     )
 
-    # 4. Create FAT32 partition image
+    sfdisk_input = (
+        f"{p1_start}, {p1_sectors}, 01, *\n" f"{p2_start}, {p2_sectors}, 83, -\n"
+    )
+    subprocess.run(
+        ["sfdisk", args.image], input=sfdisk_input.encode("utf-8"), check=True
+    )
+
+    # 2. Write p1
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         p1_img = tmp.name
     try:
         with open(p1_img, "wb") as f:
             f.truncate(p1_sectors * SECTOR)
-
         run(["mkfs.fat", "-F", "12", p1_img])
-
-        # copy all BOOT files
         for entry in os.listdir(args.boot_dir):
             path = os.path.join(args.boot_dir, entry)
             print(f"coping {path}")
             if os.path.isfile(path):
                 run(["mcopy", "-i", p1_img, path, f"::{entry}"])
-
         run(
             [
                 "dd",
@@ -99,15 +100,14 @@ def main():
         if os.path.exists(p1_img):
             os.remove(p1_img)
 
+    # 3. Write p2
     p2_size_bytes = p2_sectors * SECTOR
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         p2_img = tmp.name
     try:
         with open(p2_img, "wb") as f:
-            f.truncate(p2_sectors * SECTOR)
-
+            f.truncate(p2_size_bytes)
         run([args.mkfs_myfs_path, p2_img, "0", str(p2_size_bytes), args.sysroot_dir])
-
         run(
             [
                 "dd",
@@ -118,17 +118,27 @@ def main():
                 "conv=notrunc",
             ]
         )
+
+        result = subprocess.run(
+            ["dd", f"if={args.image}", "bs=512", f"skip={p2_start}", "count=1"],
+            capture_output=True,
+        )
+        data = result.stdout[:64]
+        print("P2 sector 0 on disk:", " ".join(f"{b:02x}" for b in data))
+
+        result2 = subprocess.run(
+            ["dd", f"if={args.image}", "bs=512", f"skip={p2_start + 4}", "count=1"],
+            capture_output=True,
+        )
+        data2 = result2.stdout[:64]
+        print("P2 block 1 on disk:", " ".join(f"{b:02x}" for b in data2))
+
     finally:
         if os.path.exists(p2_img):
             os.remove(p2_img)
 
-    sfdisk_input = (
-        f"{p1_start}, {p1_sectors}, 01, *\n"  # 01 = FAT12, * = Active
-        f"{p2_start}, {p2_sectors}, 83, -\n"  # 83 = Linux/Custom
-    )
-    subprocess.run(
-        ["sfdisk", args.image], input=sfdisk_input.encode("utf-8"), check=True
-    )
+    print(f"p2_start={p2_start} p2_sectors={p2_sectors}")
+    print(f"p2 byte offset in image = {p2_start * 512}")
 
     print("Done.")
 

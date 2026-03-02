@@ -24,7 +24,6 @@ static void rmdir_recursive(const char *path, bool delete_self) {
 
   while ((count = vfs_iter_dir(fd, entries, 32)) > 0) {
     for (int i = 0; i < count; i++) {
-      /* Skip . and .. */
       if (strcmp(entries[i].file_name, ".") == 0)
         continue;
       if (strcmp(entries[i].file_name, "..") == 0)

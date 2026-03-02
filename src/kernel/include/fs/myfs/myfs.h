@@ -9,31 +9,14 @@
 #define SECTOR_BYTES 512
 
 #define MYFS_NAME "myfs"
-#define MYFS_ROOT_INODE_NUM 0
+#define MYFS_ROOT_INODE_NUM 1
 #define MYFS_DIRECT_BLOCKS_MAX 12
-
-typedef struct {
-  uint32_t i_ino;
-  uint32_t direct_blocks[MYFS_DIRECT_BLOCKS_MAX];
-  int block_count;
-  uint32_t size;
-  int mode;
-  uint32_t ref_count;
-  uint32_t links_count;
-  uint32_t uid;
-  uint32_t gid;
-  uint32_t permissions;
-  uint64_t atime;
-  uint64_t mtime;
-  uint64_t ctime;
-  int dirty;
-} MyfsInode;
 
 #define INODE_HASH_SIZE 256
 #define INODE_HASH(ino) ((ino) % INODE_HASH_SIZE)
 
 typedef struct inode_hash_entry {
-  MyfsInode *inode;
+  MyfsDiskInode *inode;
   struct inode_hash_entry *next;
 } InodeHashEntry;
 
@@ -48,59 +31,61 @@ typedef struct {
   fs_platform_t *plt;
 } MyfsSuperBlock;
 
-int myfs_format(void *dev, fs_platform_t *plt);
+int myfs_format(void *dev, fs_platform_t *plt, int part_blocks);
+
 MyfsSuperBlock *myfs_sb_read(void *dev, fs_platform_t *plt);
 
 int myfs_sb_kill(MyfsSuperBlock *sb);
 
-int myfs_rename(MyfsSuperBlock *sb, MyfsInode *old_parent_inode,
-                const char *old_name, MyfsInode *new_parent_inode,
+int myfs_rename(MyfsSuperBlock *sb, MyfsDiskInode *old_parent_inode,
+                const char *old_name, MyfsDiskInode *new_parent_inode,
                 const char *new_name);
 
-uint32_t myfs_symlink_read(MyfsSuperBlock *sb, MyfsInode *inode, char *buf,
+uint32_t myfs_symlink_read(MyfsSuperBlock *sb, MyfsDiskInode *inode, char *buf,
                            size_t bufsize);
 
-int myfs_create_symlink(MyfsSuperBlock *sb, MyfsInode *dir_inode,
+int myfs_create_symlink(MyfsSuperBlock *sb, MyfsDiskInode *dir_inode,
                         const char *name, const char *target);
 
-int myfs_readdir(MyfsSuperBlock *sb, MyfsInode *dir_inode, uint32_t offset,
+int myfs_readdir(MyfsSuperBlock *sb, MyfsDiskInode *dir_inode, uint32_t offset,
                  MyfsDiskDirEntry *entry);
 
-MyfsInode *myfs_disk_inode_read(MyfsSuperBlock *sb, int ino);
+MyfsDiskInode *myfs_disk_inode_read(MyfsSuperBlock *sb, int ino);
 
 int myfs_disk_inode_write(MyfsSuperBlock *sb, int ino);
 
-MyfsInode *myfs_iget(MyfsSuperBlock *sb, uint32_t ino);
+MyfsDiskInode *myfs_iget(MyfsSuperBlock *sb, uint32_t ino);
 
-void myfs_iput(MyfsSuperBlock *sb, MyfsInode *inode);
+void myfs_iput(MyfsSuperBlock *sb, MyfsDiskInode *inode);
 
-int myfs_inode_alloc(MyfsSuperBlock *sb, MyfsInode **inode, int mode);
+int myfs_inode_alloc(MyfsSuperBlock *sb, MyfsDiskInode **inode, int mode);
 
-uint32_t myfs_node_read(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
-                        void *buf, size_t count);
+uint32_t myfs_node_read(MyfsSuperBlock *sb, MyfsDiskInode *inode,
+                        uint32_t offset, void *buf, size_t count);
 
-uint32_t myfs_node_write(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
-                         const void *buf, size_t count);
+uint32_t myfs_node_write(MyfsSuperBlock *sb, MyfsDiskInode *inode,
+                         uint32_t offset, const void *buf, size_t count);
 
-int myfs_inode_truncate(MyfsSuperBlock *sb, MyfsInode *inode,
+int myfs_inode_truncate(MyfsSuperBlock *sb, MyfsDiskInode *inode,
                         uint32_t new_size);
 
-int myfs_lookup(MyfsSuperBlock *sb, MyfsInode *dir_inode, const char *name,
+int myfs_lookup(MyfsSuperBlock *sb, MyfsDiskInode *dir_inode, const char *name,
                 uint32_t *found_ino);
 
-int myfs_dir_add_entry(MyfsSuperBlock *sb, MyfsInode *dir_inode,
+int myfs_dir_add_entry(MyfsSuperBlock *sb, MyfsDiskInode *dir_inode,
                        const char *name, uint32_t inode_num);
 
-int myfs_dir_rm_entry(MyfsSuperBlock *sb, MyfsInode *dir_inode,
+int myfs_dir_rm_entry(MyfsSuperBlock *sb, MyfsDiskInode *dir_inode,
                       const char *name);
 
-int myfs_create_file(MyfsSuperBlock *sb, MyfsInode *parent_dir,
+int myfs_create_file(MyfsSuperBlock *sb, MyfsDiskInode *parent_dir,
                      const char *name, uint32_t *new_ino);
 
-int myfs_create_dir(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name,
-                    uint32_t *new_ino);
+int myfs_create_dir(MyfsSuperBlock *sb, MyfsDiskInode *parent_dir,
+                    const char *name, uint32_t *new_ino);
 
-int myfs_unlink(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name);
+int myfs_unlink(MyfsSuperBlock *sb, MyfsDiskInode *parent_dir,
+                const char *name);
 
 int myfs_entry_idx_find(MyfsDiskDirEntry *entries, int entries_count,
                         const char *name);

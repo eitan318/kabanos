@@ -5,7 +5,7 @@ set(CMAKE_EXE_LINKER_FLAGS "")
 
 add_executable(mkfs_myfs 
     main.c 
-    ${SRC_DIR}/kernel/src/fs/myfs/myfs.c
+    ${SRC_DIR}/kernel/src/fs/vfs.c
 )
 
 target_include_directories(mkfs_myfs PRIVATE 

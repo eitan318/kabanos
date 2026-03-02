@@ -28,6 +28,7 @@ typedef struct {
 
 typedef struct {
   uint32_t i_ino;
+  uint32_t dirty;
   uint32_t direct_blocks[MYFS_DIRECT_BLOCKS_MAX];
   uint32_t block_count;
   uint32_t size;

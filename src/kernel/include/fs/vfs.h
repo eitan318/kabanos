@@ -1,4 +1,5 @@
 #pragma once
+#include "fs/fs_common.h"
 #include "klib/stddef.h"
 #include "klib/stdint.h"
 #include "ksys/stat.h"
@@ -16,6 +17,8 @@ typedef struct super_block super_block_t;
 typedef struct vnode vnode_t;
 typedef struct fstat fstat_t;
 typedef struct vdir_entry VDirEntry;
+
+extern fs_platform_t g_vfs_platform;
 
 struct fstat {
   uint32_t size;        // file/directory size in bytes

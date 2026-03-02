@@ -13,3 +13,25 @@
 │    0x400739        mov    eax,0x4134ea                                                  │
 │    0x40073e        push   eax                                                           │
 │    0x40073f        call   0x40084c                                                      │
+
+
+when my mkfs script:
+
+(gdb) p* sb
+$2 = {on_disk = {magic = 268549871, total_inodes = 1220, total_blocks = 4882, free_inodes = 0, 
+free_blocks = 0, block_sectors = 4, file_initial_blocks = 1,
+    inode_bitmap_start = 4, block_bitmap_start = 1, inode_table_start = 5, data_blocks_start = 77,
+    root_inode = 1}, dev = 0x7fffffffdbd0, block_bytes = 2048,
+  block_bitmap = 0x55555555dde0 "\377\377\377\377\377\377\377\377\377?", 
+  inode_bitmap = 0x55555555dd30 "\002", inode_hash_table = {0x0, 0x55555555e0d0,
+    0x0 <repeats 254 times>}, mounted = 1, plt = 0x55555555c480}
+(gdb)
+
+after when opened from disk inside os:
+
+(gdb) p sb->on_disk
+$1 = {magic = 268549871, total_inodes = 8189, total_blocks = 32759, free_inodes = 0,
+  free_blocks = 0, block_sectors = 4, file_initial_blocks = 1,
+  inode_bitmap_start = 17, block_bitmap_start = 1, inode_table_start = 21,
+  data_blocks_start = 501, root_inode = 1}
+(gdb)

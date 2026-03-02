@@ -17,6 +17,7 @@ struct blkdev {
   int (*write_sectors)(blkdev_t *dev, uint32_t lba, uint32_t count,
                        const void *buf);
 
+  uint32_t sectors;
   void *priv;
 };
 

@@ -91,8 +91,7 @@ struct vnode {
 struct fs_type {
   const char *name; // "ext4", "tmpfs", etc.
   int fs_flags;
-  int (*fill_sb)(super_block_t *vfs_sb, blkdev_t *dev,
-                 const fs_platform_t *platform);
+  int (*fill_sb)(super_block_t *vfs_sb, blkdev_t *dev, fs_platform_t *platform);
   int (*kill_sb)(super_block_t *sb);
   struct fs_type *next;
 };

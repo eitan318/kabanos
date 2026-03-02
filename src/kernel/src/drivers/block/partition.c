@@ -70,11 +70,12 @@ void partition_probe(blkdev_t *physical_dev) {
     vdev->priv = info;
     vdev->read_sectors = part_read;
     vdev->write_sectors = part_write;
+    vdev->sectors = info->sector_count;
 
     // 3. Register it so VFS can see it
     blkdev_register(vdev);
 
-    kprintf("Partition found: %s start=%u size=%u\n", vdev->name,
+    kdebugf("Partition found: %s start=%u size=%u\n", vdev->name,
             info->start_lba, info->sector_count);
   }
 }
