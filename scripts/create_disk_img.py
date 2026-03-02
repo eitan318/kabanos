@@ -21,6 +21,7 @@ def main():
     p.add_argument("--boot", required=True)
     p.add_argument("--stage2", required=True)
     p.add_argument("--boot_dir", required=True)
+    p.add_argument("--sysroot_dir", required=True)
     p.add_argument("--mkfs_myfs_path", required=True)
     args = p.parse_args()
 
@@ -75,11 +76,12 @@ def main():
         with open(p1_img, "wb") as f:
             f.truncate(p1_sectors * SECTOR)
 
-        run(["mkfs.vfat", "-s", "1", "-F", "32", p1_img])
+        run(["mkfs.fat", "-F", "12", p1_img])
 
         # copy all BOOT files
         for entry in os.listdir(args.boot_dir):
             path = os.path.join(args.boot_dir, entry)
+            print(f"coping {path}")
             if os.path.isfile(path):
                 run(["mcopy", "-i", p1_img, path, f"::{entry}"])
 
@@ -104,13 +106,7 @@ def main():
         with open(p2_img, "wb") as f:
             f.truncate(p2_sectors * SECTOR)
 
-        run([args.mkfs_myfs_path, p2_img, "0", str(p2_size_bytes)])
-
-        # copy all sysroot files
-        for entry in os.listdir(args.boot_dir):
-            path = os.path.join(args.boot_dir, entry)
-            if os.path.isfile(path):
-                run(["mcopy", "-i", p1_img, path, f"::{entry}"])
+        run([args.mkfs_myfs_path, p2_img, "0", str(p2_size_bytes), args.sysroot_dir])
 
         run(
             [
@@ -126,10 +122,9 @@ def main():
         if os.path.exists(p2_img):
             os.remove(p2_img)
 
-    # 6. Write partition table (type 'b' = FAT32, 'L' = Linux/custom)
     sfdisk_input = (
-        f"{p1_start}, {p1_sectors}, b, *\n"  # FAT32, bootable
-        f"{p2_start}, {p2_sectors}, L, -\n"  # custom fs
+        f"{p1_start}, {p1_sectors}, 01, *\n"  # 01 = FAT12, * = Active
+        f"{p2_start}, {p2_sectors}, 83, -\n"  # 83 = Linux/Custom
     )
     subprocess.run(
         ["sfdisk", args.image], input=sfdisk_input.encode("utf-8"), check=True

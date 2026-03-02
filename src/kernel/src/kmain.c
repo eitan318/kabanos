@@ -65,14 +65,12 @@ void kmain(uint32_t mb2_ptr) {
 
   vfs_init_stdio();
 
-  kprintf("REACHED_KERNEL");
-
-  for (;;) {
-  }
-
+  kprintf("REACHED KERNEL");
+  //
   // vfs_mount("atap2", "/", "myfs", 0, NULL);
-
-  process_spawn("/lib/init.elf", PRIORITY_VERY_HIGH);
+  //
+  // process_spawn("/lib/init.elf", PRIORITY_VERY_HIGH);
+  //
 
   hal_timer_enable();
 

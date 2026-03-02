@@ -5,7 +5,8 @@ add_custom_command(
           --image ${OS_IMAGE_OUT}
           --boot ${STAGE1_BIN}
           --stage2 ${STAGE2_BIN}
-          --boot_dir ${SYSROOT_DIR}
+          --boot_dir ${BOOT_DIR}
+          --sysroot_dir ${SYSROOT_DIR}
           --mkfs_myfs_path $<TARGET_FILE:mkfs_myfs>  
 
   DEPENDS ${STAGE1_BIN} ${STAGE2_BIN} ${KERNEL_OUTPUT} ${INITRD_IMG} $<TARGET_FILE:mkfs_myfs>

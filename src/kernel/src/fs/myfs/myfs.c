@@ -6,13 +6,15 @@ static void disk_read_bitmap(MyfsSuperBlock *sb, uint32_t block_addr,
   int full_blocks = bytes_to_read / sb->block_bytes;
   int remainder = bytes_to_read % sb->block_bytes;
 
-  for (int i = 0; i < full_blocks; i++)
+  for (int i = 0; i < full_blocks; i++) {
+
     sb->plt->read_block(sb->dev, block_addr + i, buf + i * sb->block_bytes);
 
-  if (remainder > 0) {
-    uint8_t tmp[sb->block_bytes];
-    sb->plt->read_block(sb->dev, block_addr + full_blocks, tmp);
-    memcpy(buf + full_blocks * sb->block_bytes, tmp, remainder);
+    if (remainder > 0) {
+      uint8_t tmp[sb->block_bytes];
+      sb->plt->read_block(sb->dev, block_addr + full_blocks, tmp);
+      memcpy(buf + full_blocks * sb->block_bytes, tmp, remainder);
+    }
   }
 }
 
@@ -119,7 +121,7 @@ static int disk_rw_spanning(MyfsSuperBlock *sb, uint32_t start_block,
       memcpy(block_buf + offset, ptr, chunk);
       sb->plt->write_block(sb->dev, cur_block, block_buf);
     } else {
-      sb->plt->write_block(sb->dev, cur_block, block_buf);
+      sb->plt->read_block(sb->dev, cur_block, block_buf);
       memcpy(ptr, block_buf + offset, chunk);
     }
 
@@ -261,16 +263,17 @@ int myfs_format(void *dev, fs_platform_t *plt) {
 }
 
 MyfsSuperBlock *myfs_sb_read(void *dev, fs_platform_t *plt) {
-  MyfsSuperBlock *sb = sb->plt->alloc(sizeof(*sb));
+  MyfsSuperBlock *sb = plt->alloc(sizeof(*sb));
   if (!sb)
     return NULL;
   memset(sb, 0, sizeof(*sb));
 
   sb->plt = plt;
+  sb->dev = dev;
 
   /* Read sector 0 to get the on-disk superblock */
   uint8_t tmp[SECTOR_BYTES];
-  plt->read_block(dev, 1, tmp);
+  plt->read_block(dev, 0, tmp);
   memcpy(&sb->on_disk, tmp, sizeof(sb->on_disk));
 
   sb->block_bytes = sb->on_disk.block_sectors * SECTOR_BYTES;
