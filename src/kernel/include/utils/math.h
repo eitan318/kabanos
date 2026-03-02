@@ -1,8 +1,9 @@
 #pragma once
 #include "klib/stdbool.h"
 #include "klib/stdint.h"
-static inline int min(int a, int b) { return a < b ? a : b; }
-static inline int max(int a, int b) { return a > b ? a : b; }
+
+#define MIN(a, b) (a < b ? a : b)
+#define MAX(a, b) (a > b ? a : b)
 
 extern void __attribute__((cdecl))
 div64_32(uint64_t dividend, uint32_t divisor, uint64_t *quotient_out,

@@ -74,11 +74,8 @@ void kmain(uint32_t mb2_ptr) {
 
   vfs_init_stdio();
 
-  if (vfs_mount("atap2", "/", "myfs", 0, NULL) < 0) {
-    blkdev_t *blkdev = blkdev_get("atap2");
-    myfs_format(blkdev);
-    vfs_mount("atap2", "/", "myfs", 0, NULL);
-  }
+  // vfs_mount("atap2", "/", "myfs", 0, NULL);
+
   process_spawn("/lib/init.elf", PRIORITY_VERY_HIGH);
 
   hal_timer_enable();

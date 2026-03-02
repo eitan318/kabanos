@@ -1,5 +1,6 @@
 #include "fs/vfs.h"
 #include "fs/fd.h"
+#include "fs/fs_common.h"
 #include "fs/vfs_internal.h"
 #include "klib/errno.h"
 #include "klib/stdio.h"
@@ -10,6 +11,24 @@
 
 mount_point_t *mount_p_table = NULL;
 fs_type_t *fs_registry_table = NULL;
+
+static int kernel_write_block(void *dev, uint32_t lba, const void *buf) {
+  blkdev_t *device = (blkdev_t *)dev;
+  // Assuming 1 block = 1 sector for simplicity; adjust as needed for your FS
+  // block size
+  return device->write_sectors(device, lba, 1, buf);
+}
+
+static int kernel_read_block(void *dev, uint32_t lba, void *buf) {
+  blkdev_t *device = (blkdev_t *)dev;
+  return device->read_sectors(device, lba, 1, buf);
+}
+
+const fs_platform_t g_vfs_platform = {.alloc = kmalloc,
+                                      .free = kfree,
+                                      .read_block = kernel_read_block,
+                                      .write_block = kernel_write_block,
+                                      .log = kdebugf};
 
 static int filldir(dir_ctx_t *ctx, const char *name, int namelen, off_t offset,
                    int ino, int type) {
@@ -207,7 +226,7 @@ int vfs_mount(const char *source_dev, const char *target_path,
   }
   memset(super_block, 0, sizeof(*super_block));
 
-  if (fs_type->fill_sb(super_block, dev) == -1) {
+  if (fs_type->fill_sb(super_block, dev, &g_vfs_platform) == -1) {
     kfree(mount_p);
     kfree(super_block);
     return -EIO;

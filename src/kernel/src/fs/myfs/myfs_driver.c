@@ -1,4 +1,5 @@
 #include "drivers/block/blockdev.h"
+#include "fs/fs_common.h"
 #include "fs/myfs/myfs.h"
 #include "fs/vfs.h"
 #include "fs/vfs_internal.h"
@@ -320,9 +321,10 @@ struct vnode_ops myfs_vnode_ops = {
     .symlink = myfsd_v_symlink,
 };
 
-static int myfsd_super_sb_fill(super_block_t *vfs_sb, blkdev_t *dev) {
+static int myfsd_super_sb_fill(super_block_t *vfs_sb, blkdev_t *dev,
+                               fs_platform_t *plt) {
   // Mount the MyFS filesystem
-  MyfsSuperBlock *myfs_sb = myfs_sb_read(dev);
+  MyfsSuperBlock *myfs_sb = myfs_sb_read(dev, plt);
   if (myfs_sb == NULL) {
     return -1;
   }

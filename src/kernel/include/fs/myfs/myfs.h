@@ -1,8 +1,10 @@
 #pragma once
 
-#include "drivers/block/blockdev.h"
-#include "fs/myfs/myfs_format.h"
-#include "klib/stddef.h"
+#include "fs/fs_common.h"
+#include "fs/myfs/myfs_layout.h"
+#include "klib/stdbool.h"
+#include "klib/string.h"
+#include "utils/math.h"
 
 #define SECTOR_BYTES 512
 
@@ -37,16 +39,17 @@ typedef struct inode_hash_entry {
 
 typedef struct {
   MyfsDiskSuperBlock on_disk;
-  blkdev_t *dev;
+  void *dev;
   uint32_t block_bytes;
   uint8_t *block_bitmap;
   uint8_t *inode_bitmap;
   InodeHashEntry *inode_hash_table[INODE_HASH_SIZE];
   int mounted;
+  fs_platform_t *plt;
 } MyfsSuperBlock;
 
-int myfs_format(blkdev_t *dev);
-MyfsSuperBlock *myfs_sb_read(blkdev_t *dev);
+int myfs_format(void *dev, fs_platform_t *plt);
+MyfsSuperBlock *myfs_sb_read(void *dev, fs_platform_t *plt);
 
 int myfs_sb_kill(MyfsSuperBlock *sb);
 
@@ -54,8 +57,8 @@ int myfs_rename(MyfsSuperBlock *sb, MyfsInode *old_parent_inode,
                 const char *old_name, MyfsInode *new_parent_inode,
                 const char *new_name);
 
-ssize_t myfs_symlink_read(MyfsSuperBlock *sb, MyfsInode *inode, char *buf,
-                          size_t bufsize);
+uint32_t myfs_symlink_read(MyfsSuperBlock *sb, MyfsInode *inode, char *buf,
+                           size_t bufsize);
 
 int myfs_create_symlink(MyfsSuperBlock *sb, MyfsInode *dir_inode,
                         const char *name, const char *target);
@@ -73,11 +76,11 @@ void myfs_iput(MyfsSuperBlock *sb, MyfsInode *inode);
 
 int myfs_inode_alloc(MyfsSuperBlock *sb, MyfsInode **inode, int mode);
 
-ssize_t myfs_node_read(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
-                       void *buf, size_t count);
+uint32_t myfs_node_read(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
+                        void *buf, size_t count);
 
-ssize_t myfs_node_write(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
-                        const void *buf, size_t count);
+uint32_t myfs_node_write(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
+                         const void *buf, size_t count);
 
 int myfs_inode_truncate(MyfsSuperBlock *sb, MyfsInode *inode,
                         uint32_t new_size);

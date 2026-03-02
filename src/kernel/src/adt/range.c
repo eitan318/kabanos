@@ -3,8 +3,8 @@
 
 Range range_clamp(Range src, Range boundry) {
   Range clamped = {
-      max(src.start, boundry.start),
-      min(src.end, boundry.end),
+      MAX(src.start, boundry.start),
+      MIN(src.end, boundry.end),
   };
   return clamped;
 }
