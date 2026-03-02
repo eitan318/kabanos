@@ -7,9 +7,9 @@ add_custom_command(
           --stage2 ${STAGE2_BIN}
           --boot_dir ${BOOT_DIR}
           --sysroot_dir ${SYSROOT_DIR}
-          --mkfs_myfs_path $<TARGET_FILE:mkfs_myfs>  
+          #--mkfs_myfs_path $<TARGET_FILE:mkfs_myfs>  
 
-  DEPENDS ${STAGE1_BIN} ${STAGE2_BIN} ${KERNEL_OUTPUT} ${INITRD_IMG} $<TARGET_FILE:mkfs_myfs>
+  DEPENDS ${STAGE1_BIN} ${STAGE2_BIN} ${KERNEL_OUTPUT} ${INITRD_IMG} #$<TARGET_FILE:mkfs_myfs>
   COMMENT "Creating partitioned OS image"
   VERBATIM
 )
@@ -18,4 +18,4 @@ add_custom_target(os_image
     DEPENDS ${OS_IMAGE_OUT}
 )
 
-add_dependencies(os_image mkfs_myfs bootloader kernel.elf)
+add_dependencies(os_image  bootloader kernel.elf) #mkfs_myfs)

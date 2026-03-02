@@ -1,8 +1,7 @@
 #pragma once
 #include "fs/fs_common.h"
-#include "klib/stddef.h"
-#include "klib/stdint.h"
 #include "ksys/stat.h"
+#include "ksys/types.h"
 
 #define DT_UNKNOWN 0
 #define DT_REG 8 // Regular file

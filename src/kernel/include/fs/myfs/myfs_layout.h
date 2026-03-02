@@ -24,7 +24,7 @@
 typedef struct {
   char file_name[32];
   uint32_t inode_num;
-} __attribute__((packed)) MyfsDiskDirEntry;
+} __attribute__((packed)) MyfsDirEntry;
 
 typedef struct {
   uint32_t i_ino;
@@ -41,7 +41,7 @@ typedef struct {
   uint64_t atime;
   uint64_t mtime;
   uint64_t ctime;
-} __attribute__((packed)) MyfsDiskInode;
+} __attribute__((packed)) MyfsInode;
 
 typedef struct {
   uint32_t magic;

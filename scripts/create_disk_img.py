@@ -20,7 +20,7 @@ def main():
     p.add_argument("--stage2", required=True)
     p.add_argument("--boot_dir", required=True)
     p.add_argument("--sysroot_dir", required=True)
-    p.add_argument("--mkfs_myfs_path", required=True)
+    p.add_argument("--mkfs_myfs_path", required=False)
     args = p.parse_args()
 
     stage2_sectors = math.ceil(os.path.getsize(args.stage2) / SECTOR)
@@ -107,7 +107,7 @@ def main():
     try:
         with open(p2_img, "wb") as f:
             f.truncate(p2_size_bytes)
-        run([args.mkfs_myfs_path, p2_img, "0", str(p2_size_bytes), args.sysroot_dir])
+        # run([args.mkfs_myfs_path, p2_img, "0", str(p2_size_bytes), args.sysroot_dir])
         run(
             [
                 "dd",
@@ -118,21 +118,6 @@ def main():
                 "conv=notrunc",
             ]
         )
-
-        result = subprocess.run(
-            ["dd", f"if={args.image}", "bs=512", f"skip={p2_start}", "count=1"],
-            capture_output=True,
-        )
-        data = result.stdout[:64]
-        print("P2 sector 0 on disk:", " ".join(f"{b:02x}" for b in data))
-
-        result2 = subprocess.run(
-            ["dd", f"if={args.image}", "bs=512", f"skip={p2_start + 4}", "count=1"],
-            capture_output=True,
-        )
-        data2 = result2.stdout[:64]
-        print("P2 block 1 on disk:", " ".join(f"{b:02x}" for b in data2))
-
     finally:
         if os.path.exists(p2_img):
             os.remove(p2_img)

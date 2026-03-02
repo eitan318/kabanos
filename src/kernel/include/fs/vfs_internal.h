@@ -1,5 +1,4 @@
 #pragma once
-#include "fs/fs_common.h"
 #include "klib/stdbool.h"
 #include "klib/stddef.h"
 #include "klib/stdint.h"
@@ -91,7 +90,7 @@ struct vnode {
 struct fs_type {
   const char *name; // "ext4", "tmpfs", etc.
   int fs_flags;
-  int (*fill_sb)(super_block_t *vfs_sb, blkdev_t *dev, fs_platform_t *platform);
+  int (*fill_sb)(super_block_t *vfs_sb, blkdev_t *dev);
   int (*kill_sb)(super_block_t *sb);
   struct fs_type *next;
 };

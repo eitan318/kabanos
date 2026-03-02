@@ -5,6 +5,7 @@
 #include "klib/errno.h"
 #include "klib/stdio.h"
 #include "klib/string.h"
+#include "klib/unistd.h"
 #include "ksys/fcntl.h"
 #include "mm/kmalloc.h"
 
@@ -224,7 +225,7 @@ int vfs_mount(const char *source_dev, const char *target_path,
   }
   memset(super_block, 0, sizeof(*super_block));
 
-  if (fs_type->fill_sb(super_block, dev, &g_vfs_platform) == -1) {
+  if (fs_type->fill_sb(super_block, dev) == -1) {
     kfree(mount_p);
     kfree(super_block);
     return -EIO;

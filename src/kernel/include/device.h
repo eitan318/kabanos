@@ -1,5 +1,6 @@
 #pragma once
 #include "klib/string.h"
+#include "ksys/types.h"
 #include "sched/wait.h"
 
 typedef struct device device_t;

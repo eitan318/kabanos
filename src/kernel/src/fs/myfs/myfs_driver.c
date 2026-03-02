@@ -1,5 +1,4 @@
 #include "drivers/block/blockdev.h"
-#include "fs/fs_common.h"
 #include "fs/myfs/myfs.h"
 #include "fs/vfs.h"
 #include "fs/vfs_internal.h"
@@ -7,13 +6,14 @@
 #include "klib/string.h"
 #include "ksys/stat.h"
 #include "mm/kmalloc.h"
+#include "modules.h"
 #include "utils/math.h"
 
 static void myfsd_v_destroy(vnode_t *vnode) {}
 
 static int myfsd_f_dir_iter(file_t *parent_file, dir_ctx_t *ctx) {
   MyfsSuperBlock *myfs_sb = parent_file->vnode->super_block->fs_private;
-  MyfsDiskInode *parent = myfs_iget(myfs_sb, parent_file->vnode->i_ino);
+  MyfsInode *parent = myfs_iget(myfs_sb, parent_file->vnode->i_ino);
 
   if (!parent || !S_ISDIR(parent->mode)) {
     if (parent)
@@ -21,8 +21,8 @@ static int myfsd_f_dir_iter(file_t *parent_file, dir_ctx_t *ctx) {
     return -1;
   }
 
-  int entries_count = parent->size / sizeof(MyfsDiskDirEntry);
-  MyfsDiskDirEntry *entries = kmalloc(parent->size);
+  int entries_count = parent->size / sizeof(MyfsDirEntry);
+  MyfsDirEntry *entries = kmalloc(parent->size);
   if (!entries) {
     myfs_iput(myfs_sb, parent);
     return -1;
@@ -35,25 +35,25 @@ static int myfsd_f_dir_iter(file_t *parent_file, dir_ctx_t *ctx) {
     return -1;
   }
 
-  int actual_entries = bytes_read / sizeof(MyfsDiskDirEntry);
+  int actual_entries = bytes_read / sizeof(MyfsDirEntry);
   int emitted = 0;
 
   uint64_t start_index = 0;
   uint32_t rem = 0;
-  div64_32(parent_file->pos, sizeof(MyfsDiskDirEntry), &start_index, &rem);
+  div64_32(parent_file->pos, sizeof(MyfsDirEntry), &start_index, &rem);
 
   for (int i = start_index; i < actual_entries && emitted < ctx->count; i++) {
-    MyfsDiskDirEntry *entry = &entries[i];
+    MyfsDirEntry *entry = &entries[i];
     int namelen = strlen(entry->file_name);
 
-    MyfsDiskInode *child = myfs_iget(myfs_sb, entry->inode_num);
+    MyfsInode *child = myfs_iget(myfs_sb, entry->inode_num);
     unsigned type = S_ISDIR(child->mode) ? DT_DIR : DT_REG;
     myfs_iput(myfs_sb, child);
 
-    if (dir_emit(ctx, entry->file_name, namelen, i * sizeof(MyfsDiskDirEntry),
+    if (dir_emit(ctx, entry->file_name, namelen, i * sizeof(MyfsDirEntry),
                  entry->inode_num, type) == 0) {
       emitted++;
-      parent_file->pos += sizeof(MyfsDiskDirEntry);
+      parent_file->pos += sizeof(MyfsDirEntry);
     }
   }
 
@@ -69,7 +69,7 @@ static vnode_t *myfsd_v_lookup(vnode_t *dir, const char *name) {
 
   MyfsSuperBlock *myfs_sb = dir->super_block->fs_private;
 
-  MyfsDiskInode *dir_inode = myfs_iget(myfs_sb, dir->i_ino);
+  MyfsInode *dir_inode = myfs_iget(myfs_sb, dir->i_ino);
   if (!dir_inode) {
     return NULL;
   }
@@ -81,7 +81,7 @@ static vnode_t *myfsd_v_lookup(vnode_t *dir, const char *name) {
   }
 
   // Get child inode to extract metadata
-  MyfsDiskInode *child_inode = myfs_iget(myfs_sb, child_ino);
+  MyfsInode *child_inode = myfs_iget(myfs_sb, child_ino);
   if (!child_inode) {
     myfs_iput(myfs_sb, dir_inode);
     return NULL;
@@ -117,7 +117,7 @@ static int myfsd_v_create(vnode_t *dir, const char *name, mode_t mode) {
 
   MyfsSuperBlock *myfs_sb = dir->super_block->fs_private;
 
-  MyfsDiskInode *dir_inode = myfs_iget(myfs_sb, dir->i_ino);
+  MyfsInode *dir_inode = myfs_iget(myfs_sb, dir->i_ino);
   if (!dir_inode) {
     return -1;
   }
@@ -141,7 +141,7 @@ static int myfsd_v_mkdir(vnode_t *dir, const char *name, mode_t mode) {
 
   MyfsSuperBlock *myfs_sb = dir->super_block->fs_private;
 
-  MyfsDiskInode *dir_inode = myfs_iget(myfs_sb, dir->i_ino);
+  MyfsInode *dir_inode = myfs_iget(myfs_sb, dir->i_ino);
   if (!dir_inode) {
     return -1;
   }
@@ -166,7 +166,7 @@ static int myfsd_v_unlink(vnode_t *dir, const char *name) {
   MyfsSuperBlock *myfs_sb = dir->super_block->fs_private;
 
   // FIXED: Get directory inode properly
-  MyfsDiskInode *dir_inode = myfs_iget(myfs_sb, dir->i_ino);
+  MyfsInode *dir_inode = myfs_iget(myfs_sb, dir->i_ino);
   if (!dir_inode) {
     return -1;
   }
@@ -182,7 +182,7 @@ static int myfsd_v_unlink(vnode_t *dir, const char *name) {
   return result;
 }
 
-static fstat_t *myfsd_getattr(MyfsDiskInode *inode) {
+static fstat_t *myfsd_getattr(MyfsInode *inode) {
   fstat_t *stats;
   stats = kmalloc(sizeof(*stats));
 
@@ -203,7 +203,7 @@ static ssize_t myfsd_f_read(file_t *file, void *buf, size_t size) {
   vnode_t *vnode = file->vnode;
   MyfsSuperBlock *myfs_sb = vnode->super_block->fs_private;
 
-  MyfsDiskInode *inode = myfs_iget(myfs_sb, vnode->i_ino);
+  MyfsInode *inode = myfs_iget(myfs_sb, vnode->i_ino);
   if (!inode) {
     return -1;
   }
@@ -218,7 +218,7 @@ static ssize_t myfsd_f_write(file_t *file, const void *buf, size_t size) {
   vnode_t *vnode = file->vnode;
   MyfsSuperBlock *myfs_sb = vnode->super_block->fs_private;
 
-  MyfsDiskInode *inode = myfs_iget(myfs_sb, vnode->i_ino);
+  MyfsInode *inode = myfs_iget(myfs_sb, vnode->i_ino);
   if (!inode) {
     return -1;
   }
@@ -234,7 +234,7 @@ static ssize_t myfsd_f_write(file_t *file, const void *buf, size_t size) {
 
 static int myfsd_f_open(file_t *file) {
   MyfsSuperBlock *myfs_sb = file->vnode->super_block->fs_private;
-  MyfsDiskInode *inode = myfs_iget(myfs_sb, file->vnode->i_ino);
+  MyfsInode *inode = myfs_iget(myfs_sb, file->vnode->i_ino);
   if (!inode) {
     return -1;
   }
@@ -255,7 +255,7 @@ static int myfsd_v_rmdir(vnode_t *parent, const char *dir_name) {
 
 static int myfsd_v_symlink(vnode_t *dir, const char *name, const char *target) {
   MyfsSuperBlock *myfs_sb = dir->super_block->fs_private;
-  MyfsDiskInode *dir_inode = myfs_iget(myfs_sb, dir->i_ino);
+  MyfsInode *dir_inode = myfs_iget(myfs_sb, dir->i_ino);
 
   int result = myfs_create_symlink(myfs_sb, dir_inode, name, target);
 
@@ -265,7 +265,7 @@ static int myfsd_v_symlink(vnode_t *dir, const char *name, const char *target) {
 
 static ssize_t myfsd_v_readlink(vnode_t *vnode, char *buf, size_t bufsize) {
   MyfsSuperBlock *myfs_sb = vnode->super_block->fs_private;
-  MyfsDiskInode *inode = myfs_iget(myfs_sb, vnode->i_ino);
+  MyfsInode *inode = myfs_iget(myfs_sb, vnode->i_ino);
 
   ssize_t result = myfs_symlink_read(myfs_sb, inode, buf, bufsize);
 
@@ -277,8 +277,8 @@ static int myfsd_v_rename(vnode_t *old_parent, const char *old_name,
                           vnode_t *new_parent, const char *new_name) {
   MyfsSuperBlock *myfs_sb = old_parent->super_block->fs_private;
 
-  MyfsDiskInode *old_parent_inode = myfs_iget(myfs_sb, old_parent->i_ino);
-  MyfsDiskInode *new_parent_inode = myfs_iget(myfs_sb, new_parent->i_ino);
+  MyfsInode *old_parent_inode = myfs_iget(myfs_sb, old_parent->i_ino);
+  MyfsInode *new_parent_inode = myfs_iget(myfs_sb, new_parent->i_ino);
 
   myfs_rename(myfs_sb, old_parent_inode, old_name, new_parent_inode, new_name);
   old_parent->size = old_parent_inode->size;
@@ -321,19 +321,20 @@ struct vnode_ops myfs_vnode_ops = {
     .symlink = myfsd_v_symlink,
 };
 
-static int myfsd_super_sb_fill(super_block_t *vfs_sb, blkdev_t *dev,
-                               fs_platform_t *plt) {
-  MyfsSuperBlock *myfs_sb = myfs_sb_read(dev, plt);
+static int myfsd_super_sb_fill(super_block_t *vfs_sb, blkdev_t *dev) {
+  // Mount the MyFS filesystem
+  MyfsSuperBlock *myfs_sb = myfs_sb_read(dev);
   if (myfs_sb == NULL) {
     return -1;
   }
 
-  vfs_sb->fs_private = myfs_sb;
+  // Configure VFS superblock
+  vfs_sb->fs_private = myfs_sb; // Store MyFS superblock
   vfs_sb->fs_type = get_fs_type(MYFS_NAME);
-  vfs_sb->f_ops = &myfs_f_ops;
-  vfs_sb->v_ops = &myfs_vnode_ops;
+  vfs_sb->f_ops = &myfs_f_ops;     // file_t operations
+  vfs_sb->v_ops = &myfs_vnode_ops; // vnode_t operations
 
-  MyfsDiskInode *root_inode;
+  MyfsInode *root_inode;
   root_inode = myfs_iget(myfs_sb, MYFS_ROOT_INODE_NUM);
   if (root_inode == NULL) {
     myfs_inode_alloc(myfs_sb, &root_inode, S_IFDIR);

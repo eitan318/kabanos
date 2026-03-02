@@ -1,13 +1,27 @@
 #include "fs/myfs/myfs.h"
+#include "drivers/block/blockdev.h"
+#include "klib/stdbool.h"
+#include "klib/stdint.h"
+#include "klib/string.h"
+#include "ksys/fcntl.h"
+#include "ksys/stat.h"
+#include "mm/kmalloc.h"
+#include "utils/math.h"
 
-#define MYFS_BLOCK_SECTORS 4
-#define MYFS_BLOCK_BYTES (MYFS_BLOCK_SECTORS * SECTOR_BYTES)
+/* -----------------------------------------------------------------------
+ * Block I/O – all disk access goes through sb->dev, never raw ATA
+ * ---------------------------------------------------------------------- */
 
-static void log_bitmap_hex(MyfsSuperBlock *sb, const uint8_t *buf, int bytes) {
-  for (int i = 0; i < bytes && i < 32; i++) { // cap at 32 bytes
-    sb->plt->log("%x ", buf[i]);
-  }
-  sb->plt->log("\n");
+static void disk_read_block(MyfsSuperBlock *sb, uint32_t block_addr,
+                            void *buf) {
+  sb->dev->read_sectors(sb->dev, block_addr * sb->on_disk.block_sectors,
+                        sb->on_disk.block_sectors, buf);
+}
+
+static void disk_write_block(MyfsSuperBlock *sb, uint32_t block_addr,
+                             const void *buf) {
+  sb->dev->write_sectors(sb->dev, block_addr * sb->on_disk.block_sectors,
+                         sb->on_disk.block_sectors, buf);
 }
 
 static void disk_read_bitmap(MyfsSuperBlock *sb, uint32_t block_addr,
@@ -15,34 +29,37 @@ static void disk_read_bitmap(MyfsSuperBlock *sb, uint32_t block_addr,
   uint8_t *buf = buffer;
   int full_blocks = bytes_to_read / sb->block_bytes;
   int remainder = bytes_to_read % sb->block_bytes;
-  for (int i = 0; i < full_blocks; i++) {
-    sb->plt->read_block(sb->dev, block_addr + i, buf + i * sb->block_bytes);
-  }
+
+  for (int i = 0; i < full_blocks; i++)
+    disk_read_block(sb, block_addr + i, buf + i * sb->block_bytes);
+
   if (remainder > 0) {
     uint8_t tmp[sb->block_bytes];
-    sb->plt->read_block(sb->dev, block_addr + full_blocks, tmp);
+    disk_read_block(sb, block_addr + full_blocks, tmp);
     memcpy(buf + full_blocks * sb->block_bytes, tmp, remainder);
   }
-  sb->plt->log("Read bitmap block=%u bytes=%d: ", block_addr, bytes_to_read);
-  log_bitmap_hex(sb, buf, bytes_to_read);
 }
 
 static void disk_write_bitmap(MyfsSuperBlock *sb, uint32_t block_addr,
                               const void *buffer, int buffer_bytes) {
-  sb->plt->log("Write bitmap block=%u bytes=%d: ", block_addr, buffer_bytes);
-  log_bitmap_hex(sb, (const uint8_t *)buffer, buffer_bytes);
   const uint8_t *buf = buffer;
   int full_blocks = buffer_bytes / sb->block_bytes;
   int remainder = buffer_bytes % sb->block_bytes;
+
   for (int i = 0; i < full_blocks; i++)
-    sb->plt->write_block(sb->dev, block_addr + i, buf + i * sb->block_bytes);
+    disk_write_block(sb, block_addr + i, buf + i * sb->block_bytes);
+
   if (remainder > 0) {
     uint8_t tmp[sb->block_bytes];
     memset(tmp, 0, sb->block_bytes);
     memcpy(tmp, buf + full_blocks * sb->block_bytes, remainder);
-    sb->plt->write_block(sb->dev, block_addr + full_blocks, tmp);
+    disk_write_block(sb, block_addr + full_blocks, tmp);
   }
 }
+
+/* -----------------------------------------------------------------------
+ * Bitmap helpers
+ * ---------------------------------------------------------------------- */
 
 static int find_first_empty_bit(uint8_t *bitmap, size_t size_in_bytes,
                                 size_t start_bit) {
@@ -73,8 +90,12 @@ bool bitmap_is_set(uint8_t bitmap[], int num) {
   return bitmap[num / 8] & (1 << (num % 8));
 }
 
-static MyfsDiskInode *myfs_cache_find(InodeHashEntry **inode_hash_table,
-                                      uint32_t ino) {
+/* -----------------------------------------------------------------------
+ * Inode cache
+ * ---------------------------------------------------------------------- */
+
+static MyfsInode *myfs_cache_find(InodeHashEntry **inode_hash_table,
+                                  uint32_t ino) {
   int hash = INODE_HASH(ino);
   for (InodeHashEntry *e = inode_hash_table[hash]; e; e = e->next)
     if (e->inode->i_ino == ino)
@@ -82,11 +103,10 @@ static MyfsDiskInode *myfs_cache_find(InodeHashEntry **inode_hash_table,
   return NULL;
 }
 
-static void myfs_inode_cache_add(MyfsSuperBlock *sb,
-                                 InodeHashEntry **inode_hash_table,
-                                 MyfsDiskInode *inode) {
+static void myfs_inode_cache_add(InodeHashEntry **inode_hash_table,
+                                 MyfsInode *inode) {
   int hash = INODE_HASH(inode->i_ino);
-  InodeHashEntry *entry = sb->plt->alloc(sizeof(InodeHashEntry));
+  InodeHashEntry *entry = kmalloc(sizeof(InodeHashEntry));
   if (!entry)
     return;
   entry->inode = inode;
@@ -94,8 +114,7 @@ static void myfs_inode_cache_add(MyfsSuperBlock *sb,
   inode_hash_table[hash] = entry;
 }
 
-static void myfs_inode_cache_remove(MyfsSuperBlock *sb,
-                                    InodeHashEntry **inode_hash_table,
+static void myfs_inode_cache_remove(InodeHashEntry **inode_hash_table,
                                     uint32_t ino) {
   int hash = INODE_HASH(ino);
   InodeHashEntry **entry = &inode_hash_table[hash];
@@ -103,13 +122,17 @@ static void myfs_inode_cache_remove(MyfsSuperBlock *sb,
     if ((*entry)->inode->i_ino == ino) {
       InodeHashEntry *dead = *entry;
       *entry = dead->next;
-      sb->plt->free(dead->inode);
-      sb->plt->free(dead);
+      kfree(dead->inode);
+      kfree(dead);
       return;
     }
     entry = &(*entry)->next;
   }
 }
+
+/* -----------------------------------------------------------------------
+ * Spanning read/write (handles structures that cross block boundaries)
+ * ---------------------------------------------------------------------- */
 
 static int disk_rw_spanning(MyfsSuperBlock *sb, uint32_t start_block,
                             uint32_t offset_in_first_block, void *data,
@@ -126,11 +149,11 @@ static int disk_rw_spanning(MyfsSuperBlock *sb, uint32_t start_block,
     if (is_write) {
       /* Read-modify-write when not writing a full block */
       if (offset != 0 || remaining < sb->block_bytes)
-        sb->plt->read_block(sb->dev, cur_block, block_buf);
+        disk_read_block(sb, cur_block, block_buf);
       memcpy(block_buf + offset, ptr, chunk);
-      sb->plt->write_block(sb->dev, cur_block, block_buf);
+      disk_write_block(sb, cur_block, block_buf);
     } else {
-      sb->plt->read_block(sb->dev, cur_block, block_buf);
+      disk_read_block(sb, cur_block, block_buf);
       memcpy(ptr, block_buf + offset, chunk);
     }
 
@@ -142,11 +165,15 @@ static int disk_rw_spanning(MyfsSuperBlock *sb, uint32_t start_block,
   return 0;
 }
 
-MyfsDiskInode *myfs_disk_inode_read(MyfsSuperBlock *sb, int ino) {
+/* -----------------------------------------------------------------------
+ * On-disk inode read / write
+ * ---------------------------------------------------------------------- */
+
+MyfsInode *myfs_disk_inode_read(MyfsSuperBlock *sb, int ino) {
   if (!sb)
     return NULL;
 
-  MyfsDiskInode *inode = sb->plt->alloc(sizeof(*inode));
+  MyfsInode *inode = kmalloc(sizeof(*inode));
   if (!inode)
     return NULL;
 
@@ -163,10 +190,17 @@ MyfsDiskInode *myfs_disk_inode_read(MyfsSuperBlock *sb, int ino) {
 }
 
 int myfs_disk_inode_write(MyfsSuperBlock *sb, int ino) {
-  // Don't use myfs_iget here — find directly in cache
-  MyfsDiskInode *inode = myfs_cache_find(sb->inode_hash_table, ino);
-  if (!inode || !inode->dirty)
+  if (!sb)
+    return -1;
+
+  MyfsInode *inode = myfs_iget(sb, ino);
+  if (!inode)
+    return -1;
+
+  if (!inode->dirty) {
+    myfs_iput(sb, inode);
     return 0;
+  }
 
   int inode_size = sizeof(*inode);
   uint64_t inode_offset_bytes = (uint64_t)inode->i_ino * (uint64_t)inode_size;
@@ -178,6 +212,7 @@ int myfs_disk_inode_write(MyfsSuperBlock *sb, int ino) {
   uint32_t start_block = sb->on_disk.inode_table_start + first_block_index;
   disk_rw_spanning(sb, start_block, offset_in_block, inode, inode_size, true);
   inode->dirty = 0;
+  myfs_iput(sb, inode);
   return 0;
 }
 
@@ -191,40 +226,18 @@ static void inodes_flush(MyfsSuperBlock *sb) {
   }
 }
 
-void myfs_print_superblock(const char *label, MyfsDiskSuperBlock *sb,
-                           fs_platform_t *plt) {
+/* -----------------------------------------------------------------------
+ * Format  (takes blkdev_t* – no raw ATA)
+ * ---------------------------------------------------------------------- */
 
-  plt->log("--- Superblock: %s ---\n", label);
-  plt->log("Magic:              0x%x\n", sb->magic);
-  plt->log("Total Inodes:       %u\n", sb->total_inodes);
-  plt->log("Total Blocks:       %u\n", sb->total_blocks);
-  plt->log("Block Sectors:      %u\n", sb->block_sectors);
-  plt->log("Inode Table Start:  %u\n", sb->inode_table_start);
-  plt->log("Data Blocks Start:  %u\n", sb->data_blocks_start);
-  plt->log("Root Inode Num:     %u\n", sb->root_inode);
-  plt->log("------------------------------\n");
-}
-
-void myfs_print_inode(uint32_t ino_num, MyfsDiskInode *inode,
-                      fs_platform_t *plt) {
-  plt->log("--- Inode %u ---\n", ino_num);
-  plt->log("Mode:   0x%04x\n", inode->mode);
-  plt->log("Size:   %u bytes\n", inode->size);
-  plt->log("Blocks: ");
-  for (int i = 0; i < 8; i++) { // Assuming 8 direct blocks
-    if (inode->direct_blocks[i] == 0)
-      break;
-    plt->log("%u ", inode->direct_blocks[i]);
-  }
-  plt->log("\n----------------\n");
-}
-
-int myfs_format(void *dev, fs_platform_t *plt, int part_blocks) {
+int myfs_format(blkdev_t *dev, uint32_t max_blocks) {
   enum {
+    MYFS_BLOCK_SECTORS = 4,
     MYFS_FILE_INIT_BLOCK_COUNT = 1,
   };
 
-  uint32_t total_blocks = part_blocks;
+  const int MYFS_BLOCK_BYTES = MYFS_BLOCK_SECTORS * SECTOR_BYTES;
+  uint32_t total_blocks = max_blocks;
   uint32_t total_inodes = total_blocks / 4;
 
   uint32_t block_bitmap_start = 1;
@@ -236,7 +249,7 @@ int myfs_format(void *dev, fs_platform_t *plt, int part_blocks) {
       (total_inodes + MYFS_BLOCK_BYTES - 1) / MYFS_BLOCK_BYTES;
   uint32_t data_blocks_start =
       inode_table_start +
-      (total_inodes * sizeof(MyfsDiskInode) + MYFS_BLOCK_BYTES - 1) /
+      (total_inodes * sizeof(MyfsInode) + MYFS_BLOCK_BYTES - 1) /
           MYFS_BLOCK_BYTES;
 
   MyfsDiskSuperBlock on_disk = {
@@ -252,82 +265,74 @@ int myfs_format(void *dev, fs_platform_t *plt, int part_blocks) {
       .data_blocks_start = data_blocks_start,
   };
 
-  plt->write_block(dev, 0, &on_disk);
-  myfs_print_superblock("format", &on_disk, plt);
+  /* Build a temporary MyfsSuperBlock so we can use disk_write_block */
+  MyfsSuperBlock tmp;
+  memset(&tmp, 0, sizeof(tmp));
+  tmp.dev = dev;
+  tmp.on_disk = on_disk;
+  tmp.block_bytes = MYFS_BLOCK_BYTES;
 
-  MyfsSuperBlock *tmp = plt->alloc(sizeof(*tmp));
-  memset(tmp, 0, sizeof(*tmp));
-  tmp->dev = dev;
-  tmp->on_disk = on_disk;
-  tmp->block_bytes = MYFS_BLOCK_BYTES;
-  tmp->plt = plt;
+  disk_write_block(&tmp, 0, &on_disk);
 
   uint32_t inode_bitmap_bytes = (total_inodes + 7) / 8;
   uint32_t block_bitmap_bytes = (total_blocks + 7) / 8;
 
-  uint8_t *inode_bitmap = plt->alloc(inode_bitmap_bytes);
-  uint8_t *block_bitmap = plt->alloc(block_bitmap_bytes);
-
-  tmp->inode_bitmap = inode_bitmap;
-  tmp->block_bitmap = block_bitmap;
-
+  uint8_t *inode_bitmap = kmalloc(inode_bitmap_bytes);
+  uint8_t *block_bitmap = kmalloc(block_bitmap_bytes);
   if (!inode_bitmap || !block_bitmap) {
-    plt->free(inode_bitmap);
-    plt->free(block_bitmap);
+    kfree(inode_bitmap);
+    kfree(block_bitmap);
     return -1;
   }
 
   memset(inode_bitmap, 0, inode_bitmap_bytes);
   memset(block_bitmap, 0, block_bitmap_bytes);
+
+  /* Mark all metadata blocks (0..data_blocks_start-1) as used */
   for (uint32_t i = 0; i < data_blocks_start; i++)
     bitmap_set(block_bitmap, i);
 
-  MyfsDiskInode *root = NULL;
-  myfs_inode_alloc(tmp, &root, S_IFDIR | 0755);
+  disk_write_bitmap(&tmp, block_bitmap_start, block_bitmap, block_bitmap_bytes);
+  disk_write_bitmap(&tmp, inode_bitmap_start, inode_bitmap, inode_bitmap_bytes);
 
-  myfs_dir_add_entry(tmp, root, ".", root->i_ino);
-  myfs_dir_add_entry(tmp, root, "..", root->i_ino);
-
-  disk_write_bitmap(tmp, block_bitmap_start, block_bitmap, block_bitmap_bytes);
-  disk_write_bitmap(tmp, inode_bitmap_start, inode_bitmap, inode_bitmap_bytes);
-
-  myfs_iput(tmp, root);
-  myfs_sb_kill(tmp);
+  kfree(block_bitmap);
+  kfree(inode_bitmap);
   return 0;
 }
 
-MyfsSuperBlock *myfs_sb_read(void *dev, fs_platform_t *plt) {
-  MyfsSuperBlock *sb = plt->alloc(sizeof(*sb));
+/* -----------------------------------------------------------------------
+ * Superblock read / kill
+ * ---------------------------------------------------------------------- */
+
+MyfsSuperBlock *myfs_sb_read(blkdev_t *dev) {
+  MyfsSuperBlock *sb = kmalloc(sizeof(*sb));
   if (!sb)
     return NULL;
   memset(sb, 0, sizeof(*sb));
 
-  sb->plt = plt;
   sb->dev = dev;
 
-  /* read block 0 to get the on-disk superblock */
-  uint8_t tmp[MYFS_BLOCK_BYTES];
-  plt->read_block(dev, 0, tmp);
+  /* Read sector 0 to get the on-disk superblock */
+  uint8_t tmp[SECTOR_BYTES];
+  dev->read_sectors(dev, 0, 1, tmp);
   memcpy(&sb->on_disk, tmp, sizeof(sb->on_disk));
 
-  myfs_print_superblock("read", &sb->on_disk, plt);
+  sb->block_bytes = sb->on_disk.block_sectors * SECTOR_BYTES;
 
   if (sb->on_disk.magic != MYFS_MAGIC) {
-    sb->plt->free(sb);
+    kfree(sb);
     return NULL;
   }
-
-  sb->block_bytes = sb->on_disk.block_sectors * SECTOR_BYTES;
 
   int block_bitmap_bytes = (sb->on_disk.total_blocks + 7) / 8;
   int inode_bitmap_bytes = (sb->on_disk.total_inodes + 7) / 8;
 
-  sb->block_bitmap = sb->plt->alloc(block_bitmap_bytes);
-  sb->inode_bitmap = sb->plt->alloc(inode_bitmap_bytes);
+  sb->block_bitmap = kmalloc(block_bitmap_bytes);
+  sb->inode_bitmap = kmalloc(inode_bitmap_bytes);
   if (!sb->block_bitmap || !sb->inode_bitmap) {
-    sb->plt->free(sb->block_bitmap);
-    sb->plt->free(sb->inode_bitmap);
-    sb->plt->free(sb);
+    kfree(sb->block_bitmap);
+    kfree(sb->inode_bitmap);
+    kfree(sb);
     return NULL;
   }
 
@@ -344,9 +349,6 @@ int myfs_sb_kill(MyfsSuperBlock *sb) {
   if (!sb)
     return 0;
 
-  sb->plt->log(
-      "myfs_sb_kill: flushing bitmaps, inode_bitmap[0]=%x block_bitmap[0]=%x\n",
-      sb->inode_bitmap[0], sb->block_bitmap[0]);
   inodes_flush(sb);
 
   int block_bitmap_bytes = (sb->on_disk.total_blocks + 7) / 8;
@@ -358,17 +360,21 @@ int myfs_sb_kill(MyfsSuperBlock *sb) {
                     inode_bitmap_bytes);
 
   sb->mounted = 0;
-  sb->plt->free(sb->block_bitmap);
-  sb->plt->free(sb->inode_bitmap);
-  sb->plt->free(sb);
+  kfree(sb->block_bitmap);
+  kfree(sb->inode_bitmap);
+  kfree(sb);
   return 0;
 }
 
-MyfsDiskInode *myfs_iget(MyfsSuperBlock *sb, uint32_t ino) {
+/* -----------------------------------------------------------------------
+ * Inode get / put
+ * ---------------------------------------------------------------------- */
+
+MyfsInode *myfs_iget(MyfsSuperBlock *sb, uint32_t ino) {
   if (!bitmap_is_set(sb->inode_bitmap, ino))
     return NULL;
 
-  MyfsDiskInode *inode = myfs_cache_find(sb->inode_hash_table, ino);
+  MyfsInode *inode = myfs_cache_find(sb->inode_hash_table, ino);
   if (inode) {
     inode->ref_count++;
     return inode;
@@ -378,21 +384,25 @@ MyfsDiskInode *myfs_iget(MyfsSuperBlock *sb, uint32_t ino) {
   if (inode) {
     inode->ref_count = 1;
     inode->dirty = 1;
-    myfs_inode_cache_add(sb, sb->inode_hash_table, inode);
+    myfs_inode_cache_add(sb->inode_hash_table, inode);
   }
   return inode;
 }
 
-void myfs_iput(MyfsSuperBlock *sb, MyfsDiskInode *inode) {
+void myfs_iput(MyfsSuperBlock *sb, MyfsInode *inode) {
   if (!inode)
     return;
   inode->ref_count--;
   if (inode->ref_count <= 0) {
     if (inode->dirty)
       myfs_disk_inode_write(sb, inode->i_ino);
-    myfs_inode_cache_remove(sb, sb->inode_hash_table, inode->i_ino);
+    myfs_inode_cache_remove(sb->inode_hash_table, inode->i_ino);
   }
 }
+
+/* -----------------------------------------------------------------------
+ * Block allocation / free
+ * ---------------------------------------------------------------------- */
 
 static int myfs_blocks_alloc(MyfsSuperBlock *sb, uint32_t *block_array,
                              int count) {
@@ -421,10 +431,13 @@ static void myfs_blocks_free(MyfsSuperBlock *sb, uint32_t *block_list,
     bitmap_clear(sb->block_bitmap, block_list[i]);
 }
 
-int myfs_inode_alloc(MyfsSuperBlock *sb, MyfsDiskInode **inode, int mode) {
-  int inode_num =
-      find_first_empty_bit(sb->inode_bitmap, (sb->on_disk.total_inodes + 7) / 8,
-                           MYFS_ROOT_INODE_NUM);
+/* -----------------------------------------------------------------------
+ * Inode alloc / free
+ * ---------------------------------------------------------------------- */
+
+int myfs_inode_alloc(MyfsSuperBlock *sb, MyfsInode **inode, int mode) {
+  int inode_num = find_first_empty_bit(sb->inode_bitmap,
+                                       (sb->on_disk.total_inodes + 7) / 8, 0);
   if (inode_num == -1)
     return -1;
 
@@ -440,7 +453,7 @@ int myfs_inode_alloc(MyfsSuperBlock *sb, MyfsDiskInode **inode, int mode) {
                     sb->inode_bitmap + bitmap_block_idx * sb->block_bytes,
                     bytes_to_write);
 
-  MyfsDiskInode *new_inode = sb->plt->alloc(sizeof(*new_inode));
+  MyfsInode *new_inode = kmalloc(sizeof(*new_inode));
   if (!new_inode) {
     bitmap_clear(sb->inode_bitmap, inode_num);
     return -1;
@@ -453,7 +466,7 @@ int myfs_inode_alloc(MyfsSuperBlock *sb, MyfsDiskInode **inode, int mode) {
   if (myfs_blocks_alloc(sb, new_inode->direct_blocks,
                         sb->on_disk.file_initial_blocks) < 0) {
     bitmap_clear(sb->inode_bitmap, inode_num);
-    sb->plt->free(new_inode);
+    kfree(new_inode);
     return -1;
   }
 
@@ -477,21 +490,25 @@ int myfs_inode_alloc(MyfsSuperBlock *sb, MyfsDiskInode **inode, int mode) {
   new_inode->ctime = now;
 
   *inode = new_inode;
-  myfs_inode_cache_add(sb, sb->inode_hash_table, new_inode);
+  myfs_inode_cache_add(sb->inode_hash_table, new_inode);
   myfs_disk_inode_write(sb, new_inode->i_ino);
   return 0;
 }
 
-static void myfs_inode_free(MyfsSuperBlock *sb, MyfsDiskInode *inode) {
+static void myfs_inode_free(MyfsSuperBlock *sb, MyfsInode *inode) {
   if (!inode)
     return;
   bitmap_clear(sb->inode_bitmap, inode->i_ino);
   myfs_blocks_free(sb, inode->direct_blocks, inode->block_count);
-  myfs_inode_cache_remove(sb, sb->inode_hash_table, inode->i_ino);
+  myfs_inode_cache_remove(sb->inode_hash_table, inode->i_ino);
 }
 
-uint32_t myfs_node_read(MyfsSuperBlock *sb, MyfsDiskInode *inode,
-                        uint32_t offset, void *buf, size_t count) {
+/* -----------------------------------------------------------------------
+ * Node read / write / truncate
+ * ---------------------------------------------------------------------- */
+
+ssize_t myfs_node_read(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
+                       void *buf, size_t count) {
   if (!inode || offset >= inode->size)
     return 0;
   if (offset + count > inode->size)
@@ -509,20 +526,20 @@ uint32_t myfs_node_read(MyfsSuperBlock *sb, MyfsDiskInode *inode,
     if (block_idx >= inode->block_count)
       break;
 
-    sb->plt->read_block(sb->dev, inode->direct_blocks[block_idx], block_buf);
+    disk_read_block(sb, inode->direct_blocks[block_idx], block_buf);
     memcpy(out + bytes_read, block_buf + block_offset, to_read);
 
     offset += to_read;
     bytes_read += to_read;
   }
 
-  inode->atime = 0;
+  inode->atime = 0; /* replace with kernel time */
   inode->dirty = 1;
   return bytes_read;
 }
 
-uint32_t myfs_node_write(MyfsSuperBlock *sb, MyfsDiskInode *inode,
-                         uint32_t offset, const void *buf, size_t count) {
+ssize_t myfs_node_write(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
+                        const void *buf, size_t count) {
   if (!inode || !buf || count == 0)
     return 0;
 
@@ -550,10 +567,10 @@ uint32_t myfs_node_write(MyfsSuperBlock *sb, MyfsDiskInode *inode,
     uint32_t to_write = MIN(block_bytes - block_offset, count - bytes_written);
 
     if (to_write < (uint32_t)block_bytes)
-      sb->plt->write_block(sb->dev, inode->direct_blocks[block_idx], block_buf);
+      disk_read_block(sb, inode->direct_blocks[block_idx], block_buf);
 
     memcpy(block_buf + block_offset, in + bytes_written, to_write);
-    sb->plt->write_block(sb->dev, inode->direct_blocks[block_idx], block_buf);
+    disk_write_block(sb, inode->direct_blocks[block_idx], block_buf);
 
     offset += to_write;
     bytes_written += to_write;
@@ -568,7 +585,7 @@ uint32_t myfs_node_write(MyfsSuperBlock *sb, MyfsDiskInode *inode,
   return bytes_written;
 }
 
-int myfs_inode_truncate(MyfsSuperBlock *sb, MyfsDiskInode *inode,
+int myfs_inode_truncate(MyfsSuperBlock *sb, MyfsInode *inode,
                         uint32_t new_size) {
   if (!inode)
     return -1;
@@ -589,7 +606,11 @@ int myfs_inode_truncate(MyfsSuperBlock *sb, MyfsDiskInode *inode,
   return 0;
 }
 
-int myfs_entry_idx_find(MyfsDiskDirEntry *entries, int entries_count,
+/* -----------------------------------------------------------------------
+ * Directory helpers
+ * ---------------------------------------------------------------------- */
+
+int myfs_entry_idx_find(MyfsDirEntry *entries, int entries_count,
                         const char *name) {
   for (int i = 0; i < entries_count; i++)
     if (strcmp(entries[i].file_name, name) == 0)
@@ -597,35 +618,35 @@ int myfs_entry_idx_find(MyfsDiskDirEntry *entries, int entries_count,
   return -1;
 }
 
-int myfs_lookup(MyfsSuperBlock *sb, MyfsDiskInode *dir_inode, const char *name,
+int myfs_lookup(MyfsSuperBlock *sb, MyfsInode *dir_inode, const char *name,
                 uint32_t *found_ino) {
   if (!dir_inode || !S_ISDIR(dir_inode->mode))
     return -1;
   if (dir_inode->size == 0)
     return -1;
 
-  int entries_count = dir_inode->size / sizeof(MyfsDiskDirEntry);
-  MyfsDiskDirEntry *entries = sb->plt->alloc(dir_inode->size);
+  int entries_count = dir_inode->size / sizeof(MyfsDirEntry);
+  MyfsDirEntry *entries = kmalloc(dir_inode->size);
   if (!entries)
     return -1;
 
   if (myfs_node_read(sb, dir_inode, 0, entries, dir_inode->size) < 0) {
-    sb->plt->free(entries);
+    kfree(entries);
     return -1;
   }
 
   int idx = myfs_entry_idx_find(entries, entries_count, name);
   if (idx == -1) {
-    sb->plt->free(entries);
+    kfree(entries);
     return -1;
   }
 
   *found_ino = entries[idx].inode_num;
-  sb->plt->free(entries);
+  kfree(entries);
   return 0;
 }
 
-int myfs_dir_add_entry(MyfsSuperBlock *sb, MyfsDiskInode *dir_inode,
+int myfs_dir_add_entry(MyfsSuperBlock *sb, MyfsInode *dir_inode,
                        const char *name, uint32_t inode_num) {
   if (!dir_inode || !S_ISDIR(dir_inode->mode))
     return -1;
@@ -634,7 +655,7 @@ int myfs_dir_add_entry(MyfsSuperBlock *sb, MyfsDiskInode *dir_inode,
   if (myfs_lookup(sb, dir_inode, name, &existing) == 0)
     return -1;
 
-  MyfsDiskDirEntry e;
+  MyfsDirEntry e;
   e.inode_num = inode_num;
   strncpy(e.file_name, name, sizeof(e.file_name) - 1);
   e.file_name[sizeof(e.file_name) - 1] = '\0';
@@ -642,54 +663,53 @@ int myfs_dir_add_entry(MyfsSuperBlock *sb, MyfsDiskInode *dir_inode,
   return myfs_node_write(sb, dir_inode, dir_inode->size, &e, sizeof(e));
 }
 
-int myfs_dir_rm_entry(MyfsSuperBlock *sb, MyfsDiskInode *dir_inode,
+int myfs_dir_rm_entry(MyfsSuperBlock *sb, MyfsInode *dir_inode,
                       const char *name) {
   if (!dir_inode || !S_ISDIR(dir_inode->mode))
     return -1;
 
-  int entries_count = dir_inode->size / sizeof(MyfsDiskDirEntry);
-  MyfsDiskDirEntry *entries = sb->plt->alloc(dir_inode->size);
+  int entries_count = dir_inode->size / sizeof(MyfsDirEntry);
+  MyfsDirEntry *entries = kmalloc(dir_inode->size);
   if (!entries)
     return -1;
 
   if (myfs_node_read(sb, dir_inode, 0, entries, dir_inode->size) < 0) {
-    sb->plt->free(entries);
+    kfree(entries);
     return -1;
   }
 
   int idx = myfs_entry_idx_find(entries, entries_count, name);
   if (idx == -1) {
-    sb->plt->free(entries);
+    kfree(entries);
     return -1;
   }
 
   for (int i = idx; i < entries_count - 1; i++)
     entries[i] = entries[i + 1];
 
-  int new_size = (entries_count - 1) * sizeof(MyfsDiskDirEntry);
+  int new_size = (entries_count - 1) * sizeof(MyfsDirEntry);
   myfs_node_write(sb, dir_inode, 0, entries, new_size);
   myfs_inode_truncate(sb, dir_inode, new_size);
 
-  sb->plt->free(entries);
+  kfree(entries);
   return 0;
 }
 
-int myfs_readdir(MyfsSuperBlock *sb, MyfsDiskInode *dir_inode, uint32_t offset,
-                 MyfsDiskDirEntry *entry) {
+int myfs_readdir(MyfsSuperBlock *sb, MyfsInode *dir_inode, uint32_t offset,
+                 MyfsDirEntry *entry) {
   if (!dir_inode || !S_ISDIR(dir_inode->mode) || !entry)
     return -1;
   if (offset >= dir_inode->size)
     return 0;
-  return myfs_node_read(sb, dir_inode, offset, entry, sizeof(MyfsDiskDirEntry));
+  return myfs_node_read(sb, dir_inode, offset, entry, sizeof(MyfsDirEntry));
 }
 
 /* -----------------------------------------------------------------------
  * rename / create / unlink
  * ---------------------------------------------------------------------- */
 
-int myfs_rename(MyfsSuperBlock *sb, MyfsDiskInode *old_parent,
-                const char *old_name, MyfsDiskInode *new_parent,
-                const char *new_name) {
+int myfs_rename(MyfsSuperBlock *sb, MyfsInode *old_parent, const char *old_name,
+                MyfsInode *new_parent, const char *new_name) {
   uint32_t found_ino = 0;
   if (myfs_lookup(sb, old_parent, old_name, &found_ino) == -1)
     return -1;
@@ -701,13 +721,13 @@ int myfs_rename(MyfsSuperBlock *sb, MyfsDiskInode *old_parent,
   return myfs_dir_add_entry(sb, new_parent, new_name, found_ino);
 }
 
-int myfs_create_file(MyfsSuperBlock *sb, MyfsDiskInode *parent_dir,
+int myfs_create_file(MyfsSuperBlock *sb, MyfsInode *parent_dir,
                      const char *name, uint32_t *new_ino) {
   uint32_t existing;
   if (myfs_lookup(sb, parent_dir, name, &existing) == 0)
     return -1;
 
-  MyfsDiskInode *new_inode;
+  MyfsInode *new_inode;
   if (myfs_inode_alloc(sb, &new_inode, S_IFREG) < 0)
     return -1;
 
@@ -721,13 +741,13 @@ int myfs_create_file(MyfsSuperBlock *sb, MyfsDiskInode *parent_dir,
   return 0;
 }
 
-int myfs_create_dir(MyfsSuperBlock *sb, MyfsDiskInode *parent_dir,
-                    const char *name, uint32_t *new_ino) {
+int myfs_create_dir(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name,
+                    uint32_t *new_ino) {
   uint32_t existing;
   if (myfs_lookup(sb, parent_dir, name, &existing) == 0)
     return -1;
 
-  MyfsDiskInode *new_inode;
+  MyfsInode *new_inode;
   if (myfs_inode_alloc(sb, &new_inode, S_IFDIR) < 0)
     return -1;
 
@@ -744,33 +764,36 @@ int myfs_create_dir(MyfsSuperBlock *sb, MyfsDiskInode *parent_dir,
   return 0;
 }
 
-int myfs_unlink(MyfsSuperBlock *sb, MyfsDiskInode *parent_dir,
-                const char *name) {
+int myfs_unlink(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name) {
   uint32_t target_ino;
   if (myfs_lookup(sb, parent_dir, name, &target_ino) < 0)
     return -1;
 
-  MyfsDiskInode *target = myfs_iget(sb, target_ino);
+  MyfsInode *target = myfs_iget(sb, target_ino);
   if (target)
     myfs_inode_free(sb, target);
 
   return myfs_dir_rm_entry(sb, parent_dir, name);
 }
 
-uint32_t myfs_symlink_read(MyfsSuperBlock *sb, MyfsDiskInode *inode, char *buf,
-                           size_t bufsize) {
+/* -----------------------------------------------------------------------
+ * Symlink
+ * ---------------------------------------------------------------------- */
+
+ssize_t myfs_symlink_read(MyfsSuperBlock *sb, MyfsInode *inode, char *buf,
+                          size_t bufsize) {
   if (!S_ISLNK(inode->mode))
     return -1;
   return myfs_node_read(sb, inode, 0, buf, MIN(inode->size, bufsize));
 }
 
-int myfs_create_symlink(MyfsSuperBlock *sb, MyfsDiskInode *parent_dir,
+int myfs_create_symlink(MyfsSuperBlock *sb, MyfsInode *parent_dir,
                         const char *name, const char *target) {
   uint32_t existing;
   if (myfs_lookup(sb, parent_dir, name, &existing) == 0)
     return -1;
 
-  MyfsDiskInode *new_inode;
+  MyfsInode *new_inode;
   if (myfs_inode_alloc(sb, &new_inode, S_IFLNK) < 0)
     return -1;
 
