@@ -1,16 +1,28 @@
-# tools/mkfs_myfs/CMakeLists.txt
+ # tools/mkfs_myfs/CMakeLists.txt
 
-add_executable(mkfs_myfs 
-    main.c 
-    ${SRC_DIR}/kernel/src/fs/myfs/myfs.c
-)
+ set(CMAKE_C_FLAGS "")
+ set(CMAKE_EXE_LINKER_FLAGS "")
 
-target_include_directories(mkfs_myfs PRIVATE 
-    ${CMAKE_CURRENT_SOURCE_DIR}/include
-    ${SRC_DIR}/kernel/include/fs/myfs    # Specific to the FS
-)
+ add_executable(mkfs_myfs 
+     main.c 
+     ${SRC_DIR}/kernel/src/fs/myfs/myfs.c
+ )
+
+ target_include_directories(mkfs_myfs PRIVATE 
+     ${CMAKE_CURRENT_SOURCE_DIR}/include
+     ${SRC_DIR}/kernel/include/fs/myfs
+ )
+
+ target_compile_options(mkfs_myfs PRIVATE 
+     -g -O0 
+ )
+
+ target_link_libraries(mkfs_myfs PRIVATE m c)
+
+ set_target_properties(mkfs_myfs PROPERTIES 
+     LINK_FLAGS "" 
+     LINKER_LANGUAGE C
+ )
+
 
 target_compile_definitions(mkfs_myfs PRIVATE MKFS_MYFS)
-
-# Ensure we are using host standard libraries
-target_link_libraries(mkfs_myfs PRIVATE m c gcc)

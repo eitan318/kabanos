@@ -108,7 +108,6 @@ void kmain(uint32_t mb2_ptr) {
   modules_load();
 
   blkdev_t *dev = blkdev_get("atap2");
-  myfs_format(dev, dev->sectors);
   if (vfs_mount("atap2", "/", "myfs", 0, NULL) < 0) {
     kprintf("couldnt moount!");
   }

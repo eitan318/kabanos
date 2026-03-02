@@ -101,13 +101,12 @@ def main():
             os.remove(p1_img)
 
     # 3. Write p2
-    p2_size_bytes = p2_sectors * SECTOR
     with tempfile.NamedTemporaryFile(delete=False) as tmp:
         p2_img = tmp.name
     try:
         with open(p2_img, "wb") as f:
-            f.truncate(p2_size_bytes)
-        # run([args.mkfs_myfs_path, p2_img, "0", str(p2_size_bytes), args.sysroot_dir])
+            f.truncate(p2_sectors * SECTOR)
+        run([args.mkfs_myfs_path, p2_img, str(p2_sectors), args.sysroot_dir])
         run(
             [
                 "dd",

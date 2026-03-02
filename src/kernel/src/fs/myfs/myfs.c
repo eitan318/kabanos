@@ -294,9 +294,21 @@ int myfs_format(blkdev_t *dev, uint32_t max_sectors) {
   memset(inode_bitmap, 0, inode_bitmap_bytes);
   memset(block_bitmap, 0, block_bitmap_bytes);
 
+  tmp.inode_bitmap = inode_bitmap;
+  tmp.block_bitmap = block_bitmap;
+
   /* Mark all metadata blocks (0..data_blocks_start-1) as used */
   for (uint32_t i = 0; i < data_blocks_start; i++)
     bitmap_set(block_bitmap, i);
+
+  MyfsInode *root_inode;
+  if (myfs_inode_alloc(&tmp, &root_inode, S_IFDIR) < 0)
+    return -1;
+
+  myfs_dir_add_entry(&tmp, root_inode, ".", root_inode->i_ino);
+  myfs_dir_add_entry(&tmp, root_inode, "..", root_inode->i_ino);
+
+  myfs_iput(&tmp, root_inode);
 
   disk_write_bitmap(&tmp, block_bitmap_start, block_bitmap, block_bitmap_bytes);
   disk_write_bitmap(&tmp, inode_bitmap_start, inode_bitmap, inode_bitmap_bytes);
@@ -749,6 +761,7 @@ int myfs_create_file(MyfsSuperBlock *sb, MyfsInode *parent_dir,
 
 int myfs_create_dir(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name,
                     uint32_t *new_ino) {
+
   uint32_t existing;
   if (myfs_lookup(sb, parent_dir, name, &existing) == 0)
     return -1;

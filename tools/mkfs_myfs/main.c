@@ -25,7 +25,7 @@ static int host_read_sectors(blkdev_t *dev, uint32_t lba, uint32_t count,
 }
 
 static int host_write_sectors(blkdev_t *dev, uint32_t lba, uint32_t count,
-                              void *buf) {
+                              const void *buf) {
   size_t absolute_pos = lba * SECTOR_BYTES;
   mydev_t *mydev = (mydev_t *)dev->priv;
   if (fseek(mydev->fp, absolute_pos, SEEK_SET) != 0)
@@ -149,7 +149,10 @@ int main(int argc, char *argv[]) {
   mydev->fp = fopen(argv[1], "r+b");
   mydev->sectors = (size_t)strtoull(argv[2], NULL, 0);
 
+  memset(&dev, 0, sizeof(dev)); // Clear garbage
   dev.priv = mydev;
+  dev.read_sectors = host_read_sectors;   // Point to your host functions
+  dev.write_sectors = host_write_sectors; // Point to your host functions
 
   if (myfs_format(&dev, mydev->sectors) < 0) {
     fprintf(stderr, "myfs_format failed\n");
@@ -172,3 +175,11 @@ int main(int argc, char *argv[]) {
 
   return 0;
 }
+
+#ifdef MKFS_MYFS
+// TCC/Linker helper for 64-bit unsigned division
+uint64_t __udivdi3(uint64_t a, uint64_t b) { return (uint32_t)a / (uint32_t)b; }
+
+// TCC/Linker helper for 64-bit unsigned modulo
+uint64_t __umoddi3(uint64_t a, uint64_t b) { return (uint32_t)a % (uint32_t)b; }
+#endif
