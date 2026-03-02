@@ -1,7 +1,6 @@
-# Kernel CMakeLists.txt
 file(MAKE_DIRECTORY ${KERNEL_OUT_DIR})
 
-# 1. Architecture Validation
+# Architecture Validation
 if(${ARCH} STREQUAL "i386" OR ${ARCH} STREQUAL "i686")
     set(NASM_FORMAT elf32)
     set(LINKER_TARGET elf_i386)
@@ -9,7 +8,6 @@ else()
     message(FATAL_ERROR "Architecture ${ARCH} not supported!")
 endif()
 
-# 2. Source Collection (Same as before)
 file(GLOB_RECURSE ALL_C_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
 file(GLOB_RECURSE LIB_SOURCES "${SRC_DIR}/libs/*.c")
 file(GLOB_RECURSE ARCH_SPECIFIC_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/arch/${ARCH}/*.c")
@@ -37,23 +35,18 @@ foreach(ASM_SOURCE ${KERNEL_ASM_SOURCES})
     list(APPEND KERNEL_ASM_OBJECTS ${ASM_OBJECT})
 endforeach()
 
-# 4. Build Kernel
 add_executable(kernel.elf ${KERNEL_C_SOURCES} ${KERNEL_ASM_OBJECTS})
 
-# --- ADD THIS SECTION ---
 set_target_properties(kernel.elf PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${KERNEL_OUT_DIR}"
     OUTPUT_NAME "kernel"
     SUFFIX ".elf"
 )
 
-# 5. The "Normal" Include Strategy
-# We point to the 'include' folder. 
-# Because that folder contains a subfolder 'arch', <arch/types.h> works!
 target_include_directories(kernel.elf PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include                    # src/kernel/include/
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/arch/${ARCH}/include   # src/kernel/src/arch/i686/include/
-    ${SRC_DIR}/libs                                        # src/libs/
+    ${CMAKE_CURRENT_SOURCE_DIR}/include                 
+    ${CMAKE_CURRENT_SOURCE_DIR}/src/arch/${ARCH}/include 
+    ${SRC_DIR}/libs                                    
 )
 
 # 6. Options and Linker (Unchanged)

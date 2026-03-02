@@ -1,17 +1,9 @@
 #include "adt/range.h"
 #include "boot/bootparams.h"
-#include "device.h"
-#include "drivers/block/blockdev.h"
-#include "fs/fat/fat.h"
 #include "fs/fd.h"
-#include "fs/myfs/myfs.h"
 #include "kernel_boot_info.h"
-#include "klib/stdbool.h"
 #include "klib/stddef.h"
-#include "klib/stdint.h"
 #include "klib/stdio.h"
-#include "klib/string.h"
-#include "ksys/fcntl.h"
 #include "mm/kmalloc.h"
 #include "mm/memdefs.h"
 #include "mm/memory_map.h"
@@ -23,7 +15,6 @@
 #include "sched/thread.h"
 #include "ut/frame_allocator_ut_main.h"
 #include "ut/fs/fs_ut_main.h"
-#include "ut/print_boot_info.h"
 
 vmspace_t g_kernel_vmspace_obj;
 vmspace_t *g_kernel_vmspace = &g_kernel_vmspace_obj;
@@ -73,6 +64,11 @@ void kmain(uint32_t mb2_ptr) {
   modules_load();
 
   vfs_init_stdio();
+
+  kprintf("REACHED_KERNEL");
+
+  for (;;) {
+  }
 
   // vfs_mount("atap2", "/", "myfs", 0, NULL);
 

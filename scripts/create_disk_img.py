@@ -15,20 +15,13 @@ def run(cmd):
     )
 
 
-def copy_all_boot_files(boot_dir, part_img):
-    for entry in os.listdir(boot_dir):
-        path = os.path.join(boot_dir, entry)
-        if os.path.isfile(path):
-            run(["mcopy", "-i", part_img, path, f"::{entry}"])
-
-
 def main():
     p = argparse.ArgumentParser()
     p.add_argument("--image", required=True)
     p.add_argument("--boot", required=True)
     p.add_argument("--stage2", required=True)
-    p.add_argument("--kernel", required=True)
     p.add_argument("--boot_dir", required=True)
+    p.add_argument("--mkfs_myfs_path", required=True)
     args = p.parse_args()
 
     stage2_sectors = math.ceil(os.path.getsize(args.stage2) / SECTOR)
@@ -84,8 +77,11 @@ def main():
 
         run(["mkfs.vfat", "-s", "1", "-F", "32", p1_img])
 
-        run(["mcopy", "-i", p1_img, args.kernel, "::kernel.elf"])
-        copy_all_boot_files(args.boot_dir, p1_img)
+        # copy all BOOT files
+        for entry in os.listdir(args.boot_dir):
+            path = os.path.join(args.boot_dir, entry)
+            if os.path.isfile(path):
+                run(["mcopy", "-i", p1_img, path, f"::{entry}"])
 
         run(
             [
@@ -101,18 +97,34 @@ def main():
         if os.path.exists(p1_img):
             os.remove(p1_img)
 
-    # 5. Zero out partition 2
-    run(
-        [
-            "dd",
-            "if=/dev/zero",
-            f"of={args.image}",
-            "bs=512",
-            f"seek={p2_start}",
-            f"count={p2_sectors}",
-            "conv=notrunc",
-        ]
-    )
+    p2_size_bytes = p2_sectors * SECTOR
+    with tempfile.NamedTemporaryFile(delete=False) as tmp:
+        p2_img = tmp.name
+    try:
+        with open(p2_img, "wb") as f:
+            f.truncate(p2_sectors * SECTOR)
+
+        run([args.mkfs_myfs_path, p2_img, "0", str(p2_size_bytes)])
+
+        # copy all sysroot files
+        for entry in os.listdir(args.boot_dir):
+            path = os.path.join(args.boot_dir, entry)
+            if os.path.isfile(path):
+                run(["mcopy", "-i", p1_img, path, f"::{entry}"])
+
+        run(
+            [
+                "dd",
+                f"if={p2_img}",
+                f"of={args.image}",
+                "bs=512",
+                f"seek={p2_start}",
+                "conv=notrunc",
+            ]
+        )
+    finally:
+        if os.path.exists(p2_img):
+            os.remove(p2_img)
 
     # 6. Write partition table (type 'b' = FAT32, 'L' = Linux/custom)
     sfdisk_input = (

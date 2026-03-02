@@ -7,11 +7,11 @@ static void disk_read_bitmap(MyfsSuperBlock *sb, uint32_t block_addr,
   int remainder = bytes_to_read % sb->block_bytes;
 
   for (int i = 0; i < full_blocks; i++)
-    sb->plt->read_block(sb, block_addr + i, buf + i * sb->block_bytes);
+    sb->plt->read_block(sb->dev, block_addr + i, buf + i * sb->block_bytes);
 
   if (remainder > 0) {
     uint8_t tmp[sb->block_bytes];
-    sb->plt->read_block(sb, block_addr + full_blocks, tmp);
+    sb->plt->read_block(sb->dev, block_addr + full_blocks, tmp);
     memcpy(buf + full_blocks * sb->block_bytes, tmp, remainder);
   }
 }
@@ -23,13 +23,13 @@ static void disk_write_bitmap(MyfsSuperBlock *sb, uint32_t block_addr,
   int remainder = buffer_bytes % sb->block_bytes;
 
   for (int i = 0; i < full_blocks; i++)
-    sb->plt->write_block(sb, block_addr + i, buf + i * sb->block_bytes);
+    sb->plt->write_block(sb->dev, block_addr + i, buf + i * sb->block_bytes);
 
   if (remainder > 0) {
     uint8_t tmp[sb->block_bytes];
     memset(tmp, 0, sb->block_bytes);
     memcpy(tmp, buf + full_blocks * sb->block_bytes, remainder);
-    sb->plt->write_block(sb, block_addr + full_blocks, tmp);
+    sb->plt->write_block(sb->dev, block_addr + full_blocks, tmp);
   }
 }
 
@@ -115,11 +115,11 @@ static int disk_rw_spanning(MyfsSuperBlock *sb, uint32_t start_block,
     if (is_write) {
       /* Read-modify-write when not writing a full block */
       if (offset != 0 || remaining < sb->block_bytes)
-        sb->plt->read_block(sb, cur_block, block_buf);
+        sb->plt->read_block(sb->dev, cur_block, block_buf);
       memcpy(block_buf + offset, ptr, chunk);
-      sb->plt->write_block(sb, cur_block, block_buf);
+      sb->plt->write_block(sb->dev, cur_block, block_buf);
     } else {
-      sb->plt->write_block(sb, cur_block, block_buf);
+      sb->plt->write_block(sb->dev, cur_block, block_buf);
       memcpy(ptr, block_buf + offset, chunk);
     }
 
@@ -230,8 +230,9 @@ int myfs_format(void *dev, fs_platform_t *plt) {
   tmp.dev = dev;
   tmp.on_disk = on_disk;
   tmp.block_bytes = MYFS_BLOCK_BYTES;
+  tmp.plt = plt;
 
-  plt->write_block(&tmp, 0, &on_disk);
+  plt->write_block(dev, 0, &on_disk);
 
   uint32_t inode_bitmap_bytes = (total_inodes + 7) / 8;
   uint32_t block_bitmap_bytes = (total_blocks + 7) / 8;
@@ -465,7 +466,7 @@ uint32_t myfs_node_read(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
     if (block_idx >= inode->block_count)
       break;
 
-    sb->plt->read_block(sb, inode->direct_blocks[block_idx], block_buf);
+    sb->plt->read_block(sb->dev, inode->direct_blocks[block_idx], block_buf);
     memcpy(out + bytes_read, block_buf + block_offset, to_read);
 
     offset += to_read;
@@ -506,10 +507,10 @@ uint32_t myfs_node_write(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
     uint32_t to_write = MIN(block_bytes - block_offset, count - bytes_written);
 
     if (to_write < (uint32_t)block_bytes)
-      sb->plt->write_block(sb, inode->direct_blocks[block_idx], block_buf);
+      sb->plt->write_block(sb->dev, inode->direct_blocks[block_idx], block_buf);
 
     memcpy(block_buf + block_offset, in + bytes_written, to_write);
-    sb->plt->write_block(sb, inode->direct_blocks[block_idx], block_buf);
+    sb->plt->write_block(sb->dev, inode->direct_blocks[block_idx], block_buf);
 
     offset += to_write;
     bytes_written += to_write;

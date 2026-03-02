@@ -1,4 +1,3 @@
-
 add_custom_target(run
     COMMAND ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/run.py
             --kernel ${KERNEL_OUTPUT}

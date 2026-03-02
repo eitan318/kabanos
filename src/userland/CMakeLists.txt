@@ -1,9 +1,9 @@
-option(REBUILD_NEWLIB "Force rebuild and reinstall newlib" OFF)
+option(REBUILD_NEWLIB "Force rebuild and reinstall newlib" ON)
 
 set(NEWLIB_SRC_DIR "${CMAKE_SOURCE_DIR}/extern/newlib-2.5.0")
 set(NEWLIB_SYS_MYOS "${NEWLIB_SRC_DIR}/newlib/libc/sys/myos")
 set(NEWLIB_BUILD_DIR "${CMAKE_BINARY_DIR}/build-newlib")
-set(NEWLIB_SYSROOT "${CMAKE_SOURCE_DIR}/sysroot")
+set(NEWLIB_SYSROOT "${SYSROOT_DIR}")
 
 if(REBUILD_NEWLIB)
     include(ExternalProject)

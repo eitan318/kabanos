@@ -60,11 +60,8 @@ int main(int argc, char *argv[]) {
   dev.offset_bytes = (size_t)strtoull(argv[2], NULL, 0);
   dev.size_bytes = (size_t)strtoull(argv[3], NULL, 0);
 
-  // 2. Prepare the Platform Interface
   fs_platform_t *host_plt = host_platform_create();
 
-  // 3. Call the Logic
-  // Total blocks = size / block_size (assuming 512 for now)
   uint32_t total_blocks = dev.size_bytes / SECTOR_BYTES;
 
   if (myfs_format(&dev, host_plt) < 0) {
