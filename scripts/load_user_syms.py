@@ -11,7 +11,9 @@ class LoadUserSymbols(gdb.Command):
     def invoke(self, arg, from_tty):
         # Base path where your ELFs live on the host
         elf_host_base = (
-            arg.strip() if arg.strip() else "/home/magshimim/repos/1001_myos/BOOT"
+            arg.strip()
+            if arg.strip()
+            else "/home/magshimim/repos/1001_myos/build/sysroot/bin/"
         )
 
         count = int(gdb.parse_and_eval("g_exec_table_count"))

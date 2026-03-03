@@ -12,7 +12,7 @@
 #define MYFS_MAGIC 0x20250928
 #define MYFS_NAME "myfs"
 #define MYFS_ROOT_INODE_NUM 0
-#define MYFS_DIRECT_BLOCKS_MAX 12
+#define MYFS_DIRECT_BLOCKS_MAX 10
 
 /**
  * struct MyfsDirEntry - Directory entry structure
@@ -45,7 +45,9 @@ typedef struct {
  */
 typedef struct {
   uint32_t i_ino;
-  uint32_t direct_blocks[MYFS_DIRECT_BLOCKS_MAX];
+  uint32_t block_ptrs[MYFS_DIRECT_BLOCKS_MAX];
+  uint32_t single_indirect_ptr;
+  uint32_t double_indirect_ptr;
   uint32_t block_count;
   uint32_t size;
   uint32_t mode;

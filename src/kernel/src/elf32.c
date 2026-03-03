@@ -58,27 +58,10 @@ static int load_segment(arch_vm_t *vm, vaddr_t va_start, size_t mem_size,
 
   return 0;
 }
-uintptr_t elf32_find_text_section(void *elf_data, elf32_header_t *hdr) {
-  elf32_sec_hdr *shdr_table =
-      (elf32_sec_hdr *)((uint8_t *)elf_data + hdr->shdr_table_pos);
-
-  elf32_sec_hdr *shstrtab_hdr = &shdr_table[hdr->section_names_index];
-  const char *shstrtab = (const char *)elf_data + shstrtab_hdr->offset;
-
-  for (uint32_t i = 0; i < hdr->shdr_table_entry_count; i++) {
-    const char *name = shstrtab + shdr_table[i].name;
-
-    if (strcmp(name, ".text") == 0) {
-      return shdr_table[i].addr;
-    }
-  }
-
-  return 0; // Not found
-}
 
 // Load ELF file
 int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
-               uintptr_t *entry, uintptr_t *text_base) {
+               uintptr_t *entry, uintptr_t *load_base) {
   ASSERT(vm && elf_data && entry);
 
   if (elf_size < sizeof(elf32_header_t)) {
@@ -106,6 +89,8 @@ int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
     return -1;
   }
 
+  bool base_set = false;
+
   // Load segments
   uint8_t *phdrs = (uint8_t *)elf_data + hdr->phdr_table_pos;
 
@@ -115,6 +100,13 @@ int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
 
     if (ph->type != ELF_PROGRAM_TYPE_LOAD || ph->mem_size == 0) {
       continue;
+    }
+
+    if (!base_set) {
+      if (load_base) {
+        *load_base = ph->vaddr;
+      }
+      base_set = true;
     }
 
     // Validate segment bounds
@@ -137,7 +129,6 @@ int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
     }
   }
 
-  *text_base = elf32_find_text_section(elf_data, hdr);
   *entry = hdr->program_entry_pos;
   return 0;
 }

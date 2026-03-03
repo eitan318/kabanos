@@ -86,7 +86,7 @@ static void keyboard_isr_handler(trap_frame_t *regs) {
         if (g_tty.len < (int)sizeof(g_tty.buf) - 1)
           g_tty.buf[g_tty.len++] = key_ascii;
         if (key_ascii == '\n')
-          circular_buff_enqueue(&g_keyboard_buff, (void *)(uintptr_t)key_ascii);
+          circular_buff_enqueue(&g_keyboard_buff, (void *)1);
         wake_up_queue(&dev->wait_queue);
       }
 
@@ -103,47 +103,33 @@ static ssize_t tty_read(device_t *dev, void *buf, size_t count) {
 
   spinlock_acquire(&g_keyboard_lock);
 
-  /* if leftover data from previous read, serve it first */
+  // Wait until at least one full line (marked by a newline in ISR) is ready
+  while (g_tty.len == 0 || g_tty.buf[g_tty.len - 1] != '\n') {
+    if (circular_buff_is_empty(&g_keyboard_buff)) {
+      wait_on_queue(&dev->wait_queue, &g_keyboard_lock);
+    } else {
+      // If the buffer wasn't empty but len is 0, someone
+      // consumed the signal but not the data. Just clear it.
+      circular_buff_dequeue(&g_keyboard_buff);
+    }
+  }
+
+  // Serve the data that is already in g_tty.buf
   while (n < count && g_tty.read_pos < g_tty.len) {
     out[n++] = g_tty.buf[g_tty.read_pos++];
   }
 
-  /* if we served everything from buffer, reset */
+  // Reset positions if we consumed the whole line
   if (g_tty.read_pos >= g_tty.len) {
     g_tty.len = 0;
     g_tty.read_pos = 0;
-  }
-
-  if (n > 0) {
-    spinlock_release(&g_keyboard_lock);
-    return (ssize_t)n;
-  }
-
-  /* buffer empty - wait for next line */
-  while (circular_buff_is_empty(&g_keyboard_buff))
-    wait_on_queue(&dev->wait_queue, &g_keyboard_lock);
-
-  circular_buff_dequeue(&g_keyboard_buff);
-
-  /* copy line into tty buf for serving */
-  /* buf already has the line from ISR, just add newline */
-  g_tty.buf[g_tty.len++] = '\n';
-  g_tty.read_pos = 0;
-
-  /* serve as much as requested */
-  while (n < count && g_tty.read_pos < g_tty.len)
-    out[n++] = g_tty.buf[g_tty.read_pos++];
-
-  /* reset if fully consumed */
-  if (g_tty.read_pos >= g_tty.len) {
-    g_tty.len = 0;
-    g_tty.read_pos = 0;
+    // Clear the "line ready" signal we just processed
+    circular_buff_dequeue(&g_keyboard_buff);
   }
 
   spinlock_release(&g_keyboard_lock);
   return (ssize_t)n;
 }
-
 static struct device_ops kbd_ops = {.read = tty_read, .write = NULL};
 
 int kbd_init(module_t *module) {

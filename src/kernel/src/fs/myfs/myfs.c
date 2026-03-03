@@ -20,16 +20,64 @@
 #include "klib/stdbool.h"
 #include "utils/math.h"
 
-static void disk_read_block(MyfsSuperBlock *sb, uint32_t block_addr,
-                            void *buf) {
-  sb->dev->read_sectors(sb->dev, block_addr * sb->on_disk.block_sectors,
+static void disk_read_block(MyfsSuperBlock *sb, uint32_t block_lba, void *buf) {
+  sb->dev->read_sectors(sb->dev, block_lba * sb->on_disk.block_sectors,
                         sb->on_disk.block_sectors, buf);
 }
 
-static void disk_write_block(MyfsSuperBlock *sb, uint32_t block_addr,
+static void disk_write_block(MyfsSuperBlock *sb, uint32_t block_lba,
                              const void *buf) {
-  sb->dev->write_sectors(sb->dev, block_addr * sb->on_disk.block_sectors,
+  sb->dev->write_sectors(sb->dev, block_lba * sb->on_disk.block_sectors,
                          sb->on_disk.block_sectors, buf);
+}
+
+uint32_t myfs_block_lba_get(MyfsSuperBlock *sb, MyfsInode *inode,
+                            uint32_t logical_block_idx) {
+  const uint32_t ptrs_per_block = sb->block_bytes / sizeof(uint32_t);
+
+  // Direct Blocks
+  if (logical_block_idx < MYFS_DIRECT_BLOCKS_MAX) {
+    return inode->block_ptrs[logical_block_idx];
+  }
+
+  // Single Indirect Block
+  uint32_t relative_idx = logical_block_idx - MYFS_DIRECT_BLOCKS_MAX;
+  if (relative_idx < ptrs_per_block) {
+    if (inode->single_indirect_ptr == 0)
+      return 0;
+
+    uint32_t indirect_table[ptrs_per_block];
+    disk_read_block(sb, inode->single_indirect_ptr, indirect_table);
+    return indirect_table[relative_idx];
+  }
+
+  // Double Indirect Block
+  relative_idx -= ptrs_per_block;
+  if (relative_idx < (ptrs_per_block * ptrs_per_block)) {
+    if (inode->double_indirect_ptr == 0)
+      return 0;
+
+    // Find which first-level table to look in
+    uint32_t first_level_idx = relative_idx / ptrs_per_block;
+    // Find the index within that second-level table
+    uint32_t second_level_idx = relative_idx % ptrs_per_block;
+
+    // Read the "Master" double indirect table
+    uint32_t double_table[ptrs_per_block];
+    disk_read_block(sb, inode->double_indirect_ptr, double_table);
+
+    uint32_t sub_table_ptr = double_table[first_level_idx];
+    if (sub_table_ptr == 0)
+      return 0;
+
+    // Read the second-level table
+    uint32_t sub_table[ptrs_per_block];
+    disk_read_block(sb, sub_table_ptr, sub_table);
+
+    return sub_table[second_level_idx];
+  }
+
+  return 0;
 }
 
 static void disk_read_bitmap(MyfsSuperBlock *sb, uint32_t block_addr,
@@ -419,34 +467,270 @@ void myfs_iput(MyfsSuperBlock *sb, MyfsInode *inode) {
 }
 
 /* -----------------------------------------------------------------------
- * Block allocation / free
+ * Block bitmap alloc/free primitives
  * ---------------------------------------------------------------------- */
 
-static int myfs_blocks_alloc(MyfsSuperBlock *sb, uint32_t *block_array,
-                             int count) {
-  if (!block_array)
-    return -1;
-  for (int i = 0; i < count; i++) {
-    int n = find_first_empty_bit(sb->block_bitmap,
-                                 (sb->on_disk.total_blocks + 7) / 8,
-                                 sb->on_disk.data_blocks_start);
-    if (n == -1) {
-      for (int j = 0; j < i; j++)
-        bitmap_clear(sb->block_bitmap, block_array[j]);
-      return -1;
-    }
-    block_array[i] = n;
-    bitmap_set(sb->block_bitmap, n);
-  }
+// Allocates one block, returns its LBA (block index), or 0 on failure
+static uint32_t myfs_bitmap_alloc(MyfsSuperBlock *sb) {
+  int n =
+      find_first_empty_bit(sb->block_bitmap, (sb->on_disk.total_blocks + 7) / 8,
+                           sb->on_disk.data_blocks_start);
+  if (n == -1)
+    return 0;
+  bitmap_set(sb->block_bitmap, n);
+  return (uint32_t)n;
+}
+
+// Allocates one block AND zeroes it on disk
+static uint32_t myfs_bitmap_alloc_zeroed(MyfsSuperBlock *sb) {
+  uint32_t lba = myfs_bitmap_alloc(sb);
+  if (lba == 0)
+    return 0;
+  uint8_t zero[sb->block_bytes];
+  memset(zero, 0, sb->block_bytes);
+  disk_write_block(sb, lba, zero);
+  return lba;
+}
+
+/* -----------------------------------------------------------------------
+ * Helpers: read/write a single pointer slot inside an indirect block
+ * ---------------------------------------------------------------------- */
+
+static uint32_t read_ptr_from_block(MyfsSuperBlock *sb, uint32_t block_lba,
+                                    uint32_t slot) {
+  uint32_t ptrs_per_blk = sb->block_bytes / sizeof(uint32_t);
+  uint32_t table[ptrs_per_blk];
+  disk_read_block(sb, block_lba, table);
+  return table[slot];
+}
+
+static int write_ptr_to_block(MyfsSuperBlock *sb, uint32_t block_lba,
+                              uint32_t slot, uint32_t ptr) {
+  uint32_t ptrs_per_blk = sb->block_bytes / sizeof(uint32_t);
+  uint32_t table[ptrs_per_blk];
+  disk_read_block(sb, block_lba, table);
+  table[slot] = ptr;
+  disk_write_block(sb, block_lba, table);
   return 0;
 }
 
-static void myfs_blocks_free(MyfsSuperBlock *sb, uint32_t *block_list,
-                             int count) {
-  if (!block_list)
+static int myfs_map_block_to_inode(MyfsSuperBlock *sb, MyfsInode *inode,
+                                   uint32_t logical_idx, uint32_t phys_lba) {
+  const uint32_t ptrs_per_blk = sb->block_bytes / sizeof(uint32_t);
+
+  // --- Case 1: Direct ---
+  if (logical_idx < MYFS_DIRECT_BLOCKS_MAX) {
+    inode->block_ptrs[logical_idx] = phys_lba;
+    return 0;
+  }
+
+  uint32_t rel_idx = logical_idx - MYFS_DIRECT_BLOCKS_MAX;
+
+  // --- Case 2: Single Indirect ---
+  if (rel_idx < ptrs_per_blk) {
+    if (inode->single_indirect_ptr == 0) {
+      inode->single_indirect_ptr = myfs_bitmap_alloc_zeroed(sb);
+      if (inode->single_indirect_ptr == 0)
+        return -1;
+    }
+    return write_ptr_to_block(sb, inode->single_indirect_ptr, rel_idx,
+                              phys_lba);
+  }
+
+  rel_idx -= ptrs_per_blk;
+
+  // --- Case 3: Double Indirect ---
+  if (rel_idx < (ptrs_per_blk * ptrs_per_blk)) {
+    if (inode->double_indirect_ptr == 0) {
+      inode->double_indirect_ptr = myfs_bitmap_alloc_zeroed(sb);
+      if (inode->double_indirect_ptr == 0)
+        return -1;
+    }
+
+    uint32_t master_idx = rel_idx / ptrs_per_blk;
+    uint32_t sub_idx = rel_idx % ptrs_per_blk;
+
+    // Get or Create the Sub-Table
+    uint32_t sub_table_lba =
+        read_ptr_from_block(sb, inode->double_indirect_ptr, master_idx);
+    if (sub_table_lba == 0) {
+      sub_table_lba = myfs_bitmap_alloc_zeroed(sb);
+      if (sub_table_lba == 0)
+        return -1;
+      write_ptr_to_block(sb, inode->double_indirect_ptr, master_idx,
+                         sub_table_lba);
+    }
+
+    return write_ptr_to_block(sb, sub_table_lba, sub_idx, phys_lba);
+  }
+
+  return -1; // File exceeds max supported size
+}
+
+/* -----------------------------------------------------------------------
+ * myfs_map_block_to_inode  (no changes needed, already correct)
+ * myfs_inode_grow           (rename myfs_blocks_alloc → this)
+ * ---------------------------------------------------------------------- */
+
+static int myfs_blocks_alloc(MyfsSuperBlock *sb, MyfsInode *inode,
+                             uint32_t count) {
+  uint32_t new_total = inode->block_count + count;
+  for (uint32_t i = inode->block_count; i < new_total; i++) {
+    uint32_t phys = myfs_bitmap_alloc(sb);
+    if (phys == 0)
+      return -1;
+    if (myfs_map_block_to_inode(sb, inode, i, phys) != 0) {
+      bitmap_clear(sb->block_bitmap, phys);
+      return -1;
+    }
+    inode->block_count++;
+  }
+  inode->dirty = 1;
+  return 0;
+}
+
+/* -----------------------------------------------------------------------
+ * myfs_node_write — fix the MYFS_DIRECT_BLOCKS_MAX limit check
+ * ---------------------------------------------------------------------- */
+
+ssize_t myfs_node_write(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
+                        const void *buf, size_t count) {
+  if (!inode || !buf || count == 0)
+    return 0;
+
+  int block_bytes = sb->block_bytes;
+  uint32_t target_blocks = (offset + count + block_bytes - 1) / block_bytes;
+
+  // Grow if needed — myfs_blocks_alloc handles direct + indirect
+  if (target_blocks > inode->block_count) {
+    uint32_t additional = target_blocks - inode->block_count;
+    if (myfs_blocks_alloc(sb, inode, additional) < 0)
+      return -1;
+  }
+
+  uint32_t bytes_written = 0;
+  const uint8_t *in = (const uint8_t *)buf;
+  uint8_t block_buf[block_bytes];
+
+  while (bytes_written < count) {
+    uint32_t block_idx = offset / block_bytes;
+    uint32_t block_offset = offset % block_bytes;
+    uint32_t to_write = MIN(block_bytes - block_offset, count - bytes_written);
+
+    uint32_t block_lba = myfs_block_lba_get(sb, inode, block_idx);
+    if (block_lba == 0)
+      return -1; // shouldn't happen after grow
+
+    if (to_write < (uint32_t)block_bytes)
+      disk_read_block(sb, block_lba, block_buf);
+
+    memcpy(block_buf + block_offset, in + bytes_written, to_write);
+    disk_write_block(sb, block_lba, block_buf);
+
+    offset += to_write;
+    bytes_written += to_write;
+  }
+
+  if (offset > inode->size)
+    inode->size = offset;
+  inode->dirty = 1;
+  myfs_disk_inode_write(sb, inode->i_ino);
+  return bytes_written;
+}
+
+/* -----------------------------------------------------------------------
+ * myfs_inode_free — also free indirect blocks themselves
+ * ---------------------------------------------------------------------- */
+
+static void myfs_inode_free(MyfsSuperBlock *sb, MyfsInode *inode) {
+  if (!inode)
     return;
-  for (int i = 0; i < count; i++)
-    bitmap_clear(sb->block_bitmap, block_list[i]);
+
+  const uint32_t ptrs_per_blk = sb->block_bytes / sizeof(uint32_t);
+
+  // Free all data blocks
+  for (uint32_t i = 0; i < inode->block_count; i++) {
+    uint32_t lba = myfs_block_lba_get(sb, inode, i);
+    if (lba)
+      bitmap_clear(sb->block_bitmap, lba);
+  }
+
+  // Free single indirect block itself
+  if (inode->single_indirect_ptr) {
+    bitmap_clear(sb->block_bitmap, inode->single_indirect_ptr);
+    inode->single_indirect_ptr = 0;
+  }
+
+  // Free double indirect sub-tables and master table
+  if (inode->double_indirect_ptr) {
+    uint32_t master[ptrs_per_blk];
+    disk_read_block(sb, inode->double_indirect_ptr, master);
+    for (uint32_t i = 0; i < ptrs_per_blk; i++) {
+      if (master[i])
+        bitmap_clear(sb->block_bitmap, master[i]);
+    }
+    bitmap_clear(sb->block_bitmap, inode->double_indirect_ptr);
+    inode->double_indirect_ptr = 0;
+  }
+
+  bitmap_clear(sb->inode_bitmap, inode->i_ino);
+  myfs_inode_cache_remove(sb->inode_hash_table, inode->i_ino);
+}
+
+/* -----------------------------------------------------------------------
+ * myfs_inode_truncate — handle indirect blocks on shrink
+ * ---------------------------------------------------------------------- */
+
+int myfs_inode_truncate(MyfsSuperBlock *sb, MyfsInode *inode,
+                        uint32_t new_size) {
+  if (!inode)
+    return -1;
+
+  int block_bytes = sb->block_bytes;
+  if (new_size < inode->size) {
+    uint32_t new_blocks = (new_size + block_bytes - 1) / block_bytes;
+    for (uint32_t i = new_blocks; i < inode->block_count; i++) {
+      uint32_t lba = myfs_block_lba_get(sb, inode, i);
+      if (lba)
+        bitmap_clear(sb->block_bitmap, lba);
+      // Zero out the pointer in the inode/indirect table
+      myfs_map_block_to_inode(sb, inode, i, 0);
+    }
+    inode->block_count = new_blocks;
+  }
+
+  inode->size = new_size;
+  inode->mtime = 0;
+  inode->dirty = 1;
+  return 0;
+}
+
+static int myfs_inode_grow(MyfsSuperBlock *sb, MyfsInode *inode,
+                           uint32_t new_total_blocks) {
+  uint32_t current_blocks = inode->block_count;
+
+  for (uint32_t i = current_blocks; i < new_total_blocks; i++) {
+    uint32_t phys_block = myfs_bitmap_alloc(sb);
+    if (phys_block == 0) {
+      return -1;
+    } // Out of disk space
+
+    if (myfs_map_block_to_inode(sb, inode, i, phys_block) != 0) {
+      return -1;
+    }
+
+    inode->block_count++;
+  }
+
+  inode->dirty = 1;
+  return 0;
+}
+
+static void myfs_blocks_free(MyfsSuperBlock *sb, MyfsInode *inode, int count) {
+  for (int i = 0; i < count; i++) {
+    uint32_t block_lba = myfs_block_lba_get(sb, inode, i);
+    bitmap_clear(sb->block_bitmap, block_lba);
+  }
 }
 
 /* -----------------------------------------------------------------------
@@ -481,8 +765,7 @@ int myfs_inode_alloc(MyfsSuperBlock *sb, MyfsInode **inode, int mode) {
   new_inode->i_ino = inode_num;
   new_inode->mode = mode;
 
-  if (myfs_blocks_alloc(sb, new_inode->direct_blocks,
-                        sb->on_disk.file_initial_blocks) < 0) {
+  if (myfs_blocks_alloc(sb, new_inode, sb->on_disk.file_initial_blocks) < 0) {
     bitmap_clear(sb->inode_bitmap, inode_num);
     kfree(new_inode);
     return -1;
@@ -513,14 +796,6 @@ int myfs_inode_alloc(MyfsSuperBlock *sb, MyfsInode **inode, int mode) {
   return 0;
 }
 
-static void myfs_inode_free(MyfsSuperBlock *sb, MyfsInode *inode) {
-  if (!inode)
-    return;
-  bitmap_clear(sb->inode_bitmap, inode->i_ino);
-  myfs_blocks_free(sb, inode->direct_blocks, inode->block_count);
-  myfs_inode_cache_remove(sb->inode_hash_table, inode->i_ino);
-}
-
 /* -----------------------------------------------------------------------
  * Node read / write / truncate
  * ---------------------------------------------------------------------- */
@@ -529,104 +804,38 @@ ssize_t myfs_node_read(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
                        void *buf, size_t count) {
   if (!inode || offset >= inode->size)
     return 0;
+
   if (offset + count > inode->size)
     count = inode->size - offset;
 
-  uint32_t bytes_read = 0;
+  uint32_t total_read = 0;
   uint8_t *out = (uint8_t *)buf;
-  uint8_t block_buf[sb->block_bytes];
+  uint8_t temp_block[sb->block_bytes];
 
-  while (bytes_read < count) {
-    uint32_t block_idx = offset / sb->block_bytes;
-    uint32_t block_offset = offset % sb->block_bytes;
-    uint32_t to_read = MIN(sb->block_bytes - block_offset, count - bytes_read);
+  while (total_read < count) {
+    uint32_t logical_block = offset / sb->block_bytes;
+    uint32_t internal_offset = offset % sb->block_bytes;
+    uint32_t chunk_size =
+        MIN(sb->block_bytes - internal_offset, count - total_read);
 
-    if (block_idx >= inode->block_count)
-      break;
+    // Get the actual disk address (LBA)
+    uint32_t physical_lba = myfs_block_lba_get(sb, inode, logical_block);
 
-    disk_read_block(sb, inode->direct_blocks[block_idx], block_buf);
-    memcpy(out + bytes_read, block_buf + block_offset, to_read);
-
-    offset += to_read;
-    bytes_read += to_read;
-  }
-
-  inode->atime = 0; /* replace with kernel time */
-  inode->dirty = 1;
-  return bytes_read;
-}
-
-ssize_t myfs_node_write(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
-                        const void *buf, size_t count) {
-  if (!inode || !buf || count == 0)
-    return 0;
-
-  int block_bytes = sb->block_bytes;
-  int target_blocks = (offset + count + block_bytes - 1) / block_bytes;
-
-  if (target_blocks > MYFS_DIRECT_BLOCKS_MAX)
-    return -1;
-
-  if (target_blocks > inode->block_count) {
-    int additional = target_blocks - inode->block_count;
-    if (myfs_blocks_alloc(sb, &inode->direct_blocks[inode->block_count],
-                          additional) < 0)
-      return -1;
-    inode->block_count += additional;
-  }
-
-  uint32_t bytes_written = 0;
-  const uint8_t *in = (const uint8_t *)buf;
-  uint8_t block_buf[block_bytes];
-
-  while (bytes_written < count) {
-    uint32_t block_idx = offset / block_bytes;
-    uint32_t block_offset = offset % block_bytes;
-    uint32_t to_write = MIN(block_bytes - block_offset, count - bytes_written);
-
-    if (to_write < (uint32_t)block_bytes)
-      disk_read_block(sb, inode->direct_blocks[block_idx], block_buf);
-
-    memcpy(block_buf + block_offset, in + bytes_written, to_write);
-    disk_write_block(sb, inode->direct_blocks[block_idx], block_buf);
-
-    offset += to_write;
-    bytes_written += to_write;
-  }
-
-  if (offset > inode->size)
-    inode->size = offset;
-
-  inode->mtime = 0; /* replace with kernel time */
-  inode->dirty = 1;
-  myfs_disk_inode_write(sb, inode->i_ino);
-  return bytes_written;
-}
-
-int myfs_inode_truncate(MyfsSuperBlock *sb, MyfsInode *inode,
-                        uint32_t new_size) {
-  if (!inode)
-    return -1;
-
-  int block_bytes = sb->block_bytes;
-  if (new_size < inode->size) {
-    int new_blocks = (new_size + block_bytes - 1) / block_bytes;
-    if (new_blocks < inode->block_count) {
-      for (int i = new_blocks; i < inode->block_count; i++)
-        bitmap_clear(sb->block_bitmap, inode->direct_blocks[i]);
-      inode->block_count = new_blocks;
+    if (physical_lba == 0) {
+      // Handle "holes" in files: fill with zeros instead of reading disk
+      memset(out + total_read, 0, chunk_size);
+    } else {
+      disk_read_block(sb, physical_lba, temp_block);
+      memcpy(out + total_read, temp_block + internal_offset, chunk_size);
     }
+
+    offset += chunk_size;
+    total_read += chunk_size;
   }
 
-  inode->size = new_size;
-  inode->mtime = 0; /* replace with kernel time */
-  inode->dirty = 1;
-  return 0;
+  /* Update access time logic here */
+  return (ssize_t)total_read;
 }
-
-/* -----------------------------------------------------------------------
- * Directory helpers
- * ---------------------------------------------------------------------- */
 
 int myfs_entry_idx_find(MyfsDirEntry *entries, int entries_count,
                         const char *name) {

@@ -33,14 +33,8 @@ static int parse_line(char *line, char **argv) {
 /* --- builtins --- */
 static int cmd_help(int argc, char **argv) {
   puts("usage: <command> [args]");
-  puts("  runs /boot/<command>.elf");
+  puts("  runs /bin/<command>.elf [args]");
   puts("  built-ins: help, exit, clear");
-  return 0;
-}
-
-static int cmd_clear(int argc, char **argv) {
-  fputs("\033[2J\033[H", stdout);
-  fflush(stdout);
   return 0;
 }
 
@@ -50,30 +44,29 @@ static int execute(int argc, char **argv) {
     return 0;
 
   if (strcmp(argv[0], "exit") == 0) {
-    puts("bye!");
     exit(0);
   }
   if (strcmp(argv[0], "help") == 0)
     return cmd_help(argc, argv);
-  if (strcmp(argv[0], "clear") == 0)
-    return cmd_clear(argc, argv);
 
   char path[128];
   if (argv[0][0] == '/') {
     snprintf(path, sizeof(path), "%s", argv[0]);
   } else {
-    snprintf(path, sizeof(path), "/boot/%s.elf", argv[0]);
+    snprintf(path, sizeof(path), "/bin/%s.elf", argv[0]);
   }
 
   int pid = fork();
   if (pid < 0) {
     fprintf(stderr, "shell: fork failed\n");
+    fflush(stderr);
     return -1;
   }
 
   if (pid == 0) {
     execve(path, argv, NULL);
     fprintf(stderr, "shell: %s: not found\n", argv[0]);
+    fflush(stderr);
     exit(1);
   }
 
@@ -82,7 +75,6 @@ static int execute(int argc, char **argv) {
   return status;
 }
 
-/* --- main --- */
 int main(int argc, char **argv, char **envp) {
   char line[MAX_LINE];
   char *args[MAX_ARGS];
@@ -90,7 +82,7 @@ int main(int argc, char **argv, char **envp) {
   puts("myos shell - type 'help'");
 
   while (1) {
-    fputs(PROMPT, stdout);
+    printf(PROMPT);
     fflush(stdout);
 
     if (fgets(line, sizeof(line), stdin) == NULL)

@@ -34,44 +34,53 @@ static void con_advance(void) {
 }
 
 void con_putc(char c) {
-  switch (c) {
-  case '\n':
+  if (c == '\n') {
     g_con_x = 0;
     g_con_y++;
-    break;
-  case '\r':
+  } else if (c == '\r') {
     g_con_x = 0;
-    break;
-  case '\t':
-    /* advance to next 4-column tab stop */
+  } else if (c == '\t') {
     do {
       con_putc(' ');
     } while (g_con_x % 4 != 0);
+    return; // Don't call con_advance again
+  } else if (c == '\b') {
+    con_backspace();
     return;
-  default:
+  } else {
     vga_write_char(g_con_x, g_con_y, c);
     vga_write_color(g_con_x, g_con_y, g_con_color);
     g_con_x++;
-    break;
   }
-  con_advance();
+
+  // Single point of truth for wrapping and scrolling
+  if (g_con_x >= (int)SCREEN_WIDTH) {
+    g_con_x = 0;
+    g_con_y++;
+  }
+
+  if (g_con_y >= (int)SCREEN_HEIGHT) {
+    vga_scroll(1);
+    g_con_y = SCREEN_HEIGHT - 1;
+  }
+
+  vga_cursor_set(g_con_x, g_con_y);
 }
 
 void con_backspace(void) {
   if (g_con_x > 0) {
     g_con_x--;
   } else if (g_con_y > 0) {
-    /* wrap to end of previous line */
     g_con_y--;
     g_con_x = SCREEN_WIDTH - 1;
   } else {
-    return; /* already at 0,0 */
+    return;
   }
-  vga_write_char(g_con_x, g_con_y, '\0');
+  // Use a real space to clear the character
+  vga_write_char(g_con_x, g_con_y, ' ');
   vga_write_color(g_con_x, g_con_y, g_con_color);
   vga_cursor_set(g_con_x, g_con_y);
 }
-
 void con_puts(const char *str) {
   while (*str)
     con_putc(*str++);
