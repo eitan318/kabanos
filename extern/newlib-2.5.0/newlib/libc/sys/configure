@@ -11812,7 +11812,7 @@ subdirs="$subdirs a29khif"
  ;;
 	mmixware) subdirs="$subdirs mmixware"
  ;;
-   myos) subdirs="$subdirs myos"
+    myos) subdirs="$subdirs myos"
  ;;
 	netware) subdirs="$subdirs netware"
  ;;

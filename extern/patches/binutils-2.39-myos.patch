@@ -1,0 +1,115 @@
+diff --git a/bfd/config.bfd b/bfd/config.bfd
+index a4c6c8e8854..b3aefa2dac9 100644
+--- a/bfd/config.bfd
++++ b/bfd/config.bfd
+@@ -593,6 +593,18 @@ case "${targ}" in
+     targ_selvecs="x86_64_elf64_sol2_vec iamcu_elf32_vec i386_coff_vec i386_pei_vec x86_64_pe_vec x86_64_pei_vec"
+     want64=true
+     ;;
++#endif
++ i[3-7]86-*-myos*)
++    targ_defvec=i386_elf32_vec
++    targ_selvecs=
++    targ64_selvecs=x86_64_elf64_vec
++    ;;
++#ifdef BFD64
++  x86_64-*-myos*)
++    targ_defvec=x86_64_elf64_vec
++    targ_selvecs=i386_elf32_vec
++    want64=true
++    ;;
+ #endif
+   i[3-7]86-*-nto*)
+     targ_defvec=i386_elf32_vec
+diff --git a/config.sub b/config.sub
+index dba16e84c77..54728174d02 100755
+--- a/config.sub
++++ b/config.sub
+@@ -1732,7 +1732,7 @@ case $os in
+ 	     | mpw* | magic* | mmixware* | mon960* | lnews* \
+ 	     | amigaos* | amigados* | msdos* | newsos* | unicos* | aof* \
+ 	     | aos* | aros* | cloudabi* | sortix* | twizzler* \
+-	     | nindy* | vxsim* | vxworks* | ebmon* | hms* | mvs* \
++	     | nindy* | vxsim* | vxworks* | myos* | ebmon* | hms* | mvs* \
+ 	     | clix* | riscos* | uniplus* | iris* | isc* | rtu* | xenix* \
+ 	     | mirbsd* | netbsd* | dicos* | openedition* | ose* \
+ 	     | bitrig* | openbsd* | secbsd* | solidbsd* | libertybsd* | os108* \
+diff --git a/gas/configure.tgt b/gas/configure.tgt
+index 62f806bdfe8..b8863e07c91 100644
+--- a/gas/configure.tgt
++++ b/gas/configure.tgt
+@@ -247,6 +247,7 @@ case ${generic_target} in
+   i386-*-gnu*)				fmt=elf em=gnu ;;
+   i386-*-msdos*)			fmt=aout ;;
+   i386-*-moss*)				fmt=elf ;;
++  i386-*-myos*)                         fmt=elf ;;
+   i386-*-pe)				fmt=coff em=pe ;;
+   i386-*-cygwin*)
+    case ${cpu} in
+diff --git a/ld/Makefile.am b/ld/Makefile.am
+index d31021c13e2..bf95faf5153 100644
+--- a/ld/Makefile.am
++++ b/ld/Makefile.am
+@@ -279,6 +279,7 @@ ALL_EMULATION_SOURCES = \
+ 	eelf_i386_fbsd.c \
+ 	eelf_i386_haiku.c \
+ 	eelf_i386_ldso.c \
++	eelf_i386_myos.c \
+ 	eelf_i386_sol2.c \
+ 	eelf_i386_vxworks.c \
+ 	eelf_iamcu.c \
+@@ -457,6 +458,7 @@ ALL_64_EMULATION_SOURCES = \
+ 	eelf_x86_64_fbsd.c \
+ 	eelf_x86_64_haiku.c \
+ 	eelf_x86_64_sol2.c \
++	eelf_x86_64_myos.c \
+ 	ehppa64linux.c \
+ 	ei386pep.c \
+ 	emmo.c
+diff --git a/ld/configure.tgt b/ld/configure.tgt
+index 2bae9099b6a..7108c6b0a73 100644
+--- a/ld/configure.tgt
++++ b/ld/configure.tgt
+@@ -417,6 +417,11 @@ i[3-7]86-*-msdos*)	targ_emul=i386msdos
+ i[3-7]86-*-moss*)	targ_emul=i386moss
+ 			targ_extra_emuls=i386msdos
+ 			;;
++i[3-7]86-*-myos*)
++			targ_emul=elf_i386_myos
++			targ_extra_emuls=elf_i386
++			targ64_extra_emuls="elf_x86_64_myos elf_x86_64"
++			;;
+ i[3-7]86-*-winnt*)	targ_emul=i386pe ;
+ 			targ_extra_ofiles="deffilep.o pe-dll.o"
+ 			;;
+@@ -1053,6 +1058,10 @@ x86_64-*-mingw*)	targ_emul=i386pep ;
+ 			targ_extra_emuls=i386pe
+ 			targ_extra_ofiles="deffilep.o pep-dll.o pe-dll.o"
+ 			;;
++x86_64-*-myos*)
++			targ_emul=elf_x86_64_myos
++			targ_extra_emuls="elf_i386_myos elf_x86_64 elf_i386"
++			;;
+ xgate-*-*)		targ_emul=xgateelf
+ 			targ_extra_ofiles=ldelfgen.o
+ 			;;
+diff --git a/ld/emulparams/elf_i386_myos.sh b/ld/emulparams/elf_i386_myos.sh
+new file mode 100644
+index 00000000000..5b923ac1997
+--- /dev/null
++++ b/ld/emulparams/elf_i386_myos.sh
+@@ -0,0 +1,6 @@
++# by eitan for myos MYOS
++source_sh ${srcdir}/emulparams/elf_i386.sh
++TEXT_START_ADDR=0x00400000
++
++GENERATE_SHLIB_SCRIPT=yes
++GENERATE_PIE_SCRIPT=yes
+diff --git a/ld/emulparams/elf_x86_64_myos.sh b/ld/emulparams/elf_x86_64_myos.sh
+new file mode 100644
+index 00000000000..b997e06883b
+--- /dev/null
++++ b/ld/emulparams/elf_x86_64_myos.sh
+@@ -0,0 +1,2 @@
++# by eitan for myos MYOS
++source_sh ${srcdir}/emulparams/elf_x86_64.sh

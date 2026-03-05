@@ -175,11 +175,3 @@ int main(int argc, char *argv[]) {
 
   return 0;
 }
-
-#ifdef MKFS_MYFS
-// TCC/Linker helper for 64-bit unsigned division
-uint64_t __udivdi3(uint64_t a, uint64_t b) { return (uint32_t)a / (uint32_t)b; }
-
-// TCC/Linker helper for 64-bit unsigned modulo
-uint64_t __umoddi3(uint64_t a, uint64_t b) { return (uint32_t)a % (uint32_t)b; }
-#endif
