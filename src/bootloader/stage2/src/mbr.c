@@ -1,6 +1,6 @@
 #include "mbr.h"
 #include "disk.h"
-#include <string.h> // optional for memset
+#include "s2lib/string.h" // optional for memset
 
 #define SECTOR_SIZE 512
 

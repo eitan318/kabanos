@@ -14,7 +14,7 @@ add_custom_command(
   VERBATIM
 )
 
-add_custom_target(os_image
+add_custom_target(os_image ALL
     DEPENDS ${OS_IMAGE_OUT}
 )
 

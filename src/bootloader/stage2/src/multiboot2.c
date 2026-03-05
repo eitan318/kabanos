@@ -1,6 +1,6 @@
 #include "multiboot2.h"
 #include "boot/bootparams.h"
-#include <string.h>
+#include "s2lib/string.h"
 
 #define MB2_ALIGN(x) (((x) + 7) & ~7)
 

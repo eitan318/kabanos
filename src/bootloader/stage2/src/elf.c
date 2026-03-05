@@ -2,7 +2,7 @@
 #include "fat.h"
 #include "memdefs.h"
 #include "memory.h"
-#include "stdio.h"
+#include "s2lib/stdio.h"
 #include "utils/minmax.h"
 
 static bool fat_seek(Partition *part, FAT_File *fd, uint32_t offset,

@@ -2,7 +2,7 @@
 #include "ctype.h"
 #include "memory.h"
 #include "s2lib/stdio.h"
-#include "string.h"
+#include "s2lib/string.h"
 #include "utils/math.h"
 #include <stdbool.h>
 #include <stdint.h>

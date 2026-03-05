@@ -1,5 +1,5 @@
 #include "disk.h"
-#include "stdio.h"
+#include "s2lib/stdio.h"
 
 struct DiskAddressPacket {
   uint8_t size;                     // must be 0x10

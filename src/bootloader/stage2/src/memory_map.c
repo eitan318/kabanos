@@ -1,6 +1,6 @@
 #include "memory_map.h"
 #include "boot/bootparams.h"
-#include "stdio.h"
+#include "s2lib/stdio.h"
 
 MemoryRegionInternal g_mem_regions[MAX_MEMORY_REGIONS];
 int g_mem_region_count;
