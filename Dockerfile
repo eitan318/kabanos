@@ -84,14 +84,27 @@ ENV PATH="$LEGACY_PATH/bin:${PATH}"
 
 
 
+
+
 #---------------------------------------------------------
 # Section for quick addings so you dont need to wait alot
 # Should be moved up once in a week or so
 #---------------------------------------------------------
 
 # Add dosfstools to provide mkfs.fat
-RUN apt-get update && apt-get install -y dosfstools mtools && rm -rf /var/lib/apt/lists/*
+RUN apt-get update && apt-get install -y dosfstools mtools patch  && rm -rf /var/lib/apt/lists/*
 
 #---------------------------------------------------------
+
+# FIX: Change directory back to /src before downloading Newlib!
+WORKDIR /src
+
+RUN wget https://sourceware.org/pub/newlib/newlib-2.5.0.tar.gz && \
+    tar -xf newlib-2.5.0.tar.gz
+
+COPY extern/patches/newlib-2.5.0-myos.patch /tmp/newlib.patch
+RUN cd newlib-2.5.0 && patch -p1 < /tmp/newlib.patch
+
+RUN chmod -R 777 /src
 
 WORKDIR /project

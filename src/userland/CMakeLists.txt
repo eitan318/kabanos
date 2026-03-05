@@ -1,42 +1,43 @@
 include(ExternalProject)
 
 # --- 1. Newlib Setup ---
-set(NEWLIB_URL "https://sourceware.org/pub/newlib/newlib-2.5.0.tar.gz")
-set(NEWLIB_PATCH "${CMAKE_SOURCE_DIR}/extern/patches/newlib-2.5.0-myos.patch")
 set(MYOS_STUBS_SRC "${CMAKE_SOURCE_DIR}/extern/newlib_myos")
-set(NEWLIB_SRC_DIR "${CMAKE_SOURCE_DIR}/extern/newlib-2.5.0")
+set(NEWLIB_SRC_DIR "/src/newlib-2.5.0")
 set(NEWLIB_BUILD_DIR "${CMAKE_BINARY_DIR}/build-newlib")
 set(NEWLIB_SYSROOT "${SYSROOT_DIR}")
 
 ExternalProject_Add(newlib_project
-    URL ${NEWLIB_URL}
-    SOURCE_DIR "${NEWLIB_SRC_DIR}"
+    SOURCE_DIR "/src/newlib-2.5.0"
     BINARY_DIR "${NEWLIB_BUILD_DIR}"
-
-    PATCH_COMMAND patch -p1 -N < ${NEWLIB_PATCH} || true
-
-    BUILD_ALWAYS 1
+    
+    # 1. This tells CMake: "I handled the download/source myself, don't verify/touch it"
+    DOWNLOAD_COMMAND ""
+    
+    # 2. Add this to prevent CMake from trying to update/patch the /src dir
+    UPDATE_COMMAND ""
+    PATCH_COMMAND ""
 
     CONFIGURE_COMMAND
-        bash -c "cmake -E copy_directory ${MYOS_STUBS_SRC} ${NEWLIB_SRC_DIR}/newlib/libc/sys/myos && \
-                 cd ${NEWLIB_SRC_DIR}/newlib/libc/sys && \
-                 /opt/autotools-legacy/bin/autoconf && \
-                 cd myos && \
-                 /opt/autotools-legacy/bin/aclocal-1.11 -I ../../.. -I ../../../.. && \
-                 /opt/autotools-legacy/bin/autoconf && \
-                 /opt/autotools-legacy/bin/automake-1.11 --cygnus && \
-                 cd ${NEWLIB_BUILD_DIR} && \
-                 ${NEWLIB_SRC_DIR}/configure \
-                    --target=i686-myos \
-                    --prefix=/usr \
-                    --with-sysroot=${NEWLIB_SYSROOT} \
-                    --enable-newlib-io-long-long"
-
-    BUILD_COMMAND make -C ${NEWLIB_BUILD_DIR} all -j${PROCESSOR_COUNT}
+    bash -c "cmake -E copy_directory ${MYOS_STUBS_SRC} /src/newlib-2.5.0/newlib/libc/sys/myos && \
+             cd /src/newlib-2.5.0/newlib/libc/sys && \
+             autoconf && \
+             cd myos && \
+             aclocal-1.11 -I ../../.. -I ../../../.. && \
+             autoconf && \
+             automake-1.11 --cygnus && \
+             cd ${NEWLIB_BUILD_DIR} && \
+             /src/newlib-2.5.0/configure \
+                --target=i686-myos \
+                --prefix=/usr \
+                --with-sysroot=${NEWLIB_SYSROOT} \
+                --enable-newlib-io-long-long"
+    
+    BUILD_COMMAND make -C ${NEWLIB_BUILD_DIR} all -j$(nproc)
     INSTALL_COMMAND make -C ${NEWLIB_BUILD_DIR} DESTDIR=${NEWLIB_SYSROOT} install
 
     STEP_TARGETS flatten
 )
+
 ExternalProject_Add_Step(newlib_project flatten
     COMMAND bash -c "cp -af ${NEWLIB_SYSROOT}/usr/i686-myos/* ${NEWLIB_SYSROOT}/usr/ && rm -rf ${NEWLIB_SYSROOT}/usr/i686-myos"
     DEPENDEES install
@@ -159,6 +160,7 @@ foreach(USER_DIR ${USER_DIRS})
     list(APPEND ALL_ELF_FILES "${USER_ELF}")
     set_property(GLOBAL APPEND PROPERTY GLOBAL_USER_ELF_FILES "${USER_ELF}")
 endforeach()
+
 
 # --- 4. Userland stamp (cross-scope dependency fix for os_image) ---
 # A concrete file that is touched only after every ELF is up to date.
