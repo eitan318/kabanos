@@ -11,10 +11,11 @@ if(REBUILD_NEWLIB)
         SOURCE_DIR "${NEWLIB_SRC_DIR}"
         BINARY_DIR "${NEWLIB_BUILD_DIR}"
         CONFIGURE_COMMAND 
-            bash -c "cd ${NEWLIB_SYS_MYOS} && \
-                     ~/automake-1.11-install/bin/aclocal-1.11 -I ../../.. -I ../../../.. && \
-                     autoconf && \
-                     ~/automake-1.11-install/bin/automake-1.11 --cygnus"
+        bash -c "cd ${NEWLIB_SRC_DIR}/newlib/libc/sys && ~/myos_install_test/autotools-legacy/bin/autoconf && \
+                 cd myos && \
+                 ~/myos_install_test/autotools-legacy/bin/aclocal-1.11 -I ../../.. -I ../../../.. && \
+                 ~/myos_install_test/autotools-legacy/bin/autoconf && \
+                 ~/myos_install_test/autotools-legacy/bin/automake-1.11 --cygnus"    
         COMMAND "${NEWLIB_SRC_DIR}/configure"
                     --target=i686-myos
                     --prefix=/usr

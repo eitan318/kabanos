@@ -47,8 +47,8 @@
 #   have_crt0		"yes"/"no" if crt0 is/isn't provided.
 #			"" if crt0 is provided when sys_dir is set
 #   noinclude		list of include files to not install
-#
-newlib_cflags="${newlib_cflags} -DSIGNAL_PROVIDED"
+
+newlib_cflags=
 libm_machine_dir=
 machine_dir=
 sys_dir=
@@ -376,7 +376,6 @@ esac
 # THIS TABLE IS ALPHA SORTED.  KEEP IT THAT WAY.
 
 case "${host}" in
-
   *-*-cygwin*)
 	posix_dir=posix
 	stdio64_dir=stdio64
@@ -410,7 +409,6 @@ case "${host}" in
 	  have_crt0="no"
 	fi
 	;;
-
   bfin-*-*)
 	sys_dir=
 	;;

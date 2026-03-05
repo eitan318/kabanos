@@ -6,6 +6,8 @@
 typedef void (*_sig_func_ptr)(int);
 typedef unsigned long sigset_t;
 
+#define NSIG 32
+
 #define SIGHUP 1
 #define SIGINT 2
 #define SIGQUIT 3
