@@ -20,5 +20,5 @@ set(OS_IMAGE_OUT ${OUT_DIR}/os.img)
 
 set(SYSROOT_DIR ${CMAKE_BINARY_DIR}/sysroot)
 
-set(CREATE_IMAGE_PY "${CMAKE_SOURCE_DIR}/scripts/create_disk_img.py")
-set(MAKE_INITRD_PY "${CMAKE_SOURCE_DIR}/scripts/create_initrd.py")
+set(CREATE_IMAGE_PY "${CMAKE_SOURCE_DIR}/scripts/build/create_disk_img.py")
+set(MAKE_INITRD_PY "${CMAKE_SOURCE_DIR}/scripts/build/create_initrd.py")

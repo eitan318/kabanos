@@ -19,10 +19,10 @@ build:
 
 
 run: build
-	python3 scripts/run.py --kernel build/kernel.elf --image build/out/os.img 
+	python3 scripts/run/run.py --kernel build/kernel.elf --image build/out/os.img 
 
 debug: build
-	python3 scripts/run.py --kernel build/kernel.elf  --image build/out/os.img --is_debug
+	python3 scripts/run/run.py --kernel build/kernel.elf  --image build/out/os.img --is_debug
 
 
 clean:
