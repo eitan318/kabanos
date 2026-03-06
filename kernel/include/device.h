@@ -9,8 +9,6 @@ typedef struct device {
   bool data_ready;
   wait_queue_t wait_queue;
 
-  // char buffer[256];
-
   struct device_ops *ops;
   void *priv;
 } device_t;

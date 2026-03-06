@@ -4,6 +4,8 @@ PROJECT_DIR := $(CURDIR)
 IMAGE_NAME := myos_builder
 USER_ID := $(shell id -u)
 GROUP_ID := $(shell id -g)
+BUILD_DIR := build
+OUT_DIR := $(BUILD_DIR)
 
 
 setup:
@@ -15,14 +17,14 @@ build:
 		-u $(USER_ID):$(GROUP_ID) \
 		-v $(PROJECT_DIR):/project \
 		-w /project $(IMAGE_NAME) \
-		bash -c "cmake -S . -B build && cmake --build build"
+		bash -c "cmake -S . -B $(BUILD_DIR) && cmake --build $(BUILD_DIR)"
 
 
 run: build
-	python3 scripts/run/run.py --kernel build/kernel.elf --image build/out/os.img 
+	python3 scripts/run/run.py --kernel $(BUILD_DIR)/kernel.elf --image $(OUT_DIR)/os.img 
 
 debug: build
-	python3 scripts/run/run.py --kernel build/kernel.elf  --image build/out/os.img --is_debug
+	python3 scripts/run/run.py --kernel $(BUILD_DIR)/kernel.elf  --image $(OUT_DIR)/os.img --is_debug
 
 shell:
 	docker run --rm -it \

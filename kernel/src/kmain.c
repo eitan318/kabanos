@@ -1,6 +1,5 @@
 #include "adt/range.h"
 #include "boot/bootparams.h"
-#include "device.h"
 #include "drivers/block/blockdev.h"
 #include "fs/fd.h"
 #include "fs/myfs/myfs.h"
@@ -21,6 +20,7 @@
 #include "sched/thread.h"
 #include "ut/frame_allocator_ut_main.h"
 #include "ut/fs/fs_ut_main.h"
+#include <cmdline.h>
 
 vmspace_t g_kernel_vmspace_obj;
 vmspace_t *g_kernel_vmspace = &g_kernel_vmspace_obj;
@@ -71,8 +71,10 @@ void kmain(uint32_t mb2_ptr) {
   modules_init_registry(kernel_boot_info->modules);
   modules_load();
 
-  blkdev_t *dev = blkdev_get("atap2");
-  if (vfs_mount("atap2", "/", "myfs", 0, NULL) < 0) {
+  const char *dev_name = cmdline_get_arg(kernel_boot_info->cmdline, "root");
+  const char *fs = cmdline_get_arg(kernel_boot_info->cmdline, "fs");
+
+  if (vfs_mount(dev_name, "/", fs, 0, NULL) < 0) {
     kprintf("couldnt moount!");
   }
 

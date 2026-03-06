@@ -9,7 +9,7 @@ else()
 endif()
 
 file(GLOB_RECURSE ALL_C_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
-file(GLOB_RECURSE LIB_SOURCES "${SRC_DIR}/libs/*.c")
+file(GLOB_RECURSE LIB_SOURCES "${COMMON_DIR}/*.c")
 file(GLOB_RECURSE ARCH_SPECIFIC_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/arch/${ARCH}/*.c")
 
 
@@ -46,7 +46,7 @@ set_target_properties(kernel.elf PROPERTIES
 target_include_directories(kernel.elf PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/include                 
     ${CMAKE_CURRENT_SOURCE_DIR}/src/arch/${ARCH}/include 
-    ${SRC_DIR}/libs                                    
+    ${COMMON_DIR}                                    
 )
 
 # 6. Options and Linker (Unchanged)

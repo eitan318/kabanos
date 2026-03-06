@@ -1,5 +1,5 @@
+#include "bcd.h"
 #include "boot/bootparams.h"
-#include "cmdline.h"
 #include "elf.h"
 #include "fat.h"
 #include "gdt.h"
@@ -75,8 +75,6 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
 
   BCD bcd;
   bcd_parse_into(config_buffer, &bcd);
-  char cmdline[CMDLINE_SIZE];
-  bcd_cmdline_construct(bcd.cmdline, strlen(bcd.cmdline), cmdline);
 
   FAT_File *initrd_file = fat_open(&boot_partition, bcd.initrd);
   // Read initrd, not passed to kernel for now
@@ -134,7 +132,7 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
 
   // Write to the agreed-upon physical address
   uint8_t *multiboot2_info_buffer = (uint8_t *)BOOT_PARAMS_PHYSICAL_ADDR;
-  multiboot2_build(multiboot2_info_buffer, cmdline, modules_count,
+  multiboot2_build(multiboot2_info_buffer, bcd.cmdline, modules_count,
                    modules_starts, modules_sizes, bcd.modules_paths,
                    &memory_map);
 

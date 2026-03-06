@@ -1,11 +1,13 @@
-set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
-set(OUT_DIR "${CMAKE_BINARY_DIR}/out")
+set(SRC_DIR "${CMAKE_SOURCE_DIR}")
+set(OUT_DIR "${CMAKE_BINARY_DIR}")
 
 set(BOOTLOADER_OUT_DIR ${OUT_DIR}/bootloader)
 set(BOOTLOADER_OUTPUT ${BOOTLOADER_OUT_DIR}/bootloader.bin)
 
-set(BOOT_DIR "${CMAKE_BINARY_DIR}/bootroot")
+set(BOOT_DIR ${CMAKE_BINARY_DIR}/bootroot)
 set(INITRD_IMG ${BOOT_DIR}/initrd.tar)
+
+set(COMMON_DIR ${SRC_DIR}/common)
 
 set(KERNEL_OUT_DIR ${BOOT_DIR})
 set(KERNEL_OUTPUT ${KERNEL_OUT_DIR}/kernel.elf)
