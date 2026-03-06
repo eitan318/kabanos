@@ -90,8 +90,12 @@ WORKDIR /src
 RUN wget https://sourceware.org/pub/newlib/newlib-2.5.0.tar.gz && \
     tar -xf newlib-2.5.0.tar.gz
 
+RUN apt-get update && apt-get install -y dos2unix && rm -rf /var/lib/apt/lists/*
+
 COPY extern/patches/newlib-2.5.0-myos.patch /tmp/newlib.patch
 RUN cd newlib-2.5.0 && patch -p1 < /tmp/newlib.patch
+
+RUN find /src/newlib-2.5.0 -type f -name "configure" | xargs dos2unix
 
 RUN chmod -R 777 /src
 
