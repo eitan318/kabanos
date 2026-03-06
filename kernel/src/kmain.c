@@ -73,8 +73,9 @@ void kmain(uint32_t mb2_ptr) {
 
   const char *dev_name = cmdline_get_arg(kernel_boot_info->cmdline, "root");
   const char *fs = cmdline_get_arg(kernel_boot_info->cmdline, "fs");
+  kprintf(fs);
 
-  if (vfs_mount(dev_name, "/", fs, 0, NULL) < 0) {
+  if (vfs_mount(dev_name, "/", "myfs", 0, NULL) < 0) {
     kprintf("couldnt moount!");
   }
 

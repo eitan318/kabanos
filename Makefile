@@ -1,4 +1,4 @@
-.PHONY: build run debug clean setup shell
+.PHONY: build run debug clean setup shell docs
 
 PROJECT_DIR := $(CURDIR)
 IMAGE_NAME := myos_builder
@@ -32,6 +32,10 @@ shell:
 		-v $(PROJECT_DIR):/project \
 		-w /project $(IMAGE_NAME) \
 		/bin/bash
+
+docs:
+	doxygen Doxyfile
+	open docs/html/index.html
 
 clean:
 	rm -rf build/
