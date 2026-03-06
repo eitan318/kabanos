@@ -43,67 +43,37 @@ else()
 endif()
 
 
-# --- 2. Global Userland Config ---
-set(USER_OUTPUT_DIR "${NEWLIB_SYSROOT}/bin")
-set(USER_OBJS_BASE "${CMAKE_CURRENT_BINARY_DIR}/user_objs")
-
-execute_process(
-    COMMAND i686-myos-gcc -print-file-name=include
-    OUTPUT_VARIABLE GCC_INTERNAL_INCLUDE_DIR
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
-set(COMMON_USER_FLAGS
-    -m32 -nostdinc -fno-stack-protector -g
-    -isystem "${GCC_INTERNAL_INCLUDE_DIR}"
-    "-I${NEWLIB_SYSROOT}/usr/include"
-)
-
-# --- 3. User Apps Loop ---
-file(GLOB USER_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/user_src/*")
-
-set(USER_TARGET_LIST "")
-set(ALL_ELF_FILES "")
-set_property(GLOBAL PROPERTY GLOBAL_USER_ELF_FILES "")
-
-foreach(USER_DIR ${USER_DIRS})
-    if(NOT IS_DIRECTORY ${USER_DIR})
-        continue()
+# --- Helper: add_user_app(USER_DIR) ---
+# Compiles and links a single userland app from the given source directory.
+function(add_user_app USER_DIR)
+    if(NOT IS_DIRECTORY "${USER_DIR}")
+        message(WARNING "add_user_app: '${USER_DIR}' is not a directory, skipping.")
+        return()
     endif()
 
-    get_filename_component(USER_NAME ${USER_DIR} NAME)
+    get_filename_component(USER_NAME "${USER_DIR}" NAME)
     set(APP_OBJ_DIR "${USER_OBJS_BASE}/${USER_NAME}")
     set(USER_ELF "${USER_OUTPUT_DIR}/${USER_NAME}.elf")
 
     # -------------------------------------------------------------------------
     # Per-app source collection and extra flags
     # -------------------------------------------------------------------------
-
     if(USER_NAME STREQUAL "tcc")
-        # TCC uses ONE_SOURCE mode: tcc.c #includes all other .c files itself.
-        # We must NOT glob the other .c files or they'll be compiled twice and
-        # cause multiply-defined symbol errors.
         set(APP_SOURCES "${USER_DIR}/tcc.c")
         set(EXTRA_APP_FLAGS
             -DONE_SOURCE=1
             -DTCC_TARGET_I386
             -DCONFIG_TCC_STATIC
             -DCONFIG_USE_LIBGCC
-            # Disable backtrace/bounds-check which pull in dlfcn.h / pthreads
             -UCONFIG_TCC_BACKTRACE
             -UCONFIG_TCC_BCHECK
-            # Disable native-mode check that gates the dlfcn.h include in tcc.h
             -UTCC_IS_NATIVE
-            # Runtime paths TCC embeds for finding its own headers/libs on myos
             "-DCONFIG_TCCDIR=\"/usr/lib/tcc\""
             "-DCONFIG_TCC_SYSINCLUDEPATHS=\"/usr/include\""
-            # Cross-build warnings that would otherwise be fatal
             -Wno-implicit-function-declaration
             -Wno-deprecated-declarations
         )
     else()
-        # Generic app: compile all .c/.S files in the top-level app directory.
-        # Subdirectories (include/, tests/, examples/ etc.) are excluded.
         file(GLOB APP_SOURCES
             "${USER_DIR}/*.c"
             "${USER_DIR}/*.S"
@@ -117,7 +87,7 @@ foreach(USER_DIR ${USER_DIRS})
     # -------------------------------------------------------------------------
     set(APP_OBJECTS "")
     foreach(SRC_FILE ${APP_SOURCES})
-        get_filename_component(SRC_NAME ${SRC_FILE} NAME_WE)
+        get_filename_component(SRC_NAME "${SRC_FILE}" NAME_WE)
         set(OBJ_FILE "${APP_OBJ_DIR}/${SRC_NAME}.o")
         list(APPEND APP_OBJECTS "${OBJ_FILE}")
 
@@ -156,16 +126,61 @@ foreach(USER_DIR ${USER_DIRS})
     )
 
     add_custom_target(${USER_NAME}_target ALL DEPENDS "${USER_ELF}")
-    list(APPEND USER_TARGET_LIST "${USER_NAME}_target")
-    list(APPEND ALL_ELF_FILES "${USER_ELF}")
+
+    # Propagate results back to the parent scope
     set_property(GLOBAL APPEND PROPERTY GLOBAL_USER_ELF_FILES "${USER_ELF}")
+    list(APPEND USER_TARGET_LIST "${USER_NAME}_target")
+    set(USER_TARGET_LIST "${USER_TARGET_LIST}" PARENT_SCOPE)
+    list(APPEND ALL_ELF_FILES "${USER_ELF}")
+    set(ALL_ELF_FILES "${ALL_ELF_FILES}" PARENT_SCOPE)
+endfunction()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# --- 2. Global Userland Config ---
+set(USER_OUTPUT_DIR "${NEWLIB_SYSROOT}/bin")
+set(USER_OBJS_BASE "${CMAKE_CURRENT_BINARY_DIR}/user_objs")
+
+execute_process(
+    COMMAND i686-myos-gcc -print-file-name=include
+    OUTPUT_VARIABLE GCC_INTERNAL_INCLUDE_DIR
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+)
+
+set(COMMON_USER_FLAGS
+    -m32 -nostdinc -fno-stack-protector -g
+    -isystem "${GCC_INTERNAL_INCLUDE_DIR}"
+    "-I${NEWLIB_SYSROOT}/usr/include"
+)
+
+# --- 3. User Apps ---
+set(USER_TARGET_LIST "")
+set(ALL_ELF_FILES "")
+set_property(GLOBAL PROPERTY GLOBAL_USER_ELF_FILES "")
+
+# Auto-discover all subdirectories...
+file(GLOB USER_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/user_src/*")
+foreach(USER_DIR ${USER_DIRS})
+    add_user_app("${USER_DIR}")
 endforeach()
 
 
-# --- 4. Userland stamp (cross-scope dependency fix for os_image) ---
-# A concrete file that is touched only after every ELF is up to date.
-# os_image depends on this file instead of raw ELF paths, which would be
-# invisible to CMake across directory scopes causing "no rule to make target".
+# --- 4. Userland stamp ---
 set(USERLAND_STAMP "${CMAKE_CURRENT_BINARY_DIR}/userland.stamp")
 
 add_custom_command(
@@ -182,6 +197,5 @@ add_custom_target(userland_stamp_target ALL
 
 add_dependencies(userland_stamp_target newlib_project-flatten)
 
-# Export stamp path for the image CMakeLists
 set(USERLAND_STAMP_FILE "${USERLAND_STAMP}" CACHE INTERNAL
     "Stamp file touched when all userland ELFs are built")

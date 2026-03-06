@@ -19,4 +19,4 @@ long sys_lseek(int fd, off_t offset, int whence);
 long sys_stat(int fd, fstat_t *user_stat);
 long sys_read(int fd, char *buf, size_t count);
 long sys_write(int fd, const char *buf, size_t len);
-long sys_iter_dir(int fd, VDirEntry *dentry, int count);
+long sys_getdents(int fd, vdir_entry_t *dentry, int count);

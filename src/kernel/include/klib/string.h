@@ -5,8 +5,8 @@
 int atoi(const char *str);
 void trim_newline(char *str);
 void itoa(unsigned value, char *str);
-const char *strchr(const char *str, char chr);
-const char *strrchr(const char *str, char chr);
+char *strchr(const char *str, char chr);
+char *strrchr(const char *str, char chr);
 char *strcpy(char *dst, const char *src);
 char *strncpy(char *dst, const char *src, unsigned n);
 unsigned strlen(const char *str);

@@ -27,42 +27,6 @@ vmspace_t *g_kernel_vmspace = &g_kernel_vmspace_obj;
 Range g_kernel_virt_range;
 Range g_kernel_phys_range;
 
-int ls(const char *path) {
-  int fd = vfs_open(path, O_RDONLY);
-  if (fd < 0) {
-    kprintf("ls: cannot open '%s'\n", path);
-    return -1;
-  }
-
-  VDirEntry entries[64];
-  int count;
-  while ((count = vfs_iter_dir(fd, entries, 64)) > 0) {
-    for (int i = 0; i < count; i++) {
-      fstat_t st;
-      char child[512];
-      ksnprintf(child, sizeof(child), "%s/%s", path, entries[i].file_name);
-      int cfd = vfs_open(child, O_RDONLY);
-      if (cfd >= 0 && vfs_fstat(cfd, &st) == 0) {
-        char type = '-';
-        if (S_ISDIR(st.mode))
-          type = 'd';
-        if (S_ISLNK(st.mode))
-          type = 'l';
-        kprintf("%c %llu  %s\n", type, (unsigned long long)st.size,
-                entries[i].file_name);
-        vfs_close(cfd);
-      } else {
-        kprintf("?          %s\n", entries[i].file_name);
-        if (cfd >= 0)
-          vfs_close(cfd);
-      }
-    }
-  }
-
-  vfs_close(fd);
-  return 0;
-}
-
 void kmain(uint32_t mb2_ptr) {
   kdebugf("[Kernel starting...]\n");
 

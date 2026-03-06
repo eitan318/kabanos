@@ -14,12 +14,10 @@ typedef unsigned mode_t;
 // Only expose opaque pointers and syscall API
 typedef struct super_block super_block_t;
 typedef struct vnode vnode_t;
-typedef struct fstat fstat_t;
-typedef struct vdir_entry VDirEntry;
 
 extern fs_platform_t g_vfs_platform;
 
-struct fstat {
+typedef struct {
   uint32_t size;        // file/directory size in bytes
   int mode;             // file type
   uint32_t links_count; // hard link count
@@ -31,12 +29,12 @@ struct fstat {
   uint64_t ctime;       // creation time
   int ino;
   const char *name;
-};
+} fstat_t;
 
-struct vdir_entry {
+typedef struct {
   char file_name[32];
   uint32_t inode_num;
-};
+} vdir_entry_t;
 
 // FILE
 int vfs_open(const char *path, int flags);
@@ -51,9 +49,9 @@ off_t vfs_seek(int fd, off_t offset, int whence);
 int vfs_fstat(int fd, fstat_t *stat);
 
 // DIR
-int vfs_iter_dir(int fd, VDirEntry *dentry, int count);
 int vfs_rmdir(const char *path);
 int vfs_mkdir(const char *path, mode_t mode);
+int vfs_getdents(int fd, vdir_entry_t *dentry, uint32_t count);
 
 // SYMLINK
 int vfs_symlink(const char *target, const char *linkpath);

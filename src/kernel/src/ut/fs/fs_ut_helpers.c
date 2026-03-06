@@ -19,10 +19,10 @@ static void rmdir_recursive(const char *path, bool delete_self) {
   if (fd < 0)
     return;
 
-  VDirEntry entries[32];
+  vdir_entry_t entries[32];
   int count;
 
-  while ((count = vfs_iter_dir(fd, entries, 32)) > 0) {
+  while ((count = vfs_getdents(fd, entries, 32)) > 0) {
     for (int i = 0; i < count; i++) {
       if (strcmp(entries[i].file_name, ".") == 0)
         continue;

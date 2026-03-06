@@ -5,19 +5,18 @@
 #include "klib/errno.h"
 #include "klib/stdio.h"
 #include "klib/string.h"
-#include "klib/unistd.h"
 #include "ksys/fcntl.h"
 #include "mm/kmalloc.h"
 
 mount_point_t *mount_p_table = NULL;
 fs_type_t *fs_registry_table = NULL;
 
-static int kernel_write_block(void *dev, uint32_t lba, const void *buf) {
+static int kernel_write_block(const void *dev, uint32_t lba, const void *buf) {
   blkdev_t *device = (blkdev_t *)dev;
   return device->write_sectors(device, lba, 4, buf);
 }
 
-static int kernel_read_block(void *dev, uint32_t lba, void *buf) {
+static int kernel_read_block(const void *dev, uint32_t lba, void *buf) {
   blkdev_t *device = (blkdev_t *)dev;
   return device->read_sectors(device, lba, 4, buf);
 }
@@ -35,7 +34,7 @@ static int filldir(dir_ctx_t *ctx, const char *name, int namelen, off_t offset,
     return -1;
 
   // Get pointer to the current entry in the buffer
-  VDirEntry *entries = (VDirEntry *)ctx->buf;
+  vdir_entry_t *entries = (vdir_entry_t *)ctx->buf;
   int index = (int)(*ctx->pos); // Current position in buffer
 
   // Check if we have space (assuming ctx->count is the max)
@@ -53,7 +52,8 @@ static int filldir(dir_ctx_t *ctx, const char *name, int namelen, off_t offset,
   (*ctx->pos)++;
   return 0; // Success
 }
-int vfs_iter_dir(int fd, VDirEntry *dentry, int count) {
+
+int vfs_getdents(fd_t fd, vdir_entry_t *dentry, uint32_t count) {
   if (fd < 0 || fd >= MAX_FD || !g_fd_table[fd] || !dentry)
     return -1;
 
@@ -73,7 +73,7 @@ int vfs_iter_dir(int fd, VDirEntry *dentry, int count) {
   if (result < 0)
     return result;
 
-  return (int)entries_read; // Return number of entries read
+  return (int)entries_read;
 }
 
 int vfs_fs_type_register(fs_type_t *fs_type) {

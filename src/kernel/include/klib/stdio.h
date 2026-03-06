@@ -4,6 +4,10 @@
 #include "klib/stdarg.h"
 #include "klib/stdint.h"
 
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
+
 void kfputc(char c, fd_t file);
 void kfputs(const char *s, fd_t file);
 void kputc(char c);

@@ -1,9 +1,9 @@
 #include "klib/string.h"
 #include "klib/stdbool.h"
 #include "klib/stddef.h"
-#include "klib/stdint.h"
+#include "mm/kmalloc.h"
 
-const char *strrchr(const char *str, char chr) {
+char *strrchr(const char *str, char chr) {
   if (str == NULL)
     return NULL;
 
@@ -16,16 +16,16 @@ const char *strrchr(const char *str, char chr) {
     ++str;
   }
 
-  return last;
+  return (char *)last;
 }
 
-const char *strchr(const char *str, char chr) {
+char *strchr(const char *str, char chr) {
   if (str == NULL)
     return NULL;
 
   while (*str) {
     if (*str == chr)
-      return str;
+      return (char *)str;
 
     ++str;
   }

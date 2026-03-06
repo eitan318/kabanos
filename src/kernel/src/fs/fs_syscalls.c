@@ -56,6 +56,7 @@ long sys_open(const char *pathname, int flags) {
     return -EINVAL;
 
   int fd = vfs_open(pathname, flags);
+  kprintf("path: %s opened fd: %d", pathname);
   if (fd < 0)
     return -ENOENT;
 
@@ -109,9 +110,9 @@ long sys_write(int fd, const char *buf, size_t len) {
   return -EINVAL;
 }
 
-long sys_iter_dir(int fd, VDirEntry *dentry, int count) {
+long sys_getdents(fd_t fd, vdir_entry_t *dentry, uint32_t count) {
   if (!dentry || count <= 0)
     return -EINVAL;
 
-  return vfs_iter_dir(fd, dentry, count);
+  return vfs_getdents(fd, dentry, count);
 }
