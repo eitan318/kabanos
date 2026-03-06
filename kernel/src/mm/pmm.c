@@ -14,7 +14,7 @@ static uint64_t total_frames = 0;
 static uint64_t used_frames = 0;
 static uint64_t bitmap_size_bytes = 0;
 static bool initialized = false;
-static Range memory_range;
+static range_t memory_range;
 static uint16_t frame_refcounts[MAX_FRAMES];
 
 void pmm_frame_refcount_inc(paddr_t frame_addr) {
@@ -44,7 +44,7 @@ static inline uint64_t aligned_addr_to_frame(uint64_t addr) {
 }
 
 void pmm_mark_range_used(paddr_t from, paddr_t to) {
-  Range range = {.start = from, .end = to};
+  range_t range = {.start = from, .end = to};
   range = range_align_outward(range, FRAME_SIZE);
   range = range_clamp(range, memory_range);
 
@@ -123,8 +123,9 @@ void pmm_mark_range_free(paddr_t from, paddr_t to) {
   }
 }
 
-void pmm_init(Range total_range, Range *usable_ranges, int usable_ranges_count,
-              Range *critical_ranges, int critical_ranges_count) {
+void pmm_init(range_t total_range, range_t *usable_ranges,
+              int usable_ranges_count, range_t *critical_ranges,
+              int critical_ranges_count) {
   memory_range = total_range;
   total_frames = (memory_range.end - memory_range.start) / FRAME_SIZE;
 

@@ -17,14 +17,15 @@ build:
 		-u $(USER_ID):$(GROUP_ID) \
 		-v $(PROJECT_DIR):/project \
 		-w /project $(IMAGE_NAME) \
-		bash -c "cmake -S . -B $(BUILD_DIR) && cmake --build $(BUILD_DIR)"
+		bash -c "cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Debug && cmake --build $(BUILD_DIR)"
 
 
 run: build
 	python3 scripts/run/run.py --kernel $(BUILD_DIR)/kernel.elf --image $(OUT_DIR)/os.img 
 
+
 debug: build
-	python3 scripts/run/run.py --kernel $(BUILD_DIR)/kernel.elf  --image $(OUT_DIR)/os.img --is_debug
+	python3 scripts/run/run.py --kernel $(BUILD_DIR)/kernel.elf --image $(OUT_DIR)/os.img --is_debug &
 
 shell:
 	docker run --rm -it \

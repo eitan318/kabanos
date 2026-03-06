@@ -1,5 +1,4 @@
-#include "device.h"
-#include "klib/stdio.h"
+#include "panic.h"
 #include "proc/proc.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
@@ -20,10 +19,6 @@ void sys_exit(int status) {
     sched_enqueue(proc->parent->main_thread);
   }
 
-  // Switch away forever
   sched_yield();
-
-  while (1)
-    kprintf("returned from exit!");
-  ; // Should never be reached
+  panic("returned from exit!");
 }

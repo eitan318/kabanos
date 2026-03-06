@@ -276,3 +276,19 @@ char *strtok_r(char *str, const char *delim, char **saveptr) {
 
   return token;
 }
+
+size_t strcspn(const char *s, const char *reject) {
+  size_t count = 0;
+
+  while (s[count] != '\0') {
+    // Check if s[count] is in the reject string
+    for (size_t i = 0; reject[i] != '\0'; i++) {
+      if (s[count] == reject[i]) {
+        return count; // Found a rejected character, return index
+      }
+    }
+    count++;
+  }
+
+  return count; // No rejected characters found
+}

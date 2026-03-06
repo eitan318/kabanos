@@ -5,20 +5,15 @@
 #pragma once
 #include "klib/stddef.h"
 
-/** * @brief Finds a key in the cmdline and returns a pointer to its value.
- * * If the key is a flag (no '='), it returns a pointer to the key itself.
- * If the key has a value (key=val), it returns a pointer to the start of 'val'.
- * * @param cmdline The raw command line string.
- * @param key The key to search for.
- * @return Pointer to the value/flag within the cmdline string, or NULL if not
- * found.
+/**
+ * @brief Finds a key's value without allocating memory.
+ * @note Result is NOT null-terminated. Use val_len for bounds.
  */
-const char *cmdline_get_arg(const char *cmdline, const char *key);
+const char *cmdline_get_arg(const char *cmdline, const char *key,
+                            size_t *val_len);
 
-/** * @brief Copies a value from the cmdline into a null-terminated buffer.
- * * Copies characters from src until a space or null-terminator is encountered.
- * * @param dest The destination buffer.
- * @param src The pointer returned by cmdline_get_arg.
- * @param max_len Maximum bytes to write to dest (including null terminator).
+/**
+ * @brief Finds a key's value and returns a null-terminated copy.
+ * @note Caller MUST call free the str.
  */
-void cmdline_copy_value(char *dest, const char *src, size_t max_len);
+char *cmdline_get_arg_copy(const char *cmdline, const char *key);

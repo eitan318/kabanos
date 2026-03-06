@@ -1,5 +1,4 @@
 #pragma once
-
 #include "device.h"
 #include "klib/stdint.h"
 

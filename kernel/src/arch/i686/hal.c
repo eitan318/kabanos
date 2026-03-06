@@ -4,8 +4,6 @@
 #include "arch/i686/pic.h"
 #include "arch/i686/sysenter.h"
 #include "arch/i686/timer.h"
-#include "assert.h"
-#include "klib/stdint.h"
 #include "modules.h"
 #include "panic.h"
 #include "sched/sched.h"
@@ -49,7 +47,7 @@ int hal_describe_trap_frame(struct trap_frame *regs, int max_regs,
   if (max_regs < i686_MAX_REGS)
     return -1;
   if (!regs)
-    panic_halt("describe_regs(NULL)!");
+    panic("describe_regs(NULL)!");
 
   // 1. Define names in the exact order of your struct + Control Registers
   static const char *_names[] = {

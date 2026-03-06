@@ -1,5 +1,6 @@
 #pragma once
 #include "klib/stdbool.h"
+#include "klib/stddef.h"
 #include "klib/stdint.h"
 
 int atoi(const char *str);
@@ -10,6 +11,7 @@ char *strrchr(const char *str, char chr);
 char *strcpy(char *dst, const char *src);
 char *strncpy(char *dst, const char *src, unsigned n);
 unsigned strlen(const char *str);
+size_t strcspn(const char *s, const char *reject);
 int strcmp(const char *a, const char *b);
 int strncmp(const char *a, const char *b, unsigned n);
 bool starts_with(const char *str, const char *prefix);

@@ -3,14 +3,12 @@
 #include "arch/types.h"
 #include "hal.h"
 #include "klib/stddef.h"
-#include "klib/string.h"
 #include "mm/kmalloc.h"
 #include "mm/memdefs.h"
-#include "mm/pmm.h"
 
 static arch_vm_t kernel_arch_vm;
 
-void kernel_vmspace_create(vmspace_t *vmspace, Range total_memory_range) {
+void kernel_vmspace_create(vmspace_t *vmspace, range_t total_memory_range) {
   hal_vm_empty_arch_vm_create(&kernel_arch_vm);
   vmspace->arch = &kernel_arch_vm;
 

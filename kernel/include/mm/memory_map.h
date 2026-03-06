@@ -25,17 +25,17 @@ typedef struct {
 #define MAX_USED_RANGES 64
 
 typedef struct {
-  Range ranges[MAX_USED_RANGES];
+  range_t ranges[MAX_USED_RANGES];
   size_t count;
 } range_list_t;
 
-static void range_list_push(range_list_t *list, Range r) {
+static void range_list_push(range_list_t *list, range_t r) {
   if (list->count < MAX_USED_RANGES) {
     list->ranges[list->count++] = r;
   }
 }
 
-Range get_memory_range(memory_map_t *memory_map);
+range_t get_memory_range(memory_map_t *memory_map);
 
 void collect_non_usable_ranges(range_list_t *list, memory_map_t *memory_map,
-                               Range memory_range);
+                               range_t memory_range);

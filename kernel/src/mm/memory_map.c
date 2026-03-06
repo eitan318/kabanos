@@ -1,6 +1,6 @@
 #include "mm/memory_map.h"
 
-Range get_memory_range(memory_map_t *memory_map) {
+range_t get_memory_range(memory_map_t *memory_map) {
   uintptr_t max_addr = 0;
   uintptr_t min_addr = UINT64_MAX;
 
@@ -17,7 +17,7 @@ Range get_memory_range(memory_map_t *memory_map) {
       max_addr = region_end;
   }
 
-  Range range = {
+  range_t range = {
       .start = min_addr,
       .end = max_addr,
   };

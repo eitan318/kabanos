@@ -95,29 +95,29 @@ KernelBootInfo *parse_multiboot2_early(mb2_info_t *mbi) {
   return kernel_boot_info;
 }
 
-Range *get_useable_memory_ranges(KernelBootInfo *kbi, size_t *out_count) {
+range_t *get_useable_memory_ranges(KernelBootInfo *kbi, size_t *out_count) {
   static range_list_t usable_list;
   usable_list.count = 0;
 
   for (size_t i = 0; i < kbi->memory_map.region_count; i++) {
     memory_region_t *region = &kbi->memory_map.regions[i];
     if (region->type == 1) { // 1 = USABLE_RAM
-      range_list_push(
-          &usable_list,
-          (Range){.start = region->start, .end = region->start + region->size});
+      range_list_push(&usable_list,
+                      (range_t){.start = region->start,
+                                .end = region->start + region->size});
     }
   }
   *out_count = usable_list.count;
   return usable_list.ranges;
 }
 
-Range *get_used_memory_ranges(KernelBootInfo *kbi, Range memory_range,
-                              size_t *out_count) {
+range_t *get_used_memory_ranges(KernelBootInfo *kbi, range_t memory_range,
+                                size_t *out_count) {
   static range_list_t list;
   list.count = 0;
 
   if (kbi->initrd_start && kbi->initrd_size) {
-    range_list_push(&list, (Range){
+    range_list_push(&list, (range_t){
                                .start = kbi->initrd_start,
                                .end = kbi->initrd_start + kbi->initrd_size,
                            });
@@ -125,13 +125,13 @@ Range *get_used_memory_ranges(KernelBootInfo *kbi, Range memory_range,
 
   for (int i = 0; i < kbi->module_count; i++) {
     module_t *m = &kbi->modules[i];
-    range_list_push(&list, (Range){
+    range_list_push(&list, (range_t){
                                .start = (uintptr_t)m->data_start,
                                .end = (uintptr_t)m->data_start + m->data_size,
                            });
   }
 
-  extern Range g_kernel_phys_range;
+  extern range_t g_kernel_phys_range;
   range_list_push(&list, g_kernel_phys_range);
 
   *out_count = list.count;

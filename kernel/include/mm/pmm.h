@@ -1,17 +1,16 @@
 #pragma once
 
 #include "adt/range.h"
-#include "klib/stdbool.h"
-#include "klib/stdint.h"
 
 #define FRAME_SIZE 4096
 
 typedef uint32_t paddr_t;
 
-void pmm_init(Range total_range, Range *usable_ranges, int usable_ranges_count,
-              Range *critical_ranges, int critical_ranges_count);
+void pmm_init(range_t total_range, range_t *usable_ranges,
+              int usable_ranges_count, range_t *critical_ranges,
+              int critical_ranges_count);
 
-uint64_t pmm_get_metadata_size(Range total_memory_range);
+uint64_t pmm_get_metadata_size(range_t total_memory_range);
 uint64_t pmm_frame_alloc();
 void pmm_frame_free(paddr_t frame_addr);
 void pmm_frame_refcount_inc(paddr_t frame_addr);

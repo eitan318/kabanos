@@ -14,7 +14,7 @@ typedef struct {
 } KernelBootInfo;
 
 KernelBootInfo *parse_multiboot2_early(mb2_info_t *mbi);
-Range *get_used_memory_ranges(KernelBootInfo *kbi, Range memory_range,
-                              size_t *out_count);
+range_t *get_used_memory_ranges(KernelBootInfo *kbi, range_t memory_range,
+                                size_t *out_count);
 
-Range *get_useable_memory_ranges(KernelBootInfo *kbi, size_t *out_count);
+range_t *get_useable_memory_ranges(KernelBootInfo *kbi, size_t *out_count);

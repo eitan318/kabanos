@@ -2,7 +2,7 @@
 #include "klib/stdio.h"
 #include "klib/unistd.h"
 
-void __attribute__((noreturn)) panic_halt(const char *fmt, ...) {
+void __attribute__((noreturn)) panic(const char *fmt, ...) {
   va_list ap;
   va_start(ap, fmt);
   kvfprintf(STDOUT_FILENO, fmt, ap);
@@ -43,5 +43,5 @@ void panic_from_regs(struct trap_frame *regs) {
   }
 
   kdebugf("\n");
-  panic_halt("");
+  panic("");
 }

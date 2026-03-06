@@ -2,6 +2,7 @@
 #include "fs/fs_syscalls.h"
 #include "proc/exec.h"
 #include "proc/proc.h"
+#include "proc/wait.h"
 #include "sched/sched.h"
 #include "sched/sleep.h"
 #include <fs/vfs.h>

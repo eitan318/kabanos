@@ -1,7 +1,6 @@
 #include "proc/exec.h"
 #include "arch/types.h"
 #include "elf32.h"
-#include "fs/fat/fat.h"
 #include "fs/vfs.h"
 #include "hal.h"
 #include "klib/errno.h"
@@ -21,13 +20,11 @@ int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
 
   int fd = vfs_open(path, O_RDONLY);
   if (fd < 0) {
-    kdebugf("exec_load_elf: vfs_open('%s') failed: %d\n", path, fd);
     return fd;
   }
 
   fstat_t st;
   if (vfs_fstat(fd, &st) < 0) {
-    kdebugf("exec_load_elf: vfs_fstat failed for '%s'\n", path);
     vfs_close(fd);
     return -EIO;
   }
@@ -79,14 +76,18 @@ long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
   process_t *proc = current->process;
 
   uintptr_t entry;
-  if (exec_load_elf(proc->vmspace, pathname, &entry) < 0) {
-    kdebugf("elf load failed");
-    return -1;
+  int err = exec_load_elf(proc->vmspace, pathname, &entry);
+  if (err < 0) {
+    return (long)err;
   }
 
   free_user_stack(proc->vmspace);
   uintptr_t user_stack = alloc_user_stack(proc->vmspace);
+  if (user_stack == (uintptr_t)-1) {
+    return -ENOMEM;
+  }
 
+  // Set stack and entry point so that the func return to there
   hal_thread_init(current, entry, user_stack);
   return 0;
 }
