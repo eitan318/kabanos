@@ -2,6 +2,8 @@
 #include "klib/stdint.h"
 #include "mm/vmspace.h"
 
+typedef uint32_t pid_t;
+
 typedef struct {
   struct device *devices[16]; // This process can open 16 things
 } fd_table_t;
@@ -22,6 +24,9 @@ typedef struct process {
 
   struct process *parent;
   bool is_waiting;
+
+  struct process *first_child;
+  struct process *next_sibling;
 
 } process_t;
 

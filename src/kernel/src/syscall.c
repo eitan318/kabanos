@@ -1,17 +1,10 @@
 #include "syscall.h"
-#include "device.h"
 #include "fs/fs_syscalls.h"
-#include "hal.h"
-#include "klib/stddef.h"
-#include "klib/stdint.h"
-#include "klib/stdio.h"
-#include "klib/string.h"
 #include "proc/exec.h"
 #include "proc/proc.h"
-#include "sched/dispatcher.h"
+#include "proc/waitpid.h"
 #include "sched/sched.h"
 #include "sched/sleep.h"
-#include "sched/thread.h"
 
 typedef enum {
   /* --- File & Device I/O --- */
@@ -80,7 +73,7 @@ long syscall_dispatch(syscall_info_t f) {
     sys_exit(f.args[0]);
     return 0; // Should never reach here
   case SYSCALL_NUMBER_SYS_WAITPID:
-    return -1;
+    return sys_waitpid(f.args[0], (int *)f.args[1], f.args[2]);
   case SYSCALL_NUMBER_SYS_SBRK:
     return -1;
   case SYSCALL_NUMBER_SYS_OPEN:
