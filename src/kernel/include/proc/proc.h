@@ -36,3 +36,4 @@ void process_destroy(process_t *proc);
 long sys_fork();
 void sys_exit(int status);
 pid_t sys_waitpid(pid_t target_pid, int *wstatus, int options);
+long sys_getpid();

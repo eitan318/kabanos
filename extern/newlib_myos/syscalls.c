@@ -221,10 +221,13 @@ void _exit(int __status) {
     ;
 }
 
-int wait(int *status) {
-  return (int)_syscall6(SYSCALL_NUMBER_SYS_WAITPID, -1, (long)status, 0, 0, 0,
-                        0);
+int waitpid(pid_t pid, int *status, int options) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_WAITPID, (long)pid, (long)status,
+                        (long)options, 0, 0, 0);
 }
+
+// You can now keep wait() as a helper function that calls waitpid
+int wait(int *status) { return waitpid(-1, status, 0); }
 
 void *sbrk(ptrdiff_t __incr) {
   return (caddr_t)_syscall6(SYSCALL_NUMBER_SYS_SBRK, __incr, 0, 0, 0, 0, 0);

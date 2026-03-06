@@ -3,10 +3,13 @@
 #include "fs/vfs_internal.h"
 #include "ksys/stat.h"
 
+#include <klib/stdio.h>
 static ssize_t console_dev_write(file_t *file, const void *buf, size_t size) {
   const char *data = buf;
-  for (size_t i = 0; i < size; i++)
+  for (size_t i = 0; i < size; i++) {
     con_putc(data[i]);
+    kdebugc(data[i]);
+  }
   return size;
 }
 
