@@ -1,4 +1,3 @@
-#include "proc/waitpid.h"
 #include "proc/proc.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
