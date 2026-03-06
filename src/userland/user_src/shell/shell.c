@@ -42,19 +42,20 @@ static int cmd_help(int argc, char **argv) {
 static int execute(int argc, char **argv) {
   if (argc == 0)
     return 0;
-
-  if (strcmp(argv[0], "exit") == 0) {
+  if (strcmp(argv[0], "exit") == 0)
     exit(0);
-  }
   if (strcmp(argv[0], "help") == 0)
     return cmd_help(argc, argv);
 
   char path[128];
-  if (argv[0][0] == '/') {
+  if (argv[0][0] == '/')
     snprintf(path, sizeof(path), "%s", argv[0]);
-  } else {
+  else
     snprintf(path, sizeof(path), "/bin/%s.elf", argv[0]);
-  }
+
+  // FLUSH before fork — ensures parent output is committed
+  fflush(stdout);
+  fflush(stderr);
 
   int pid = fork();
   if (pid < 0) {
@@ -62,14 +63,12 @@ static int execute(int argc, char **argv) {
     fflush(stderr);
     return -1;
   }
-
   if (pid == 0) {
     execve(path, argv, NULL);
     fprintf(stderr, "shell: %s: not found\n", argv[0]);
     fflush(stderr);
     exit(1);
   }
-
   int status = 0;
   wait(&status);
   return status;

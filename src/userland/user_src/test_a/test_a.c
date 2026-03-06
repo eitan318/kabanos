@@ -3,10 +3,9 @@
 #include <stdio.h>
 
 int main() {
-  for (;;) {
-    printf("C");
-    fflush(stdout);
-    for (volatile int i = 0; i < DELAY_LOOP; i++)
-      ;
-  }
+  printf("C");
+  fflush(stdout);
+  sleep(3);
+  printf("C");
+  fflush(stdout);
 }

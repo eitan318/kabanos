@@ -45,6 +45,7 @@ add_custom_target(os_image ALL
 # Target-level ordering guards (belt-and-suspenders).
 # These alone are NOT enough to fix file deps, but they prevent target
 # scheduling races when -j > 1.
+# Inside your disk image target definition
 add_dependencies(os_image
     bootloader
     kernel.elf
