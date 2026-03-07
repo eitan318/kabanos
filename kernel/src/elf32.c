@@ -49,9 +49,14 @@ static int load_segment(arch_vm_t *vm, vaddr_t va_start, size_t mem_size,
   return 0;
 }
 
+static const char *get_elf_string(void *elf_data, uint32_t strtab_off,
+                                  uint32_t name_idx) {
+  return (const char *)((uint8_t *)elf_data + strtab_off + name_idx);
+}
+
 // Load ELF file
 int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
-               uintptr_t *entry, uintptr_t *load_base) {
+               uintptr_t *entry, uintptr_t *text_base) {
   ASSERT(vm && elf_data && entry);
 
   if (elf_size < sizeof(elf32_header_t)) {
@@ -60,7 +65,6 @@ int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
   }
 
   elf32_header_t *hdr = (elf32_header_t *)elf_data;
-
   // Validate ELF header
   if (memcmp(hdr->magic, ELF_MAGIC, 4) != 0 ||
       hdr->wordsize != ELF_BITNESS_32BIT ||
@@ -71,6 +75,26 @@ int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
     return -1;
   }
 
+  if (text_base) {
+    // Find Section Header String Table (.shstrtab)
+    elf32_sec_hdr *shdr_table =
+        (elf32_sec_hdr *)((uint8_t *)elf_data + hdr->shdr_table_pos);
+    elf32_sec_hdr *shstrtab_hdr = &shdr_table[hdr->section_names_index];
+    uint32_t shstrtab_off = shstrtab_hdr->offset;
+
+    *text_base = 0; // Default if not found
+
+    for (uint32_t i = 0; i < hdr->shdr_table_entry_count; i++) {
+      elf32_sec_hdr *sh = &shdr_table[i];
+      const char *name = get_elf_string(elf_data, shstrtab_off, sh->name);
+
+      if (strcmp(name, ".text") == 0) {
+        *text_base = sh->addr;
+        break;
+      }
+    }
+  }
+
   // Validate program header table
   uint32_t phdr_size = hdr->phdr_table_entry_count * hdr->phdr_table_entry_size;
   if (hdr->phdr_table_pos > elf_size ||
@@ -78,8 +102,6 @@ int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
     kdebugf("ELF: Invalid program headers\n");
     return -1;
   }
-
-  bool base_set = false;
 
   // Load segments
   uint8_t *phdrs = (uint8_t *)elf_data + hdr->phdr_table_pos;
@@ -90,13 +112,6 @@ int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
 
     if (ph->type != ELF_PROGRAM_TYPE_LOAD || ph->mem_size == 0) {
       continue;
-    }
-
-    if (!base_set) {
-      if (load_base) {
-        *load_base = ph->vaddr;
-      }
-      base_set = true;
     }
 
     // Validate segment bounds

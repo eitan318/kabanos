@@ -45,11 +45,11 @@ int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
     return -EIO;
   }
 
-  uintptr_t load_base = 0;
-  int r = elf32_load(vm->arch, data, st.size, entry, &load_base);
+  uintptr_t text_base = 0;
+  int r = elf32_load(vm->arch, data, st.size, entry, &text_base);
 
   if (r == 0) {
-    exec_table_add(path, *entry);
+    exec_table_add(path, text_base);
 
   } else {
     kdebugf("exec_load_elf: elf_load failed: %d\n", r);
@@ -109,44 +109,51 @@ static uintptr_t setup_user_stack_args(vmspace_t *dst_vm, uintptr_t stack_top,
                                        int argc, char *const argv[]) {
   uintptr_t user_sp = stack_top;
 
-  uintptr_t user_argv_ptrs[argc + 1]; // +1 for null-terminat
+  // Use a fixed limit or kmalloc for the pointers to avoid kernel stack
+  // overflow
+  uintptr_t user_argv_ptrs[argc + 1];
 
-  // Copy args
+  // 1. Copy the actual strings first (Data area)
   for (int i = argc - 1; i >= 0; i--) {
-    uintptr_t arg_size = strlen(argv[i]);
+    size_t len = strlen(argv[i]) + 1; // +1 for null terminator
+    user_sp -= len;
 
-    // push argv[i]
-    user_sp -= arg_size;
-    hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)&argc, sizeof(int));
+    // Align to 4 bytes (System V ABI requirement)
+    user_sp &= ~0x3;
 
+    // Copy the ACTUAL string data from current VM to destination VM
+    hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)argv[i], len);
+
+    // Save the address WHERE WE PUT IT in the new VM
     user_argv_ptrs[i] = user_sp;
   }
+  user_argv_ptrs[argc] = 0; // NULL terminator for argv array
 
-  user_argv_ptrs[argc] = '\0';
+  // 2. Copy the array of pointers (argv array)
+  size_t ptr_array_size = sizeof(uintptr_t) * (argc + 1);
+  user_sp -= ptr_array_size;
+  user_sp &= ~0x3;
+  uintptr_t argv_array_base = user_sp;
 
-  uint32_t user_argv_ptrs_size = sizeof(user_argv_ptrs) * (argc + 1);
+  hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)user_argv_ptrs,
+                         ptr_array_size);
 
-  // Push argv
-  user_sp -= user_argv_ptrs_size;
-  hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)&user_sp,
-                         user_argv_ptrs_size);
+  // 3. Setup the final stack frame: [argc] [argv_ptr] [envp_ptr] [exit_addr]
+  // Note: Some ABIs expect a dummy return address at the very top.
 
-  // Structure: [argc] [argv_ptr] [envp_ptr]
-  uintptr_t argv_ptr_for_stack = user_sp;
-
-  // Push envp
-  user_sp -= sizeof(uintptr_t); // envp (NULL for now)
+  // Push envp (NULL)
   uintptr_t null_env = 0;
+  user_sp -= sizeof(uintptr_t);
   hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)&null_env,
                          sizeof(uintptr_t));
 
-  // Push argv
+  // Push argv pointer (pointer to the array we just created)
   user_sp -= sizeof(uintptr_t);
-  hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)&argv_ptr_for_stack,
+  hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)&argv_array_base,
                          sizeof(uintptr_t));
 
   // Push argc
-  user_sp -= sizeof(argc);
+  user_sp -= sizeof(int);
   hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)&argc, sizeof(int));
 
   return user_sp;
@@ -226,13 +233,14 @@ int process_spawn(const char *path, int argc, char *const argv[],
     process_destroy(proc);
     return -1;
   }
+  kprintf("Entry is: %p", entry);
 
   uintptr_t stack_top = alloc_user_stack(proc->vmspace);
 
   uintptr_t user_sp;
-  // Setup the stack with arguments
+
   user_sp = setup_user_stack_args(proc->vmspace, stack_top, argc, argv);
-  // user_sp = stack_top;
+
   thread_t *t = thread_create_user(proc, entry, user_sp, p);
   proc->main_thread = t;
 

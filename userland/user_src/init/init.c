@@ -19,7 +19,7 @@ int proc_spawn(char *name, char **argv, char **envp) {
 }
 
 int main(int argc, char **argv, char **envp) {
-  printf("argc: %d %s %s", argc, argv[0], argv[1]);
+  printf("argc: %d %s %s %s ", argc, argv[0], argv[1], argv[2]);
   //
   asm volatile("nop");
   asm volatile("nop");
