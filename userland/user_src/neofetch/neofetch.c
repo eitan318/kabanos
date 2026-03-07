@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-int main() {
+int main(int argc, char **argv) {
   printf("                                             \n");
   printf("  o)                                    (    \n");
   printf("  `-._ `~-._        KabanOS       _.-_.-`    \n");

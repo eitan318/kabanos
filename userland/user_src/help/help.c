@@ -74,7 +74,6 @@ struct CommandHelp help_table[] = {
 
 void main(int argc, char **argv) {
   int total_commands = sizeof(help_table) / sizeof(struct CommandHelp);
-  printf("argc:%d", argc);
 
   if (argc > 1 && strcmp(argv[1], "-l") == 0) {
     printf("Available commands:\n");

@@ -74,20 +74,6 @@ void free_user_stack(vmspace_t *vm) {
   va_free_region(vm->arch, USER_STACK_BOTTOM + 1, USER_STACK_SIZE);
 }
 
-int count_args(char *const argv[]) {
-  int argc = 0;
-  if (argv == NULL)
-    return 0;
-
-  while (argv[argc] != NULL) {
-    argc++;
-    // Safety: Prevent infinite loops if user passes garbage
-    if (argc > MAX_ARGC)
-      return -1;
-  }
-  return argc;
-}
-
 /**
  * @brief Prepares the user-mode stack with command-line arguments (argc, argv).
  * * This function performs a "double-copy" or "remote-write" to initialize a
@@ -106,7 +92,8 @@ int count_args(char *const argv[]) {
  * standard C conventions.
  */
 static uintptr_t setup_user_stack_args(vmspace_t *dst_vm, uintptr_t stack_top,
-                                       int argc, char *const argv[]) {
+                                       int argc, char *const argv[],
+                                       char *const envp[]) {
   uintptr_t user_sp = stack_top;
 
   // Use a fixed limit or kmalloc for the pointers to avoid kernel stack
@@ -129,7 +116,7 @@ static uintptr_t setup_user_stack_args(vmspace_t *dst_vm, uintptr_t stack_top,
   }
   user_argv_ptrs[argc] = 0; // NULL terminator for argv array
 
-  // 2. Copy the array of pointers (argv array)
+  // Copy the array of pointers (argv array)
   size_t ptr_array_size = sizeof(uintptr_t) * (argc + 1);
   user_sp -= ptr_array_size;
   user_sp &= ~0x3;
@@ -159,72 +146,67 @@ static uintptr_t setup_user_stack_args(vmspace_t *dst_vm, uintptr_t stack_top,
   return user_sp;
 }
 
+typedef struct {
+  char **kargv;
+  char **kenvp;
+  int argc;
+} captured_args_t;
+
+static captured_args_t capture_args(char *const argv[], char *const envp[]) {
+  captured_args_t args = {NULL, 0};
+  while (argv[args.argc])
+    args.argc++;
+
+  args.kargv = kmalloc(sizeof(char *) * (args.argc + 1));
+
+  for (int i = 0; i < args.argc; i++) {
+    // strdup captures the actual string data into kernel heap
+    args.kargv[i] = strdup(argv[i]);
+  }
+  args.kargv[args.argc] = NULL;
+
+  // Not implemented yet
+  args.kenvp = NULL;
+
+  return args;
+}
+
 long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
-  // 1. Capture the path into Kernel memory immediately.
-  // This protects us from the new vmspace remapping the original string's
-  // physical frame.
+  // Capture EVERYTHING to kernel heap while old_vm is still active
   char *kpath = strdup(pathname);
-  if (!kpath) {
-    return -ENOMEM;
-  }
+  captured_args_t captured = capture_args(argv, envp);
 
-  // 2. Prepare the new address space.
-  // Important: vmspace_create MUST map the Kernel (e.g., 0xC0000000+)
-  // into the new directory, or the CPU will crash on the next switch.
+  // Prepare the new vm
   vmspace_t *new_vm = vmspace_create();
-  if (!new_vm) {
-    kfree(kpath);
-    return -ENOMEM;
-  }
-
-  // 3. Load the ELF into the NEW space.
-  // Since kpath is a kernel pointer, it is visible in both the old and new
-  // vmspace.
   uintptr_t entry = 0;
-  if (exec_load_elf(new_vm, kpath, &entry) < 0) {
-    vmspace_destroy(new_vm);
-    kfree(kpath);
-    return -ENOENT;
-  }
-
-  // 4. Allocate the new User Stack.
-  // We do this in the new vmspace to prepare for the jump.
+  exec_load_elf(new_vm, kpath, &entry);
   uintptr_t stack_top = alloc_user_stack(new_vm);
-  if (!stack_top) {
-    vmspace_destroy(new_vm);
-    kfree(kpath);
-    return -ENOMEM;
-  }
 
-  // 5. Swap the VM Spaces.
-  // We get the current process and thread to perform the transition.
+  // Perform the switch
   thread_t *current = dispatch_get_current();
-  process_t *proc = current->process;
-  vmspace_t *old_vm = proc->vmspace;
+  vmspace_t *old_vm = current->process->vmspace;
 
-  // Update the process structure to point to the new world
-  proc->vmspace = new_vm;
-
-  // Switch the CR3 (or equivalent) to the new Page Directory.
-  // After this line, the old User memory is no longer visible to the CPU.
+  current->process->vmspace = new_vm;
   vmspace_switch(new_vm);
 
-  // 6. Cleanup the old world.
-  // We can safely destroy the old vmspace now because we are running
-  // in the Kernel's portion of the new vmspace.
+  uintptr_t user_sp = setup_user_stack_args(new_vm, stack_top, captured.argc,
+                                            captured.kargv, captured.kenvp);
+
+  // Cleanup
   vmspace_destroy(old_vm);
+  for (int i = 0; i < captured.argc; i++) {
+    kfree(captured.kargv[i]);
+  }
+  kfree(captured.kargv);
   kfree(kpath);
 
-  // 7. Finalize the Thread state.
-  // Set the EIP/IP to 'entry' and ESP/SP to 'stack_top'.
-  // When this syscall returns to user mode, it will start the new program.
-  hal_thread_init(current, entry, stack_top);
-
+  hal_thread_init(current, entry, user_sp);
   return 0;
 }
 
 int process_spawn(const char *path, int argc, char *const argv[],
-                  enum thread_priority p) {
+                  char *const envp[], enum thread_priority p) {
+
   process_t *proc = process_create();
   proc->vmspace = vmspace_create();
 
@@ -233,13 +215,10 @@ int process_spawn(const char *path, int argc, char *const argv[],
     process_destroy(proc);
     return -1;
   }
-  kprintf("Entry is: %p", entry);
-
   uintptr_t stack_top = alloc_user_stack(proc->vmspace);
 
-  uintptr_t user_sp;
-
-  user_sp = setup_user_stack_args(proc->vmspace, stack_top, argc, argv);
+  uintptr_t user_sp =
+      setup_user_stack_args(proc->vmspace, stack_top, argc, argv, envp);
 
   thread_t *t = thread_create_user(proc, entry, user_sp, p);
   proc->main_thread = t;

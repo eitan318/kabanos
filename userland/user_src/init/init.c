@@ -19,18 +19,21 @@ int proc_spawn(char *name, char **argv, char **envp) {
 }
 
 int main(int argc, char **argv, char **envp) {
-  printf("argc: %d %s %s %s ", argc, argv[0], argv[1], argv[2]);
-  //
-  asm volatile("nop");
-  asm volatile("nop");
-  asm volatile("nop");
-  asm volatile("nop");
+  char *shell_args[] = {"/bin/shell.elf", "/bin/neofetch.elf", NULL};
 
-  proc_spawn("/bin/shell.elf", NULL, NULL);
-  for (;;) {
+  // Spawn the shell
+  if (proc_spawn("/bin/shell.elf", shell_args, envp) < 0) {
+    printf("Init: Failed to start shell!\n");
+    return 1;
   }
-  int status = 0;
-  wait(&status);
 
-  printf("Bye Bye");
+  // "Ideal" init behavior: Wait for children so they don't become zombies
+  while (1) {
+    // int status;
+    // // wait() blocks until a child (the shell) exits
+    // if (wait(&status) > 0) {
+    //   printf("Init: Shell exited. Restarting...\n");
+    //   proc_spawn("/bin/shell.elf", shell_args, envp);
+    // }
+  }
 }
