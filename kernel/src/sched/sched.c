@@ -7,6 +7,8 @@
 #include "sched/sleep.h"
 #include "sched/thread.h"
 #include "spinlock.h"
+#include <mm/vmspace.h>
+#include <proc/proc.h>
 
 #define AGING_THRESHOLD_MS 500
 
@@ -25,15 +27,8 @@ static spinlock_t sched_lock = SPINLOCK_RELEASED;
 
 uint32_t g_time_tick = 0;
 
-void idle_task(void *arg) {
-  while (1) {
-    hal_interrupts_enable();
-    hal_halt();
-  }
-}
-
 int sched_init(module_t *self) {
-  kernel_idle_task = thread_create_kernel(NULL, (uintptr_t)idle_task);
+  kernel_idle_task = dispatch_get_current();
   kernel_idle_task->tid = 0;
   kernel_idle_task->priority = PRIORITY_LOW; // Doesn't matter, never enqueued
   kernel_idle_task->curr_time_quantum = 0;   // IDLE immediatly swapped

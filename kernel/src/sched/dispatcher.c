@@ -1,8 +1,8 @@
 #include "sched/dispatcher.h"
 #include "hal.h"
-#include "klib/stdio.h"
 #include "klib/string.h"
 #include "mm/memdefs.h"
+#include <proc/proc.h>
 
 thread_t *g_current_thread = NULL;
 
@@ -14,6 +14,13 @@ extern uint8_t stack_bottom[BOOT_STACK_SIZE];
 int dispatch_init(module_t *self) {
   memset(&kmain_thread, 0, sizeof(thread_t));
 
+  extern vmspace_t *g_kernel_vmspace;
+  process_t *kmain_proc = process_create();
+  kmain_proc->main_thread = &kmain_thread;
+  kmain_proc->vmspace = g_kernel_vmspace;
+
+  kmain_thread.process = kmain_proc;
+
   kmain_thread.tid = 0; // The first thread
   kmain_thread.priority = PRIORITY_HIGH;
   kmain_thread.state = THREAD_RUNNING;
@@ -22,9 +29,6 @@ int dispatch_init(module_t *self) {
   // Crucial: Point it to its arch-specific storage
   kmain_thread.arch = &kmain_arch;
 
-  // We don't need to 'alloc_kernel_stack' because we are
-  // already using the boot stack. Just point to the top of it.
-  // (Ensure BOOT_STACK_TOP is the address from your linker/assembly)
   kmain_thread.kstack_top = (void *)(stack_bottom + BOOT_STACK_SIZE);
   kmain_thread.arch->kernel_esp = (void *)(stack_bottom + BOOT_STACK_SIZE);
 
