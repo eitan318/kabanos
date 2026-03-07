@@ -68,8 +68,8 @@ int main(int argc, char **argv, char **envp) {
   char line[MAX_LINE];
   char *args[MAX_ARGS];
 
-  // execute(1, "neofetch");
-  puts("myos shell - type 'help'");
+  char *init_args[] = {"neofetch", NULL};
+  execute(1, init_args);
 
   while (1) {
     printf(PROMPT);

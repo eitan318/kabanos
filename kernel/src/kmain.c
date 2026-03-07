@@ -91,5 +91,6 @@ void kmain(uint32_t mb2_ptr) {
   hal_timer_enable();
   sched_yield();
 
-  panic("Kernel main function should not return after activating init!");
+  // Close qemu
+  hal_out16(0x604, 0x2000);
 }

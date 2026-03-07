@@ -68,6 +68,14 @@ static void keyboard_isr_handler(trap_frame_t *regs) {
   }
 
   if (!key_released) {
+    // F1 = 0x3B, F2 = 0x3C, F3 = 0x3D
+    if (keycode >= 0x3B && keycode <= 0x3F) {
+      int target_workspace = keycode - 0x3B;
+      // active_workspace = target_workspace;
+      // refresh_screen();
+
+      goto eoi; // Don't process this key as text
+    }
     char key_ascii = shift_pressed ? scancode_to_ascii_shift[keycode]
                                    : scancode_to_ascii[keycode];
     if (ctrl_pressed && key_ascii >= 'a' && key_ascii <= 'z')

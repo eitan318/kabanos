@@ -1,4 +1,3 @@
-#include "user.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <unistd.h>
@@ -21,6 +20,8 @@ int proc_spawn(char *name, char **argv, char **envp) {
 
 int main(int argc, char **argv, char **envp) {
   proc_spawn("/bin/shell.elf", NULL, NULL);
-  while (1) {
-  }
+
+  int status = 0;
+  wait(&status);
+  printf("Bye Bye");
 }
