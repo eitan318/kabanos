@@ -438,7 +438,7 @@ void hal_vm_arch_clone_mapping(arch_vm_t *dst, arch_vm_t *src) {
 }
 
 void hal_vm_arch_clone(arch_vm_t *dst, arch_vm_t *src) {
-  // 1. Mark the source as COW first
+  // Mark the source as COW first
   hal_vmm_set_cow(src);
 
   for (int i = 0; i < KERNEL_PD_START; i++) {

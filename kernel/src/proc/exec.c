@@ -1,3 +1,8 @@
+/**
+ * @file exec.c
+ * @brief Implementation of process execution and ELF loading.
+ */
+
 #include "proc/exec.h"
 #include "elf32.h"
 #include "fs/vfs.h"
@@ -9,7 +14,7 @@
 #include "mm/memdefs.h"
 #include "mm/va_allocation.h"
 #include "mm/vmspace.h"
-#include "proc/exec_table.h"
+//#include "proc/exec_table.h"
 #include "proc/proc.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
@@ -17,13 +22,21 @@
 
 #define MAX_ARGC 1024
 
-int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
+/**
+ * @brief Loads an ELF executable into a virtual address space.
+ * * Opens the file, reads it into kernel memory, parses the ELF headers,
+ * and maps the segments into the target VM.
+ * * @param vm The destination virtual memory space.
+ * @param path Filesystem path to the ELF file.
+ * @param entry [out] Pointer to store the program entry point (EIP).
+ * @return 0 on success, negative errno on failure.
+ */
+static int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
   paddr_t path_phys = hal_vm_virt_to_phys(vm->arch, (vaddr_t)path);
 
   int fd = vfs_open(path, O_RDONLY);
-  if (fd < 0) {
+  if (fd < 0)
     return fd;
-  }
 
   fstat_t st;
   if (vfs_fstat(fd, &st) < 0) {
@@ -49,8 +62,7 @@ int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
   int r = elf32_load(vm->arch, data, st.size, entry, &text_base);
 
   if (r == 0) {
-    exec_table_add(path, text_base);
-
+    // exec_table_add(path, text_base);
   } else {
     kdebugf("exec_load_elf: elf_load failed: %d\n", r);
   }
@@ -59,8 +71,13 @@ int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
   return r;
 }
 
-// Return top of stack
-uintptr_t alloc_user_stack(vmspace_t *vm) {
+/**
+ * @brief Allocates physical frames for a new user stack.
+ * * @param vm The destination virtual memory space.
+ * @return The initial stack pointer (top of stack), or (uintptr_t)-1 on
+ * failure.
+ */
+static uintptr_t alloc_user_stack(vmspace_t *vm) {
   if (!va_alloc_region(vm->arch, USER_STACK_BOTTOM + 1, USER_STACK_SIZE,
                        PAGE_USER | PAGE_READWRITE)) {
     kdebugf("user stack creation failed");
@@ -70,77 +87,59 @@ uintptr_t alloc_user_stack(vmspace_t *vm) {
   return (uintptr_t)(USER_STACK_BOTTOM + USER_STACK_SIZE);
 }
 
-void free_user_stack(vmspace_t *vm) {
+/**
+ * @brief Frees the user stack region.
+ * * @param vm The virtual memory space containing the stack.
+ */
+static void free_user_stack(vmspace_t *vm) {
   va_free_region(vm->arch, USER_STACK_BOTTOM + 1, USER_STACK_SIZE);
 }
 
 /**
- * @brief Prepares the user-mode stack with command-line arguments (argc, argv).
- * * This function performs a "double-copy" or "remote-write" to initialize a
- * new process's stack. It copies actual string data, the array of pointers
- * (argv), and the initial stack frame required by the System V i386 ABI.
- * * @param[in]  dst_vm    Pointer to the destination virtual memory space.
- * @param[in]  stack_top The initial top of the allocated user stack (highest
- * address).
- * @param[in]  argc      The number of arguments in the argv array.
- * @param[in]  argv      An array of strings in the current address space to be
- * copied.
- * * @return The final value of the user stack pointer (ESP) to be set in the
- * thread's CPU context.
- * * @note This function ensures 4-byte alignment for strings and pointers.
- * It also null-terminates the argv array on the user stack as per
- * standard C conventions.
+ * @brief Initializes the user stack with System V i386 ABI arguments.
+ * * Copies argument strings and the argv pointer array into the target VM.
+ * * @param dst_vm Target virtual memory space.
+ * @param stack_top The high address of the allocated stack.
+ * @param argc Number of arguments.
+ * @param argv Array of argument strings.
+ * @param envp Array of environment strings.
+ * @return The adjusted stack pointer (ESP) for the entry point.
  */
 static uintptr_t setup_user_stack_args(vmspace_t *dst_vm, uintptr_t stack_top,
                                        int argc, char *const argv[],
                                        char *const envp[]) {
   uintptr_t user_sp = stack_top;
-
-  // Use a fixed limit or kmalloc for the pointers to avoid kernel stack
-  // overflow
   uintptr_t user_argv_ptrs[argc + 1];
 
-  // 1. Copy the actual strings first (Data area)
+  // 1. Copy strings to stack
   for (int i = argc - 1; i >= 0; i--) {
-    size_t len = strlen(argv[i]) + 1; // +1 for null terminator
+    size_t len = strlen(argv[i]) + 1;
     user_sp -= len;
-
-    // Align to 4 bytes (System V ABI requirement)
-    user_sp &= ~0x3;
-
-    // Copy the ACTUAL string data from current VM to destination VM
+    user_sp &= ~0x3; // 4-byte alignment
     hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)argv[i], len);
-
-    // Save the address WHERE WE PUT IT in the new VM
     user_argv_ptrs[i] = user_sp;
   }
-  user_argv_ptrs[argc] = 0; // NULL terminator for argv array
+  user_argv_ptrs[argc] = 0;
 
-  // Copy the array of pointers (argv array)
+  // 2. Copy argv pointer array to stack
   size_t ptr_array_size = sizeof(uintptr_t) * (argc + 1);
   user_sp -= ptr_array_size;
   user_sp &= ~0x3;
   uintptr_t argv_array_base = user_sp;
-
   hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)user_argv_ptrs,
                          ptr_array_size);
 
-  // 3. Setup the final stack frame: [argc] [argv_ptr] [envp_ptr] [exit_addr]
-  // Note: Some ABIs expect a dummy return address at the very top.
-
-  // Push envp (NULL)
+  // 3. Construct ABI stack frame
   uintptr_t null_env = 0;
-  user_sp -= sizeof(uintptr_t);
+  user_sp -= sizeof(uintptr_t); // envp
   hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)&null_env,
                          sizeof(uintptr_t));
 
-  // Push argv pointer (pointer to the array we just created)
-  user_sp -= sizeof(uintptr_t);
+  user_sp -= sizeof(uintptr_t); // argv pointer
   hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)&argv_array_base,
                          sizeof(uintptr_t));
 
-  // Push argc
-  user_sp -= sizeof(int);
+  user_sp -= sizeof(int); // argc
   hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)&argc, sizeof(int));
 
   return user_sp;
@@ -152,37 +151,37 @@ typedef struct {
   int argc;
 } captured_args_t;
 
+/**
+ * @brief Copies user-space arguments into kernel-space buffers.
+ * * This is necessary to preserve arguments before switching address spaces.
+ * * @param argv User-space argument array.
+ * @param envp User-space environment array.
+ * @return A structure containing the kernel-side copies.
+ */
 static captured_args_t capture_args(char *const argv[], char *const envp[]) {
-  captured_args_t args = {NULL, 0};
+  captured_args_t args = {NULL, NULL, 0};
   while (argv[args.argc])
     args.argc++;
 
   args.kargv = kmalloc(sizeof(char *) * (args.argc + 1));
-
   for (int i = 0; i < args.argc; i++) {
-    // strdup captures the actual string data into kernel heap
     args.kargv[i] = strdup(argv[i]);
   }
   args.kargv[args.argc] = NULL;
-
-  // Not implemented yet
-  args.kenvp = NULL;
+  args.kenvp = NULL; // TODO: Implement envp capture
 
   return args;
 }
 
 long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
-  // Capture EVERYTHING to kernel heap while old_vm is still active
   char *kpath = strdup(pathname);
   captured_args_t captured = capture_args(argv, envp);
 
-  // Prepare the new vm
   vmspace_t *new_vm = vmspace_create();
   uintptr_t entry = 0;
   exec_load_elf(new_vm, kpath, &entry);
   uintptr_t stack_top = alloc_user_stack(new_vm);
 
-  // Perform the switch
   thread_t *current = dispatch_get_current();
   vmspace_t *old_vm = current->process->vmspace;
 
@@ -192,7 +191,6 @@ long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
   uintptr_t user_sp = setup_user_stack_args(new_vm, stack_top, captured.argc,
                                             captured.kargv, captured.kenvp);
 
-  // Cleanup
   vmspace_destroy(old_vm);
   for (int i = 0; i < captured.argc; i++) {
     kfree(captured.kargv[i]);
@@ -206,7 +204,6 @@ long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
 
 int process_spawn(const char *path, int argc, char *const argv[],
                   char *const envp[], enum thread_priority p) {
-
   process_t *proc = process_create();
   proc->vmspace = vmspace_create();
 

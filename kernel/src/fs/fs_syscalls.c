@@ -51,6 +51,7 @@ long sys_umount(const char *target) {
     return -EINVAL;
   return vfs_umount(target);
 }
+
 long sys_open(const char *pathname, int flags) {
   if (!pathname)
     return -EINVAL;

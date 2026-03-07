@@ -27,13 +27,16 @@ int main(int argc, char **argv, char **envp) {
     return 1;
   }
 
-  // "Ideal" init behavior: Wait for children so they don't become zombies
+  /// There is a schedualer bug preventing from one process to switch to itself
+  /// so there allways gotta be at least one proc
+  for (;;) {
+  }
+
   while (1) {
-    // int status;
-    // // wait() blocks until a child (the shell) exits
-    // if (wait(&status) > 0) {
-    //   printf("Init: Shell exited. Restarting...\n");
-    //   proc_spawn("/bin/shell.elf", shell_args, envp);
-    // }
+    int status;
+    if (wait(&status) > 0) {
+      printf("Init: Shell exited. Restarting...\n");
+      proc_spawn("/bin/shell.elf", shell_args, envp);
+    }
   }
 }
