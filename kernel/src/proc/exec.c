@@ -18,6 +18,7 @@
 #define MAX_ARGC 1024
 
 int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
+  paddr_t path_phys = hal_vm_virt_to_phys(vm->arch, (vaddr_t)path);
 
   int fd = vfs_open(path, O_RDONLY);
   if (fd < 0) {
@@ -46,8 +47,9 @@ int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
 
   uintptr_t load_base = 0;
   int r = elf32_load(vm->arch, data, st.size, entry, &load_base);
+
   if (r == 0) {
-    exec_table_add(path, load_base);
+    exec_table_add(path, *entry);
 
   } else {
     kdebugf("exec_load_elf: elf_load failed: %d\n", r);
@@ -151,28 +153,66 @@ static uintptr_t setup_user_stack_args(vmspace_t *dst_vm, uintptr_t stack_top,
 }
 
 long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
+  // 1. Capture the path into Kernel memory immediately.
+  // This protects us from the new vmspace remapping the original string's
+  // physical frame.
+  char *kpath = strdup(pathname);
+  if (!kpath) {
+    return -ENOMEM;
+  }
+
+  // 2. Prepare the new address space.
+  // Important: vmspace_create MUST map the Kernel (e.g., 0xC0000000+)
+  // into the new directory, or the CPU will crash on the next switch.
+  vmspace_t *new_vm = vmspace_create();
+  if (!new_vm) {
+    kfree(kpath);
+    return -ENOMEM;
+  }
+
+  // 3. Load the ELF into the NEW space.
+  // Since kpath is a kernel pointer, it is visible in both the old and new
+  // vmspace.
+  uintptr_t entry = 0;
+  if (exec_load_elf(new_vm, kpath, &entry) < 0) {
+    vmspace_destroy(new_vm);
+    kfree(kpath);
+    return -ENOENT;
+  }
+
+  // 4. Allocate the new User Stack.
+  // We do this in the new vmspace to prepare for the jump.
+  uintptr_t stack_top = alloc_user_stack(new_vm);
+  if (!stack_top) {
+    vmspace_destroy(new_vm);
+    kfree(kpath);
+    return -ENOMEM;
+  }
+
+  // 5. Swap the VM Spaces.
+  // We get the current process and thread to perform the transition.
   thread_t *current = dispatch_get_current();
   process_t *proc = current->process;
+  vmspace_t *old_vm = proc->vmspace;
 
-  uintptr_t entry;
-  if (exec_load_elf(proc->vmspace, pathname, &entry) < 0)
-    return -ENOENT;
+  // Update the process structure to point to the new world
+  proc->vmspace = new_vm;
 
-  free_user_stack(proc->vmspace);
-  uintptr_t stack_top = alloc_user_stack(proc->vmspace);
+  // Switch the CR3 (or equivalent) to the new Page Directory.
+  // After this line, the old User memory is no longer visible to the CPU.
+  vmspace_switch(new_vm);
 
-  // Count args
-  // int argc = 0;
-  // while (argv[argc])
-  // argc++;
+  // 6. Cleanup the old world.
+  // We can safely destroy the old vmspace now because we are running
+  // in the Kernel's portion of the new vmspace.
+  vmspace_destroy(old_vm);
+  kfree(kpath);
 
-  uintptr_t user_sp;
-  // Setup strings and pointers in the new vmspace
-  // uintptr_t user_sp =
-  //    setup_user_stack_args(proc->vmspace, stack_top, argc, argv);
+  // 7. Finalize the Thread state.
+  // Set the EIP/IP to 'entry' and ESP/SP to 'stack_top'.
+  // When this syscall returns to user mode, it will start the new program.
+  hal_thread_init(current, entry, stack_top);
 
-  user_sp = stack_top;
-  hal_thread_init(current, entry, user_sp);
   return 0;
 }
 
@@ -191,10 +231,8 @@ int process_spawn(const char *path, int argc, char *const argv[],
 
   uintptr_t user_sp;
   // Setup the stack with arguments
-  // uintptr_t user_sp =
-  //   setup_user_stack_args(proc->vmspace, stack_top, argc, argv);
-  //
-  user_sp = stack_top;
+  user_sp = setup_user_stack_args(proc->vmspace, stack_top, argc, argv);
+  // user_sp = stack_top;
   thread_t *t = thread_create_user(proc, entry, user_sp, p);
   proc->main_thread = t;
 

@@ -169,7 +169,6 @@ static void map_partial_page_table(page_dir_entry_t *pd, uint32_t pd_index,
 //
 // Page Table Unmapping Operations
 //
-
 static void clear_page_table_entries(uint32_t *pt, uint32_t start_index,
                                      uint32_t count) {
   for (uint32_t i = 0; i < count; i++) {

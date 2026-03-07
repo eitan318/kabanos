@@ -2,8 +2,6 @@
 #include "adt/bitmap.h"
 #include "adt/range.h"
 #include "assert.h"
-#include "klib/stdio.h"
-#include "klib/string.h"
 #include "utils/math.h"
 
 #define MAX_FRAMES (1024 * 1024)               // 4GB worth of 4KB frames

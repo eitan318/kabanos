@@ -14,6 +14,7 @@
 // In future will be with VMA of process
 static int load_segment(arch_vm_t *vm, vaddr_t va_start, size_t mem_size,
                         void *file_data, size_t file_size, uint32_t flags) {
+
   if (!va_alloc_region(vm, va_start, mem_size, flags)) {
     return -1;
   }
@@ -21,39 +22,30 @@ static int load_segment(arch_vm_t *vm, vaddr_t va_start, size_t mem_size,
   vaddr_t pages_start = align_down(va_start, PAGE_SIZE);
   vaddr_t pages_end = align_up(va_start + mem_size, PAGE_SIZE);
 
-  size_t file_copied = 0;
   for (vaddr_t page_va = pages_start; page_va < pages_end;
        page_va += PAGE_SIZE) {
     paddr_t phys = hal_vm_virt_to_phys(vm, page_va);
-    ASSERT(phys);
-
     void *kva = (void *)(phys + KERNEL_BASE);
-    ASSERT(kva);
 
-    // Calculate which bytes in this page belong to the segment
-    size_t page_offset = (page_va < va_start) ? (va_start - page_va) : 0;
-    size_t page_limit = (page_va + PAGE_SIZE > va_start + mem_size)
-                            ? (va_start + mem_size - page_va)
-                            : PAGE_SIZE;
-    size_t seg_bytes_in_page = page_limit - page_offset;
+    // 1. Zero the whole page first to handle BSS and padding
+    memset(kva, 0, PAGE_SIZE);
 
-    // Zero the segment's portion of this page
-    memset((uint8_t *)kva + page_offset, 0, seg_bytes_in_page);
+    // 2. Calculate intersection of this page and the segment
+    vaddr_t seg_start = va_start;
+    vaddr_t seg_end = va_start + file_size; // Only copy what's in the file
 
-    // Copy file data if available (overwrites zeros)
-    if (file_copied < file_size) {
-      size_t bytes_to_copy = file_size - file_copied;
-      if (bytes_to_copy > seg_bytes_in_page) {
-        bytes_to_copy = seg_bytes_in_page;
-      }
+    vaddr_t intersect_start = MAX(page_va, seg_start);
+    vaddr_t intersect_end = MIN(page_va + PAGE_SIZE, seg_end);
 
-      memcpy((uint8_t *)kva + page_offset, (uint8_t *)file_data + file_copied,
+    if (intersect_start < intersect_end) {
+      size_t dest_offset = intersect_start - page_va;
+      size_t src_offset = intersect_start - va_start;
+      size_t bytes_to_copy = intersect_end - intersect_start;
+
+      memcpy((uint8_t *)kva + dest_offset, (uint8_t *)file_data + src_offset,
              bytes_to_copy);
-
-      file_copied += bytes_to_copy;
     }
   }
-
   return 0;
 }
 

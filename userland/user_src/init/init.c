@@ -19,9 +19,13 @@ int proc_spawn(char *name, char **argv, char **envp) {
 }
 
 int main(int argc, char **argv, char **envp) {
-  // printf("argc: %d %p %s %s %s %s", argc, argv[0], argv[1], argv[2], argv[3],
-  //       argv[4]);
+  printf("argc: %d %s %s", argc, argv[0], argv[1]);
   //
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+  asm volatile("nop");
+
   proc_spawn("/bin/shell.elf", NULL, NULL);
   for (;;) {
   }

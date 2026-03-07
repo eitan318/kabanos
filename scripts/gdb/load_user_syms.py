@@ -17,23 +17,30 @@ class LoadUserSymbols(gdb.Command):
 
         for i in range(count):
             entry = gdb.parse_and_eval(f"g_exec_table[{i}]")
-            loaded = int(entry["loaded"])
-            if not loaded:
+
+            # 1. Check loaded flag safely
+            if int(entry["loaded"]) == 0:
                 continue
 
-            path = entry["path"].string()
-            load_base = int(entry["load_base"])
+            # 2. Safely extract the path string
+            try:
+                # Get the raw bytes and decode, ignoring errors to prevent the crash
+                path_ptr = entry["path"]
+                path = path_ptr.string(errors="replace")
+            except Exception as e:
+                print(f"[load-user-syms] Error reading path at index {i}: {e}")
+                continue
 
-            # Map kernel-side path to host path
-            # e.g. /boot/init.elf -> /path/to/BOOT/init.elf
+            load_base = int(entry["load_base"])
             filename = os.path.basename(path)
             host_path = os.path.join(elf_host_base, filename)
 
             if not os.path.exists(host_path):
-                print(f"[load-user-syms] WARNING: {host_path} not found, skipping")
+                print(f"[load-user-syms] Skipping: {host_path} not found")
                 continue
 
-            cmd = f"add-symbol-file {host_path} 0x{load_base:x}"
+            # 3. Use -s .text to be explicit for GDB
+            cmd = f"add-symbol-file {host_path} -s .text 0x{load_base:x}"
             print(f"[load-user-syms] {cmd}")
             gdb.execute(cmd)
 
