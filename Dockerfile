@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     python3 \
     texinfo \
     wget \
+    dos2unix \ 
     && rm -rf /var/lib/apt/lists/*
 
 # i686-myos-gcc and friends
@@ -85,21 +86,23 @@ RUN wget -nc https://ftp.gnu.org/gnu/automake/automake-1.11.tar.gz && \
 # 3. Add the legacy autotools to container path
 ENV PATH="$LEGACY_PATH/bin:${PATH}"
 
+
+# newlib
+# ----------
 WORKDIR /src
 
 RUN wget https://sourceware.org/pub/newlib/newlib-2.5.0.tar.gz && \
     tar -xf newlib-2.5.0.tar.gz
 
-RUN apt-get update && apt-get install -y dos2unix && rm -rf /var/lib/apt/lists/*
-
+# Copy patch and patch newlib
 COPY extern/patches/newlib-2.5.0-myos.patch /tmp/newlib.patch
 RUN cd newlib-2.5.0 && patch -p1 < /tmp/newlib.patch
 
+
+# Fix dos to unix needed when running on wsl on windows
 RUN find /src/newlib-2.5.0 -type f -name "configure" | xargs dos2unix
 
 RUN chmod -R 777 /src
-
-
 
 #---------------------------------------------------------
 # Section for quick addings so you dont need to wait alot

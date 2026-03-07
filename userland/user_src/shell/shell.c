@@ -1,4 +1,3 @@
-#include "user.h"
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -31,22 +30,12 @@ static int parse_line(char *line, char **argv) {
   return argc;
 }
 
-/* --- builtins --- */
-static int cmd_help(int argc, char **argv) {
-  puts("usage: <command> [args]");
-  puts("  runs /bin/<command>.elf [args]");
-  puts("  built-ins: help, exit, clear");
-  return 0;
-}
-
 /* --- execute --- */
 static int execute(int argc, char **argv) {
   if (argc == 0)
     return 0;
   if (strcmp(argv[0], "exit") == 0)
     exit(0);
-  if (strcmp(argv[0], "help") == 0)
-    return cmd_help(argc, argv);
 
   char path[128];
   if (argv[0][0] == '/')
@@ -79,6 +68,7 @@ int main(int argc, char **argv, char **envp) {
   char line[MAX_LINE];
   char *args[MAX_ARGS];
 
+  // execute(1, "neofetch");
   puts("myos shell - type 'help'");
 
   while (1) {
