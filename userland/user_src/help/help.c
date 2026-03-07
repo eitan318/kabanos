@@ -7,15 +7,70 @@ struct CommandHelp {
   char *details; // Longer explanation (the 'man' part)
 };
 
+// clang-format off
 struct CommandHelp help_table[] = {
-    {"help", "Display information about built-in commands.",
-     "Usage: help [-l] [command]"},
-    {"ls", "List directory contents.",
-     "Usage: ls [directory]\nOptions: -a (all), -l (long format)"},
-    {"cd", "Change the working directory.",
-     "Usage: cd [path]\nUse '..' to go up one level."},
-    // Add more commands here...
+    {   
+        "help",
+        "Display information about built-in commands.",
+        "Usage: help [-l] [command]"
+    },
+    {
+        "ls",
+        "List directory contents.",
+        "Usage: ls [directory]\nOptions: -a (all), -l (long format)"
+    },
+    {
+        "cd",
+        "Change the working directory.",
+        "Usage: cd [path]\nUse '..' to go up one level."
+    },
+    {
+        "pwd",
+        "Print the current working directory.",
+        "Usage: pwd"
+    },
+    {
+        "cat",
+        "Display file contents.",
+        "Usage: cat [file]"
+    },
+    {
+        "echo",
+        "Print text to the terminal.",
+        "Usage: echo [text]"
+    },
+    {
+        "mkdir",
+        "Create a new directory.",
+        "Usage: mkdir [directory]"
+    },
+    {
+        "touch",
+        "Create an empty file.",
+        "Usage: touch [file]"
+    },
+    {
+        "rm",
+        "Remove a file.",
+        "Usage: rm [file]"
+    },
+    {
+        "rmdir",
+        "Remove an empty directory.",
+        "Usage: rmdir [directory]"
+    },
+    {
+        "clear",
+        "Clear the terminal screen.",
+        "Usage: clear"
+    },
+    {
+        "exit",
+        "Exit the shell.",
+        "Usage: exit"
+    },
 };
+// clang-format on
 
 void main(int argc, char **argv) {
   int total_commands = sizeof(help_table) / sizeof(struct CommandHelp);
