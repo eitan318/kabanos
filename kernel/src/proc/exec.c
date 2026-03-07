@@ -71,6 +71,20 @@ void free_user_stack(vmspace_t *vm) {
   va_free_region(vm->arch, USER_STACK_BOTTOM + 1, USER_STACK_SIZE);
 }
 
+int count_args(char *const argv[]) {
+  int argc = 0;
+  if (argv == NULL)
+    return 0;
+
+  while (argv[argc] != NULL) {
+    argc++;
+    // Safety: Prevent infinite loops if user passes garbage
+    if (argc > 1024)
+      return -1;
+  }
+  return argc;
+}
+
 long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
   thread_t *current = dispatch_get_current();
   process_t *proc = current->process;
@@ -86,6 +100,18 @@ long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
   if (user_stack == (uintptr_t)-1) {
     return -ENOMEM;
   }
+
+  // int argc = count_args(argv);
+  //
+  // uintptr_t stack_ptr = user_stack;
+  // stack_ptr -= sizeof(char **); // envp
+  // copy_to_vmspace(proc->vmspace, stack_ptr, &envp, sizeof(uintptr_t));
+  //
+  // stack_ptr -= sizeof(char **); // argv
+  // copy_to_vmspace(proc->vmspace, stack_ptr, &argv, sizeof(uintptr_t));
+  //
+  // stack_ptr -= sizeof(int); // argc
+  // copy_to_vmspace(proc->vmspace, stack_ptr, &argc, sizeof(int));
 
   // Set stack and entry point so that the func return to there
   hal_thread_init(current, entry, user_stack);
