@@ -162,14 +162,16 @@ long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
   uintptr_t stack_top = alloc_user_stack(proc->vmspace);
 
   // Count args
-  int argc = 0;
-  while (argv[argc])
-    argc++;
+  // int argc = 0;
+  // while (argv[argc])
+  // argc++;
 
+  uintptr_t user_sp;
   // Setup strings and pointers in the new vmspace
-  uintptr_t user_sp =
-      setup_user_stack_args(proc->vmspace, stack_top, argc, argv);
+  // uintptr_t user_sp =
+  //    setup_user_stack_args(proc->vmspace, stack_top, argc, argv);
 
+  user_sp = stack_top;
   hal_thread_init(current, entry, user_sp);
   return 0;
 }
@@ -187,10 +189,12 @@ int process_spawn(const char *path, int argc, char *const argv[],
 
   uintptr_t stack_top = alloc_user_stack(proc->vmspace);
 
+  uintptr_t user_sp;
   // Setup the stack with arguments
-  uintptr_t user_sp =
-      setup_user_stack_args(proc->vmspace, stack_top, argc, argv);
-
+  // uintptr_t user_sp =
+  //   setup_user_stack_args(proc->vmspace, stack_top, argc, argv);
+  //
+  user_sp = stack_top;
   thread_t *t = thread_create_user(proc, entry, user_sp, p);
   proc->main_thread = t;
 

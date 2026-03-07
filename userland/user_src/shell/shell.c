@@ -69,7 +69,7 @@ int main(int argc, char **argv, char **envp) {
   char *args[MAX_ARGS];
 
   char *init_args[] = {"neofetch", NULL};
-  // execute(1, init_args);
+  execute(1, init_args);
 
   while (1) {
     printf(PROMPT);
