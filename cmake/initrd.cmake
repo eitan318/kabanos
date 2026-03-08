@@ -1,4 +1,6 @@
+set(INITRD_DIR ${CMAKE_SOURCE_DIR}/initrd_files)
 file(GLOB_RECURSE INITRD_FILES "${INITRD_DIR}/*")
+
 
 add_custom_command(
   OUTPUT ${INITRD_IMG}

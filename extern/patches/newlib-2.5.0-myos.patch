@@ -1,0 +1,39 @@
+diff --git a/config.sub b/config.sub
+index da6d1b682..382f97b5f 100755
+--- a/config.sub
++++ b/config.sub
+@@ -1388,7 +1388,7 @@ case $os in
+ 	      | -ptx* | -coff* | -ecoff* | -winnt* | -domain* | -vsta* \
+ 	      | -udi* | -eabi* | -lites* | -ieee* | -go32* | -aux* \
+ 	      | -chorusos* | -chorusrdb* | -cegcc* \
+-	      | -cygwin* | -msys* | -pe* | -psos* | -moss* | -proelf* | -rtems* \
++	      | -cygwin* | -msys* | -myos* | -pe* | -psos* | -moss* | -proelf* | -rtems* \
+ 	      | -mingw32* | -mingw64* | -linux-gnu* | -linux-android* \
+ 	      | -linux-newlib* | -linux-musl* | -linux-uclibc* \
+ 	      | -uxpv* | -beos* | -mpeix* | -udk* | -moxiebox* \
+diff --git a/newlib/configure.host b/newlib/configure.host
+index bb163ecc3..ac5c52888 100644
+--- a/newlib/configure.host
++++ b/newlib/configure.host
+@@ -448,6 +448,9 @@ case "${host}" in
+   h8500-*-elf*)
+ 	sys_dir=h8500hms
+ 	;;
++  i[34567]86-*-myos*)
++    sys_dir=myos
++    ;;
+   i[34567]86-*-rdos*)
+ 	sys_dir=rdos
+ 	newlib_cflags="${newlib_cflags} -DMISSING_SYSCALL_NAMES"
+diff --git a/newlib/libc/sys/configure.in b/newlib/libc/sys/configure.in
+index b50a6d37d..21b6247dd 100644
+--- a/newlib/libc/sys/configure.in
++++ b/newlib/libc/sys/configure.in
+@@ -32,6 +32,7 @@ if test -n "${sys_dir}"; then
+ 	linux) AC_CONFIG_SUBDIRS(linux) ;;
+ 	m88kbug) AC_CONFIG_SUBDIRS(m88kbug) ;;
+ 	mmixware) AC_CONFIG_SUBDIRS(mmixware) ;;
++    myos) AC_CONFIG_SUBDIRS(myos) ;;
+ 	netware) AC_CONFIG_SUBDIRS(netware) ;;
+ 	or1k) AC_CONFIG_SUBDIRS(or1k) ;;
+ 	rdos) AC_CONFIG_SUBDIRS(rdos) ;;

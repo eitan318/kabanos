@@ -12,11 +12,13 @@ find_package(Python COMPONENTS Interpreter REQUIRED)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-# Symlink compile_commands.json
 if(NOT "${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E create_symlink
-            "${CMAKE_BINARY_DIR}/compile_commands.json"
-            "${CMAKE_SOURCE_DIR}/compile_commands.json"
+    add_custom_target(fix_compile_commands ALL
+        COMMAND ln -sf build/compile_commands.json compile_commands.json
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        COMMENT "Fixing compile_commands.json for host IDE"
     )
 endif()
+
+
+
