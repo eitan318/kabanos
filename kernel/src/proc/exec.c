@@ -179,7 +179,10 @@ long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
 
   vmspace_t *new_vm = vmspace_create();
   uintptr_t entry = 0;
-  exec_load_elf(new_vm, kpath, &entry);
+  if (exec_load_elf(new_vm, kpath, &entry) < 0) {
+    vmspace_destroy(new_vm);
+    return -ENOENT;
+  }
   uintptr_t stack_top = alloc_user_stack(new_vm);
 
   thread_t *current = dispatch_get_current();

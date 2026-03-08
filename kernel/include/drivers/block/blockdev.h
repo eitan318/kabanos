@@ -1,5 +1,6 @@
 #pragma once
 #include "device.h"
+#include "klib/stdint.h"
 
 #define MAX_BLOCK_DEVICES 50
 
