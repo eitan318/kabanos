@@ -58,12 +58,27 @@ function(add_user_app USER_DIR)
     # -------------------------------------------------------------------------
     # Per-app source collection and extra flags
     # -------------------------------------------------------------------------
-    if(USER_NAME STREQUAL "tcc")
+    if(USER_NAME STREQUAL "tinycc")
         set(APP_SOURCES "${USER_DIR}/tcc.c")
+        
+        # 1. Define the generated file path clearly
+        set(TCCDEFS_H "${USER_DIR}/tccdefs_.h")
+
+        # 2. The generation command
+        add_custom_command(
+            OUTPUT "${TCCDEFS_H}"
+            COMMAND bash -c "gcc -E -P ${USER_DIR}/include/tccdefs.h | sed 's/\"/\\\\\"/g;s/^/\"/;s/$/\\\\n\"/' > ${TCCDEFS_H}"
+            DEPENDS "${USER_DIR}/include/tccdefs.h"
+            COMMENT "Generating TCC internal definitions"
+            VERBATIM
+        )
+
+        # 3. Flags for TCC
         set(EXTRA_APP_FLAGS
             -DONE_SOURCE=1
             -DTCC_TARGET_I386
             -DCONFIG_TCC_STATIC
+            -D_GNU_SOURCE
             -DCONFIG_USE_LIBGCC
             -UCONFIG_TCC_BACKTRACE
             -UCONFIG_TCC_BCHECK
@@ -74,13 +89,14 @@ function(add_user_app USER_DIR)
             -Wno-deprecated-declarations
         )
     else()
+        # Fixed: Added the missing 'file(GLOB ...' and fixed parentheses
         file(GLOB APP_SOURCES
             "${USER_DIR}/*.c"
             "${USER_DIR}/*.S"
             "${USER_DIR}/*.s"
         )
         set(EXTRA_APP_FLAGS "")
-    endif()
+    endif() 
 
     # -------------------------------------------------------------------------
     # Compile each source to an object file
@@ -100,11 +116,12 @@ function(add_user_app USER_DIR)
                     "-I${USER_DIR}"
                     "-I${USER_DIR}/include"
                     -c "${SRC_FILE}" -o "${OBJ_FILE}"
-            DEPENDS "${SRC_FILE}" newlib_project-flatten
+            DEPENDS "${SRC_FILE}" newlib_project-flatten ${TCCDEFS_H}
             COMMENT "Compiling ${USER_NAME}: ${SRC_NAME}"
             VERBATIM
         )
     endforeach()
+
 
     # -------------------------------------------------------------------------
     # Link

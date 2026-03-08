@@ -104,6 +104,16 @@ RUN find /src/newlib-2.5.0 -type f -name "configure" | xargs dos2unix
 
 RUN chmod -R 777 /src
 
+
+# tcc
+# ----------
+RUN apt-get update && apt-get install -y git make gcc
+RUN git clone https://repo.or.cz/tinycc.git /tmp/tinycc
+
+WORKDIR /opt/tcc-src
+RUN ./configure --cpu=i386 --targetos=linux --with-libgcc=no --disable-static
+RUN gcc -E -P include/tccdefs.h | sed 's/"/\\"/g;s/^/"/;s/$/\\n"/' > tccdefs_.h
+
 #---------------------------------------------------------
 # Section for quick addings so you dont need to wait alot
 # Should be moved up once in a week or so
