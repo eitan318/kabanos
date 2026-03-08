@@ -7,8 +7,11 @@ int g_exec_table_count = 0;
 void exec_table_add(const char *path, uintptr_t load_base) {
   if (g_exec_table_count >= EXEC_TABLE_MAX)
     return;
-  exec_table_entry_t *e = &g_exec_table[g_exec_table_count++];
+  g_exec_table_count = 0;
+  exec_table_entry_t *e = &g_exec_table[0];
+  // 1. Zero out the entire struct first
+  memset(e, 0, sizeof(exec_table_entry_t));
   strncpy(e->path, path, sizeof(e->path) - 1);
+  e->path[sizeof(e->path) - 1] = '\0';
   e->load_base = load_base;
-  e->loaded = 1;
 }

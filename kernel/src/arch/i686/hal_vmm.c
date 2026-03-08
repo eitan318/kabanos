@@ -3,21 +3,20 @@
 #include "hal.h"
 #include "klib/stdbool.h"
 #include "klib/stddef.h"
-#include "klib/stdint.h"
 #include "klib/stdio.h"
-#include "klib/string.h"
-#include "mm/kmalloc.h"
 #include "mm/memdefs.h"
 #include "mm/pmm.h"
 #include "utils/math.h"
+#include <sched/dispatcher.h>
 
 typedef uint32_t page_dir_entry_t;
 
 #define KERNEL_PD_START (KERNEL_BASE / (4 * 1024 * 1024))
-#define PD_PT_PRESENT PAGE_PRESENT
-#define PD_PT_READWRITE PAGE_READWRITE
-#define PD_PT_USER PAGE_USER
+#define ARCH_PD_PT_PRESENT 0x1
+#define ARCH_PD_PT_READWRITE 0x2
+#define ARCH_PD_PT_USER 0x4
 #define PT_ENTRIES 1024
+#define PD_ENTRIES PAGE_SIZE / sizeof(uint32_t)
 #define PT_SIZE (PT_ENTRIES * PAGE_SIZE)
 
 #define PT_COW 0x200 // Bit 9: Our custom "Copy-on-Write" flag
@@ -44,19 +43,31 @@ static inline uint32_t calc_remaining_in_pt(uint32_t pt_index) {
   return (PT_ENTRIES - pt_index) * PAGE_SIZE;
 }
 
+static uint32_t public_flags_to_arch_flags(uint32_t flags) {
+  uint32_t arch_flags = 0;
+  if (flags & PAGE_PRESENT)
+    arch_flags |= ARCH_PD_PT_PRESENT;
+  if (flags & PAGE_READWRITE)
+    arch_flags |= ARCH_PD_PT_READWRITE;
+  if (flags & PAGE_USER)
+    arch_flags |= ARCH_PD_PT_USER;
+
+  return arch_flags;
+}
+
 paddr_t hal_vm_virt_to_phys(arch_vm_t *vm, vaddr_t va) {
   page_dir_entry_t *pd = vm->pd;
   uint32_t pd_index = get_pd_index(va);
   uint32_t pt_index = get_pt_index(va);
 
-  if (!(pd[pd_index] & PD_PT_PRESENT)) {
+  if (!(pd[pd_index] & ARCH_PD_PT_PRESENT)) {
     return 0;
   }
 
   paddr_t pt_phys = pd[pd_index] & ~0xFFF;
   uint32_t *pt_virt = get_pt_virtual(pt_phys);
 
-  if (!(pt_virt[pt_index] & PD_PT_PRESENT)) {
+  if (!(pt_virt[pt_index] & ARCH_PD_PT_PRESENT)) {
     return 0;
   }
 
@@ -80,8 +91,8 @@ static paddr_t allocate_page_table(void) {
 }
 
 static bool ensure_page_table_exists(page_dir_entry_t *pd, uint32_t pd_index,
-                                     uint32_t flags) {
-  if (pd[pd_index] & PD_PT_PRESENT) {
+                                     uint32_t internal_flags) {
+  if (pd[pd_index] & ARCH_PD_PT_PRESENT) {
     return true;
   }
 
@@ -90,14 +101,14 @@ static bool ensure_page_table_exists(page_dir_entry_t *pd, uint32_t pd_index,
     return false;
   }
 
-  pd[pd_index] =
-      pt_phys | PD_PT_PRESENT | PD_PT_READWRITE | (flags & PD_PT_USER);
+  pd[pd_index] = pt_phys | ARCH_PD_PT_PRESENT | ARCH_PD_PT_READWRITE |
+                 (internal_flags & ARCH_PD_PT_USER);
   return true;
 }
 
 static paddr_t get_or_create_page_table(page_dir_entry_t *pd, uint32_t pd_index,
-                                        uint32_t flags, bool *created) {
-  if (pd[pd_index] & PD_PT_PRESENT) {
+                                        uint32_t arch_flags, bool *created) {
+  if (pd[pd_index] & ARCH_PD_PT_PRESENT) {
     *created = false;
     return pd[pd_index] & ~0xFFF;
   }
@@ -107,8 +118,8 @@ static paddr_t get_or_create_page_table(page_dir_entry_t *pd, uint32_t pd_index,
     return 0;
   }
 
-  pd[pd_index] =
-      pt_phys | PD_PT_PRESENT | PD_PT_READWRITE | (flags & PD_PT_USER);
+  pd[pd_index] = pt_phys | ARCH_PD_PT_PRESENT | ARCH_PD_PT_READWRITE |
+                 (arch_flags & ARCH_PD_PT_USER);
   *created = true;
   return pt_phys;
 }
@@ -119,33 +130,35 @@ static paddr_t get_or_create_page_table(page_dir_entry_t *pd, uint32_t pd_index,
 
 static void fill_page_table_entries(uint32_t *pt, uint32_t start_index,
                                     uint32_t count, paddr_t pa_base,
-                                    uint32_t flags) {
+                                    uint32_t arch_flags) {
   for (uint32_t i = 0; i < count; i++) {
     pt[start_index + i] =
-        (pa_base + i * PAGE_SIZE) | (flags & 0xFFF) | PD_PT_PRESENT;
+        (pa_base + i * PAGE_SIZE) | (arch_flags & 0xFFF) | ARCH_PD_PT_PRESENT;
   }
 }
 
 static void map_full_page_table(page_dir_entry_t *pd, uint32_t pd_index,
-                                paddr_t pa, uint32_t flags) {
+                                paddr_t pa, uint32_t arch_flags) {
   bool created;
-  paddr_t pt_phys = get_or_create_page_table(pd, pd_index, flags, &created);
+  paddr_t pt_phys =
+      get_or_create_page_table(pd, pd_index, arch_flags, &created);
   uint32_t *pt_virt = get_pt_virtual(pt_phys);
 
-  fill_page_table_entries(pt_virt, 0, PT_ENTRIES, pa, flags);
+  fill_page_table_entries(pt_virt, 0, PT_ENTRIES, pa, arch_flags);
 }
 
 static void map_partial_page_table(page_dir_entry_t *pd, uint32_t pd_index,
                                    uint32_t pt_index, uint32_t page_count,
-                                   paddr_t pa, uint32_t flags, vaddr_t va) {
-  if (!ensure_page_table_exists(pd, pd_index, flags)) {
+                                   paddr_t pa, uint32_t arch_flags,
+                                   vaddr_t va) {
+  if (!ensure_page_table_exists(pd, pd_index, arch_flags)) {
     return;
   }
 
   paddr_t pt_phys = pd[pd_index] & ~0xFFF;
   uint32_t *pt_virt = get_pt_virtual(pt_phys);
 
-  fill_page_table_entries(pt_virt, pt_index, page_count, pa, flags);
+  fill_page_table_entries(pt_virt, pt_index, page_count, pa, arch_flags);
 
   // Flush individual pages for partial mappings
   for (uint32_t i = 0; i < page_count; i++) {
@@ -156,11 +169,10 @@ static void map_partial_page_table(page_dir_entry_t *pd, uint32_t pd_index,
 //
 // Page Table Unmapping Operations
 //
-
 static void clear_page_table_entries(uint32_t *pt, uint32_t start_index,
                                      uint32_t count) {
   for (uint32_t i = 0; i < count; i++) {
-    if (pt[start_index + i] & PD_PT_PRESENT) {
+    if (pt[start_index + i] & ARCH_PD_PT_PRESENT) {
       pt[start_index + i] = 0;
     }
   }
@@ -192,8 +204,9 @@ static uint32_t calculate_map_size(uint32_t pt_index, vaddr_t va,
 }
 
 bool hal_vm_map_range(arch_vm_t *vm, paddr_t pa_start, vaddr_t va_start,
-                      size_t size, uint32_t flags) {
+                      size_t size, uint32_t public_flags) {
 
+  uint32_t arch_flags = public_flags_to_arch_flags(public_flags);
   page_dir_entry_t *pd_virt = vm->pd;
 
   if (size == 0) {
@@ -215,14 +228,14 @@ bool hal_vm_map_range(arch_vm_t *vm, paddr_t pa_start, vaddr_t va_start,
 
     if ((pt_index == 0 && map_size >= PT_SIZE)) {
       // Fast path: map entire 4MB region
-      map_full_page_table(pd_virt, pd_index, pa, flags);
+      map_full_page_table(pd_virt, pd_index, pa, arch_flags);
       va += PT_SIZE;
       pa += PT_SIZE;
     } else {
       // Slow path: map partial page table
       uint32_t page_count = map_size / PAGE_SIZE;
-      map_partial_page_table(pd_virt, pd_index, pt_index, page_count, pa, flags,
-                             va);
+      map_partial_page_table(pd_virt, pd_index, pt_index, page_count, pa,
+                             arch_flags, va);
       va += map_size;
       pa += map_size;
     }
@@ -251,7 +264,7 @@ bool hal_vm_unmap_range(arch_vm_t *vm, vaddr_t va_start, size_t size) {
     uint32_t pd_index = get_pd_index(va);
     uint32_t pt_index = get_pt_index(va);
 
-    if (!(pd_virt[pd_index] & PD_PT_PRESENT)) {
+    if (!(pd_virt[pd_index] & ARCH_PD_PT_PRESENT)) {
       // Skip to next page table boundary
       va = (pd_index + 1) << 22;
       continue;
@@ -279,8 +292,8 @@ bool hal_vm_unmap_range(arch_vm_t *vm, vaddr_t va_start, size_t size) {
 //
 // Single Page Operations
 //
-bool hal_vm_map(arch_vm_t *vm, vaddr_t va, paddr_t pa, uint32_t flags) {
-  bool res = hal_vm_map_range(vm, pa, va, PAGE_SIZE, flags);
+bool hal_vm_map(arch_vm_t *vm, vaddr_t va, paddr_t pa, uint32_t public_flags) {
+  bool res = hal_vm_map_range(vm, pa, va, PAGE_SIZE, public_flags);
   if (res) {
     tlb_flush(va);
   }
@@ -307,23 +320,23 @@ void hal_vm_arch_load(arch_vm_t *arch_vm) {
   asm volatile("mov %0, %%cr3" ::"r"(arch_vm->pd_phys));
 }
 
-static uint32_t *hal_vm_get_pte_ptr(arch_vm_t *vm, vaddr_t va) {
+static uint32_t *get_pte_ptr(arch_vm_t *vm, vaddr_t va) {
   uint32_t pd_idx = get_pd_index(va);
-  if (!(vm->pd[pd_idx] & PD_PT_PRESENT))
+  if (!(vm->pd[pd_idx] & ARCH_PD_PT_PRESENT))
     return NULL;
 
   uint32_t *pt_virt = get_pt_virtual(vm->pd[pd_idx] & ~0xFFF);
   return &pt_virt[get_pt_index(va)];
 }
 
-static void hal_phys_copy(paddr_t dst_pa, paddr_t src_pa) {
+static void phys_copy(paddr_t dst_pa, paddr_t src_pa) {
   void *src = (void *)(src_pa + KERNEL_BASE);
   void *dst = (void *)(dst_pa + KERNEL_BASE);
   memcpy(dst, src, FRAME_SIZE);
 }
 
 bool hal_vmm_handle_cow(arch_vm_t *arch_vm, uintptr_t addr) {
-  uint32_t *pte = hal_vm_get_pte_ptr(arch_vm, addr);
+  uint32_t *pte = get_pte_ptr(arch_vm, addr);
 
   if (!pte || !(*pte & PT_COW))
     return false;
@@ -333,15 +346,15 @@ bool hal_vmm_handle_cow(arch_vm_t *arch_vm, uintptr_t addr) {
   if (pmm_frame_refcount_get(old_phys) > 1) {
     paddr_t new_phys = pmm_frame_alloc();
 
-    hal_phys_copy(new_phys, old_phys);
+    phys_copy(new_phys, old_phys);
 
-    *pte = new_phys | (*pte & 0xFFF) | PD_PT_READWRITE;
+    *pte = new_phys | (*pte & 0xFFF) | ARCH_PD_PT_READWRITE;
     *pte &= ~PT_COW;
 
     pmm_frame_free(old_phys); // Decrements ref count
   } else {
     // Only one owner left, promote back to writable
-    *pte |= PD_PT_READWRITE;
+    *pte |= ARCH_PD_PT_READWRITE;
     *pte &= ~PT_COW;
   }
 
@@ -355,7 +368,7 @@ bool hal_vmm_handle_cow(arch_vm_t *arch_vm, uintptr_t addr) {
 
 void hal_vm_arch_destroy(arch_vm_t *vm) {
   for (int i = 0; i < KERNEL_PD_START; i++) {
-    if (vm->pd[i] & PD_PT_PRESENT) {
+    if (vm->pd[i] & ARCH_PD_PT_PRESENT) {
       paddr_t pt_phys = vm->pd[i] & ~0xFFF;
       pmm_frame_free(pt_phys);
     }
@@ -368,7 +381,7 @@ static void hal_vmm_set_cow(arch_vm_t *arch_vm) {
 
   // Only iterate over USER space entries
   for (int i = 0; i < KERNEL_PD_START; i++) {
-    if (!(pd[i] & PAGE_PRESENT))
+    if (!(pd[i] & ARCH_PD_PT_PRESENT))
       continue;
 
     // 1. Convert physical address in PD to a virtual pointer we can use
@@ -376,13 +389,13 @@ static void hal_vmm_set_cow(arch_vm_t *arch_vm) {
     uint32_t *pt = get_pt_virtual(pt_phys);
 
     for (int j = 0; j < PT_ENTRIES; j++) {
-      if (!(pt[j] & PAGE_PRESENT))
+      if (!(pt[j] & ARCH_PD_PT_PRESENT))
         continue;
 
       // Only make WRITABLE pages COW
-      if (pt[j] & PD_PT_READWRITE) {
+      if (pt[j] & ARCH_PD_PT_READWRITE) {
         pt[j] |= PT_COW;
-        pt[j] &= ~PD_PT_READWRITE; // Correct bitwise NOT
+        pt[j] &= ~ARCH_PD_PT_READWRITE; // Correct bitwise NOT
       }
 
       // Every page shared between parent and child needs +1 ref
@@ -393,16 +406,43 @@ static void hal_vmm_set_cow(arch_vm_t *arch_vm) {
   tlb_flush_all();
 }
 
+void hal_vm_copy_to_vmspace(arch_vm_t *dst_vmspace, vaddr_t dst_vaddr,
+                            vaddr_t src_vaddr, size_t size) {
+
+  arch_vm_t *curr_vmspace = dispatch_get_current()->process->vmspace->arch;
+  size_t remaining = size;
+  vaddr_t curr_dst = dst_vaddr;
+  vaddr_t curr_src = src_vaddr;
+
+  while (remaining > 0) {
+    uint32_t offset = curr_dst % PAGE_SIZE;
+
+    // 2. Determine how much we can copy in THIS page
+    size_t to_copy = PAGE_SIZE - offset;
+    if (to_copy > remaining) {
+      to_copy = remaining;
+    }
+    paddr_t dst_phys_page = hal_vm_virt_to_phys(dst_vmspace, curr_dst - offset);
+    hal_vm_map(curr_vmspace, KMAPPING_BASE, dst_phys_page, PAGE_READWRITE);
+    memcpy((void *)(KMAPPING_BASE + offset), (void *)curr_src, to_copy);
+    hal_vm_unmap(curr_vmspace, KMAPPING_BASE);
+
+    remaining -= to_copy;
+    curr_dst += to_copy;
+    curr_src += to_copy;
+  }
+}
+
 void hal_vm_arch_clone_mapping(arch_vm_t *dst, arch_vm_t *src) {
   memcpy(dst->pd, src->pd, PAGE_SIZE);
 }
 
 void hal_vm_arch_clone(arch_vm_t *dst, arch_vm_t *src) {
-  // 1. Mark the source as COW first
+  // Mark the source as COW first
   hal_vmm_set_cow(src);
 
   for (int i = 0; i < KERNEL_PD_START; i++) {
-    if (src->pd[i] & PAGE_PRESENT) {
+    if (src->pd[i] & ARCH_PD_PT_PRESENT) {
       paddr_t new_pt_phys = pmm_frame_alloc();
       uint32_t *new_pt_virt = get_pt_virtual(new_pt_phys);
       uint32_t *old_pt_virt = get_pt_virtual(src->pd[i] & ~0xFFF);

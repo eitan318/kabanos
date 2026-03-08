@@ -70,27 +70,27 @@ typedef enum {
   SYSCALL_NUMBER_SYS_FORK,
   SYSCALL_NUMBER_SYS_EXECVE,
   SYSCALL_NUMBER_SYS_EXIT,
-  SYSCALL_NUMBER_SYS_WAITPID, // Added: Used by wait()
-  SYSCALL_NUMBER_SYS_GETPID,  // Added: Used by getpid()
+  SYSCALL_NUMBER_SYS_WAITPID,
+  SYSCALL_NUMBER_SYS_GETPID,
 
   // --- Scheduling & Time ---
   SYSCALL_NUMBER_SYS_YIELD,
   SYSCALL_NUMBER_SYS_SLEEP,
   SYSCALL_NUMBER_SYS_NANOSLEEP,
   SYSCALL_NUMBER_SYS_GETTIMEOFDAY,
-  SYSCALL_NUMBER_SYS_TIMES, // Added: Used by times()
+  SYSCALL_NUMBER_SYS_TIMES,
 
   // --- Memory Management ---
   SYSCALL_NUMBER_SYS_SBRK,
   SYSCALL_NUMBER_SYS_MMAP,
   SYSCALL_NUMBER_SYS_MUNMAP,
-  SYSCALL_NUMBER_SYS_MPROTECT, // Added: Used by mprotect()
+  SYSCALL_NUMBER_SYS_MPROTECT,
 
   // --- Signals & IPC ---
   SYSCALL_NUMBER_SYS_PIPE,
   SYSCALL_NUMBER_SYS_SIGACTION,
-  SYSCALL_NUMBER_SYS_SIGPROCMASK, // Added: Used by sigprocmask()
-  SYSCALL_NUMBER_SYS_KILL,        // Added: Used by kill()
+  SYSCALL_NUMBER_SYS_SIGPROCMASK,
+  SYSCALL_NUMBER_SYS_KILL,
 
 } SYSCALL_NUMBER;
 
@@ -135,7 +135,6 @@ char *realpath(const char *path, char *resolved) {
 }
 
 /* sysconf */
-
 long sysconf(int __name) {
   switch (__name) {
   case _SC_PAGESIZE:

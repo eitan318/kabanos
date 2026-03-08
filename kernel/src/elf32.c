@@ -14,6 +14,7 @@
 // In future will be with VMA of process
 static int load_segment(arch_vm_t *vm, vaddr_t va_start, size_t mem_size,
                         void *file_data, size_t file_size, uint32_t flags) {
+
   if (!va_alloc_region(vm, va_start, mem_size, flags)) {
     return -1;
   }
@@ -21,45 +22,41 @@ static int load_segment(arch_vm_t *vm, vaddr_t va_start, size_t mem_size,
   vaddr_t pages_start = align_down(va_start, PAGE_SIZE);
   vaddr_t pages_end = align_up(va_start + mem_size, PAGE_SIZE);
 
-  size_t file_copied = 0;
   for (vaddr_t page_va = pages_start; page_va < pages_end;
        page_va += PAGE_SIZE) {
     paddr_t phys = hal_vm_virt_to_phys(vm, page_va);
-    ASSERT(phys);
-
     void *kva = (void *)(phys + KERNEL_BASE);
-    ASSERT(kva);
 
-    // Calculate which bytes in this page belong to the segment
-    size_t page_offset = (page_va < va_start) ? (va_start - page_va) : 0;
-    size_t page_limit = (page_va + PAGE_SIZE > va_start + mem_size)
-                            ? (va_start + mem_size - page_va)
-                            : PAGE_SIZE;
-    size_t seg_bytes_in_page = page_limit - page_offset;
+    // 1. Zero the whole page first to handle BSS and padding
+    memset(kva, 0, PAGE_SIZE);
 
-    // Zero the segment's portion of this page
-    memset((uint8_t *)kva + page_offset, 0, seg_bytes_in_page);
+    // 2. Calculate intersection of this page and the segment
+    vaddr_t seg_start = va_start;
+    vaddr_t seg_end = va_start + file_size; // Only copy what's in the file
 
-    // Copy file data if available (overwrites zeros)
-    if (file_copied < file_size) {
-      size_t bytes_to_copy = file_size - file_copied;
-      if (bytes_to_copy > seg_bytes_in_page) {
-        bytes_to_copy = seg_bytes_in_page;
-      }
+    vaddr_t intersect_start = MAX(page_va, seg_start);
+    vaddr_t intersect_end = MIN(page_va + PAGE_SIZE, seg_end);
 
-      memcpy((uint8_t *)kva + page_offset, (uint8_t *)file_data + file_copied,
+    if (intersect_start < intersect_end) {
+      size_t dest_offset = intersect_start - page_va;
+      size_t src_offset = intersect_start - va_start;
+      size_t bytes_to_copy = intersect_end - intersect_start;
+
+      memcpy((uint8_t *)kva + dest_offset, (uint8_t *)file_data + src_offset,
              bytes_to_copy);
-
-      file_copied += bytes_to_copy;
     }
   }
-
   return 0;
+}
+
+static const char *get_elf_string(void *elf_data, uint32_t strtab_off,
+                                  uint32_t name_idx) {
+  return (const char *)((uint8_t *)elf_data + strtab_off + name_idx);
 }
 
 // Load ELF file
 int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
-               uintptr_t *entry, uintptr_t *load_base) {
+               uintptr_t *entry, uintptr_t *text_base) {
   ASSERT(vm && elf_data && entry);
 
   if (elf_size < sizeof(elf32_header_t)) {
@@ -68,7 +65,6 @@ int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
   }
 
   elf32_header_t *hdr = (elf32_header_t *)elf_data;
-
   // Validate ELF header
   if (memcmp(hdr->magic, ELF_MAGIC, 4) != 0 ||
       hdr->wordsize != ELF_BITNESS_32BIT ||
@@ -79,6 +75,26 @@ int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
     return -1;
   }
 
+  if (text_base) {
+    // Find Section Header String Table (.shstrtab)
+    elf32_sec_hdr *shdr_table =
+        (elf32_sec_hdr *)((uint8_t *)elf_data + hdr->shdr_table_pos);
+    elf32_sec_hdr *shstrtab_hdr = &shdr_table[hdr->section_names_index];
+    uint32_t shstrtab_off = shstrtab_hdr->offset;
+
+    *text_base = 0; // Default if not found
+
+    for (uint32_t i = 0; i < hdr->shdr_table_entry_count; i++) {
+      elf32_sec_hdr *sh = &shdr_table[i];
+      const char *name = get_elf_string(elf_data, shstrtab_off, sh->name);
+
+      if (strcmp(name, ".text") == 0) {
+        *text_base = sh->addr;
+        break;
+      }
+    }
+  }
+
   // Validate program header table
   uint32_t phdr_size = hdr->phdr_table_entry_count * hdr->phdr_table_entry_size;
   if (hdr->phdr_table_pos > elf_size ||
@@ -86,8 +102,6 @@ int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
     kdebugf("ELF: Invalid program headers\n");
     return -1;
   }
-
-  bool base_set = false;
 
   // Load segments
   uint8_t *phdrs = (uint8_t *)elf_data + hdr->phdr_table_pos;
@@ -98,13 +112,6 @@ int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
 
     if (ph->type != ELF_PROGRAM_TYPE_LOAD || ph->mem_size == 0) {
       continue;
-    }
-
-    if (!base_set) {
-      if (load_base) {
-        *load_base = ph->vaddr;
-      }
-      base_set = true;
     }
 
     // Validate segment bounds

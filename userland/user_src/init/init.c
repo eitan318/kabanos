@@ -19,9 +19,24 @@ int proc_spawn(char *name, char **argv, char **envp) {
 }
 
 int main(int argc, char **argv, char **envp) {
-  proc_spawn("/bin/shell.elf", NULL, NULL);
+  char *shell_args[] = {"/bin/shell.elf", "/bin/neofetch.elf", NULL};
 
-  int status = 0;
-  wait(&status);
-  printf("Bye Bye");
+  // Spawn the shell
+  if (proc_spawn("/bin/shell.elf", shell_args, envp) < 0) {
+    printf("Init: Failed to start shell!\n");
+    return 1;
+  }
+
+  /// There is a schedualer bug preventing from one process to switch to itself
+  /// so there allways gotta be at least one proc
+  for (;;) {
+  }
+
+  while (1) {
+    int status;
+    if (wait(&status) > 0) {
+      printf("Init: Shell exited. Restarting...\n");
+      proc_spawn("/bin/shell.elf", shell_args, envp);
+    }
+  }
 }

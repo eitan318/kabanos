@@ -67,7 +67,7 @@ static void kmain_launch_init(const char *cmdline) {
     panic("Cmdline didnt specify init path");
   }
 
-  process_spawn(init_path, PRIORITY_HIGH);
+  process_spawn(init_path, NULL, NULL, NULL, PRIORITY_HIGH);
 
   kfree(init_path);
 }

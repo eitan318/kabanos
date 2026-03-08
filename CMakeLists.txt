@@ -5,7 +5,6 @@ set(ARCH i686)
 
 enable_language(C ASM_NASM)
 
-include(cmake/compile_with_newlib.cmake)
 include(cmake/toolchain.cmake)
 include(cmake/paths.cmake)
 
@@ -23,6 +22,4 @@ configure_file(
 
 include(cmake/initrd.cmake)
 include(cmake/disk_image.cmake)
-
-#include(cmake/sbase.cmake)
 
