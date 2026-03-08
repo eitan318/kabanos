@@ -1,0 +1,148 @@
+#include "syscall.h"
+#include "fs/fs_syscalls.h"
+#include "proc/exec.h"
+#include "proc/proc.h"
+#include "proc/wait.h"
+#include "sched/sched.h"
+#include "sched/sleep.h"
+#include <fs/vfs.h>
+
+typedef enum {
+  SYSCALL_NUMBER_INITIAL = 1,
+
+  // --- File System ---
+  SYSCALL_NUMBER_SYS_WRITE,
+  SYSCALL_NUMBER_SYS_READ,
+  SYSCALL_NUMBER_SYS_OPEN,
+  SYSCALL_NUMBER_SYS_CLOSE,
+  SYSCALL_NUMBER_SYS_LSEEK,
+  SYSCALL_NUMBER_SYS_FSTAT,
+  SYSCALL_NUMBER_SYS_STAT, // Added: Used by stat()
+  SYSCALL_NUMBER_SYS_GETDENTS,
+  SYSCALL_NUMBER_SYS_CREATE,
+  SYSCALL_NUMBER_SYS_UNLINK,
+  SYSCALL_NUMBER_SYS_RENAME,
+  SYSCALL_NUMBER_SYS_MKDIR,
+  SYSCALL_NUMBER_SYS_RMDIR,
+  SYSCALL_NUMBER_SYS_SYMLINK,
+  SYSCALL_NUMBER_SYS_READLINK,
+  SYSCALL_NUMBER_SYS_LINK, // Added: Used by link()
+  SYSCALL_NUMBER_SYS_MOUNT,
+  SYSCALL_NUMBER_SYS_UMOUNT,
+  SYSCALL_NUMBER_SYS_GETCWD, // Added: Used by getcwd()
+
+  // --- Process & Lifecycle ---
+  SYSCALL_NUMBER_SYS_FORK,
+  SYSCALL_NUMBER_SYS_EXECVE,
+  SYSCALL_NUMBER_SYS_EXIT,
+  SYSCALL_NUMBER_SYS_WAITPID, // Added: Used by wait()
+  SYSCALL_NUMBER_SYS_GETPID,  // Added: Used by getpid()
+
+  // --- Scheduling & Time ---
+  SYSCALL_NUMBER_SYS_YIELD,
+  SYSCALL_NUMBER_SYS_SLEEP,
+  SYSCALL_NUMBER_SYS_NANOSLEEP,
+  SYSCALL_NUMBER_SYS_GETTIMEOFDAY,
+  SYSCALL_NUMBER_SYS_TIMES, // Added: Used by times()
+
+  // --- Memory Management ---
+  SYSCALL_NUMBER_SYS_SBRK,
+  SYSCALL_NUMBER_SYS_MMAP,
+  SYSCALL_NUMBER_SYS_MUNMAP,
+  SYSCALL_NUMBER_SYS_MPROTECT, // Added: Used by mprotect()
+
+  // --- Signals & IPC ---
+  SYSCALL_NUMBER_SYS_PIPE,
+  SYSCALL_NUMBER_SYS_SIGACTION,
+  SYSCALL_NUMBER_SYS_SIGPROCMASK, // Added: Used by sigprocmask()
+  SYSCALL_NUMBER_SYS_KILL,        // Added: Used by kill()
+
+} SYSCALL_NUMBER;
+
+long syscall_dispatch(syscall_info_t f) {
+  switch (f.num) {
+  /* --- File & Device I/O --- */
+  case SYSCALL_NUMBER_SYS_OPEN:
+    return sys_open((const char *)f.args[0], (int)f.args[1]);
+  case SYSCALL_NUMBER_SYS_CLOSE:
+    return sys_close((int)f.args[0]);
+  case SYSCALL_NUMBER_SYS_READ:
+    return sys_read((int)f.args[0], (char *)f.args[1], (size_t)f.args[2]);
+  case SYSCALL_NUMBER_SYS_WRITE:
+    return sys_write((int)f.args[0], (const char *)f.args[1],
+                     (size_t)f.args[2]);
+  case SYSCALL_NUMBER_SYS_LSEEK:
+    return sys_lseek((int)f.args[0], (off_t)f.args[1], (int)f.args[2]);
+  case SYSCALL_NUMBER_SYS_FSTAT:
+  case SYSCALL_NUMBER_SYS_STAT:
+    return sys_stat((int)f.args[0], (fstat_t *)f.args[1]);
+  case SYSCALL_NUMBER_SYS_GETDENTS:
+    return sys_getdents(f.args[0], (vdir_entry_t *)f.args[1], f.args[2]);
+
+  /* --- Directory & Path Ops --- */
+  case SYSCALL_NUMBER_SYS_MKDIR:
+    return sys_mkdir((const char *)f.args[0], (mode_t)f.args[1]);
+  case SYSCALL_NUMBER_SYS_RMDIR:
+    return sys_rmdir((const char *)f.args[0]);
+  case SYSCALL_NUMBER_SYS_UNLINK:
+    return sys_unlink((const char *)f.args[0]);
+  case SYSCALL_NUMBER_SYS_RENAME:
+    return sys_rename((const char *)f.args[0], (const char *)f.args[1]);
+  case SYSCALL_NUMBER_SYS_SYMLINK:
+    return sys_symlink((const char *)f.args[0], (const char *)f.args[1]);
+  case SYSCALL_NUMBER_SYS_READLINK:
+    return sys_readlink((const char *)f.args[0], (char *)f.args[1],
+                        (size_t)f.args[2]);
+  case SYSCALL_NUMBER_SYS_LINK:
+    return -ENOSYS; // Unimplemented
+
+  /* --- Mount Management --- */
+  case SYSCALL_NUMBER_SYS_MOUNT:
+    return sys_mount((const char *)f.args[0], (const char *)f.args[1],
+                     (const char *)f.args[2], (unsigned long)f.args[3],
+                     (void *)f.args[4]);
+  case SYSCALL_NUMBER_SYS_UMOUNT:
+    return sys_umount((const char *)f.args[0]);
+
+  /* --- Process Management --- */
+  case SYSCALL_NUMBER_SYS_FORK:
+    return sys_fork();
+  case SYSCALL_NUMBER_SYS_EXECVE:
+    return sys_execve((const char *)f.args[0], (char *const *)f.args[1],
+                      (char *const *)f.args[2]);
+  case SYSCALL_NUMBER_SYS_EXIT:
+    sys_exit((int)f.args[0]);
+    return 0;
+  case SYSCALL_NUMBER_SYS_WAITPID:
+    return sys_waitpid((pid_t)f.args[0], (int *)f.args[1], (int)f.args[2]);
+  case SYSCALL_NUMBER_SYS_GETPID:
+    return sys_getpid();
+
+  /* --- Scheduling & Time --- */
+  case SYSCALL_NUMBER_SYS_YIELD:
+    sys_yield();
+    return 0;
+  case SYSCALL_NUMBER_SYS_SLEEP:
+    sys_sleep((unsigned int)f.args[0]);
+    return 0;
+  case SYSCALL_NUMBER_SYS_NANOSLEEP:
+  case SYSCALL_NUMBER_SYS_GETTIMEOFDAY:
+  case SYSCALL_NUMBER_SYS_TIMES:
+    return -ENOSYS; // Unimplemented
+
+  /* --- Memory Management --- */
+  case SYSCALL_NUMBER_SYS_SBRK:
+  case SYSCALL_NUMBER_SYS_MMAP:
+  case SYSCALL_NUMBER_SYS_MUNMAP:
+    return -ENOSYS; // Unimplemented
+
+  /* --- Signals & IPC --- */
+  case SYSCALL_NUMBER_SYS_KILL:
+  case SYSCALL_NUMBER_SYS_PIPE:
+  case SYSCALL_NUMBER_SYS_SIGACTION:
+    return -ENOSYS; // Unimplemented
+
+  default:
+    return -EINVAL;
+  }
+}

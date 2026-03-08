@@ -5,19 +5,24 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # apt-get deps
 # -------------
-RUN apt-get update && apt-get install -y \
-    build-essential \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     bison \
+    build-essential \
+    cmake \
+    ca-certificates \
+    dosfstools \
+    fdisk \
     flex \
     libgmp3-dev \
     libmpc-dev \
     libmpfr-dev \
+    mtools \
+    nasm \
+    patch \
+    python3 \
     texinfo \
     wget \
-    cmake \
-    nasm \
-    python3 \
-    fdisk \
+    dos2unix \ 
     && rm -rf /var/lib/apt/lists/*
 
 # i686-myos-gcc and friends
@@ -82,29 +87,28 @@ RUN wget -nc https://ftp.gnu.org/gnu/automake/automake-1.11.tar.gz && \
 ENV PATH="$LEGACY_PATH/bin:${PATH}"
 
 
+# newlib
+# ----------
+WORKDIR /src
+
+RUN wget https://sourceware.org/pub/newlib/newlib-2.5.0.tar.gz && \
+    tar -xf newlib-2.5.0.tar.gz
+
+# Copy patch and patch newlib
+COPY extern/patches/newlib-2.5.0-myos.patch /tmp/newlib.patch
+RUN cd newlib-2.5.0 && patch -p1 < /tmp/newlib.patch
 
 
+# Fix dos to unix needed when running on wsl on windows
+RUN find /src/newlib-2.5.0 -type f -name "configure" | xargs dos2unix
 
+RUN chmod -R 777 /src
 
 #---------------------------------------------------------
 # Section for quick addings so you dont need to wait alot
 # Should be moved up once in a week or so
 #---------------------------------------------------------
 
-# Add dosfstools to provide mkfs.fat
-RUN apt-get update && apt-get install -y dosfstools mtools patch  && rm -rf /var/lib/apt/lists/*
-
 #---------------------------------------------------------
-
-# FIX: Change directory back to /src before downloading Newlib!
-WORKDIR /src
-
-RUN wget https://sourceware.org/pub/newlib/newlib-2.5.0.tar.gz && \
-    tar -xf newlib-2.5.0.tar.gz
-
-COPY extern/patches/newlib-2.5.0-myos.patch /tmp/newlib.patch
-RUN cd newlib-2.5.0 && patch -p1 < /tmp/newlib.patch
-
-RUN chmod -R 777 /src
 
 WORKDIR /project

@@ -2,19 +2,6 @@
 # Retrieve the ELF list (for informational use / python script args if needed)
 get_property(ALL_ELF_FILES GLOBAL PROPERTY GLOBAL_USER_ELF_FILES)
 
-# THE KEY FIX:
-# Do NOT list ${ALL_ELF_FILES} directly in DEPENDS here.
-# CMake's add_custom_command file-level DEPENDS only resolves producers that are
-# defined in the SAME directory scope. ELF files produced in the userland
-# subdirectory are invisible here, causing "No rule to make target" on clean builds.
-#
-# Instead we depend on USERLAND_STAMP_FILE — a single stamp file whose
-# add_custom_command IS defined in the userland scope and is fully resolved there.
-# CMake correctly chains: stamp -> ELFs -> objects -> newlib.
-#
-# USERLAND_STAMP_FILE is set as a CACHE INTERNAL variable in userland/CMakeLists.txt
-# and is therefore visible here regardless of subdirectory processing order.
-
 add_custom_command(
     OUTPUT "${OS_IMAGE_OUT}"
     COMMAND ${CMAKE_COMMAND} -E make_directory "${OUT_DIR}"

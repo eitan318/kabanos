@@ -1,10 +1,7 @@
-#include <fcntl.h>
-#include <stddef.h>
-
-extern int main(int argc, char **argv, char **envp);
-extern void _exit(int code);
-
-void _start() {
-  int ex = main(0, NULL, NULL);
-  _exit(ex);
-}
+__asm__(".section .text\n"
+        ".global _start\n"
+        "_start:\n"
+        "    call main\n"
+        "    \n"
+        "    push %eax\n"
+        "    call _exit\n");

@@ -1,0 +1,16 @@
+PROJECT_NAME           = "MyOS"
+OUTPUT_DIRECTORY       = docs
+
+SEARCH_INCLUDES        = NO
+
+INPUT                  = bootloader kernel common
+
+JAVADOC_AUTOBRIEF      = NO        # Treats the first sentence as the @brief
+QUIET                  = YES        # Don't flood the terminal with logs
+GENERATE_LATEX         = NO         # Unless you want a PDF, keep this off
+RECURSIVE              = YES        # Look into subfolders
+HAVE_DOT               = NO
+CLASS_GRAPH            = NO
+COLLABORATION_GRAPH    = NO
+INCLUDE_GRAPH          = NO
+INCLUDED_BY_GRAPH      = NO

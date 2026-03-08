@@ -23,5 +23,3 @@ configure_file(
 include(cmake/initrd.cmake)
 include(cmake/disk_image.cmake)
 
-#include(cmake/sbase.cmake)
-

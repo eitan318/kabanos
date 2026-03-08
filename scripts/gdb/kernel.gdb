@@ -1,15 +1,12 @@
-file build/bootroot/kernel.elf
 target remote localhost:1234
-set architecture i386
 set disassembly-flavor intel
-source /home/magshimim/repos/1001_myos/scripts/load_user_syms.py
+set substitute-path /project .
+
+set architecture i386
+file build/bootroot/kernel.elf
+
+source scripts/gdb/load_user_syms.py
 
 b kmain 
-c
-lay src
-
-
-# to use:
-#  gdb -x scripts/gdb_kernel.gdb 
-# load-user-syms /home/magshimim/repos/1001_myos/BOOT
-
+continue
+layout src

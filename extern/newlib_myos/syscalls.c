@@ -43,52 +43,54 @@ static inline long __syscall_ret(unsigned long r) {
                            (long)(a4), (long)(a5), (long)(a6)))
 
 typedef enum {
-  /* --- File & Device I/O --- */
-  SYSCALL_NUMBER_SYS_WRITE = 1,
-  SYSCALL_NUMBER_SYS_READ = 4,
-  SYSCALL_NUMBER_SYS_OPEN = 5,
-  SYSCALL_NUMBER_SYS_CLOSE = 6,
-  SYSCALL_NUMBER_SYS_LSEEK = 7,
-  SYSCALL_NUMBER_SYS_STAT = 8,
-  SYSCALL_NUMBER_SYS_FSTAT = 33,
-  SYSCALL_NUMBER_SYS_ITER_DIR = 9,
-  SYSCALL_NUMBER_SYS_CREATE = 17,
-  SYSCALL_NUMBER_SYS_UNLINK = 18,
-  SYSCALL_NUMBER_SYS_RENAME = 19,
-  SYSCALL_NUMBER_SYS_MKDIR = 23,
-  SYSCALL_NUMBER_SYS_RMDIR = 24,
-  SYSCALL_NUMBER_SYS_SYMLINK = 25,
-  SYSCALL_NUMBER_SYS_READLINK = 26,
-  SYSCALL_NUMBER_SYS_MOUNT = 27,
-  SYSCALL_NUMBER_SYS_UMOUNT = 28,
+  SYSCALL_NUMBER_INITIAL = 1,
 
-  /* --- Process Management --- */
-  SYSCALL_NUMBER_SYS_FORK = 10,
-  SYSCALL_NUMBER_SYS_EXECVE = 11,
-  SYSCALL_NUMBER_SYS_EXIT = 12,
-  SYSCALL_NUMBER_SYS_WAITPID = 13,
-  SYSCALL_NUMBER_SYS_GETPID = 14,
+  // --- File System ---
+  SYSCALL_NUMBER_SYS_WRITE,
+  SYSCALL_NUMBER_SYS_READ,
+  SYSCALL_NUMBER_SYS_OPEN,
+  SYSCALL_NUMBER_SYS_CLOSE,
+  SYSCALL_NUMBER_SYS_LSEEK,
+  SYSCALL_NUMBER_SYS_FSTAT,
+  SYSCALL_NUMBER_SYS_STAT, // Added: Used by stat()
+  SYSCALL_NUMBER_SYS_GETDENTS,
+  SYSCALL_NUMBER_SYS_CREATE,
+  SYSCALL_NUMBER_SYS_UNLINK,
+  SYSCALL_NUMBER_SYS_RENAME,
+  SYSCALL_NUMBER_SYS_MKDIR,
+  SYSCALL_NUMBER_SYS_RMDIR,
+  SYSCALL_NUMBER_SYS_SYMLINK,
+  SYSCALL_NUMBER_SYS_READLINK,
+  SYSCALL_NUMBER_SYS_LINK, // Added: Used by link()
+  SYSCALL_NUMBER_SYS_MOUNT,
+  SYSCALL_NUMBER_SYS_UMOUNT,
+  SYSCALL_NUMBER_SYS_GETCWD, // Added: Used by getcwd()
 
-  /* --- Scheduling & Time --- */
-  SYSCALL_NUMBER_SYS_YIELD = 2,
-  SYSCALL_NUMBER_SYS_SLEEP = 3,
-  SYSCALL_NUMBER_SYS_NANOSLEEP = 15,
-  SYSCALL_NUMBER_SYS_GETTIMEOFDAY = 16,
+  // --- Process & Lifecycle ---
+  SYSCALL_NUMBER_SYS_FORK,
+  SYSCALL_NUMBER_SYS_EXECVE,
+  SYSCALL_NUMBER_SYS_EXIT,
+  SYSCALL_NUMBER_SYS_WAITPID,
+  SYSCALL_NUMBER_SYS_GETPID,
 
-  /* --- Memory Management --- */
-  SYSCALL_NUMBER_SYS_SBRK = 20,
-  SYSCALL_NUMBER_SYS_MMAP = 21,
-  SYSCALL_NUMBER_SYS_MUNMAP = 22,
+  // --- Scheduling & Time ---
+  SYSCALL_NUMBER_SYS_YIELD,
+  SYSCALL_NUMBER_SYS_SLEEP,
+  SYSCALL_NUMBER_SYS_NANOSLEEP,
+  SYSCALL_NUMBER_SYS_GETTIMEOFDAY,
+  SYSCALL_NUMBER_SYS_TIMES,
 
-  /* --- Signals & IPC --- */
-  SYSCALL_NUMBER_SYS_KILL = 30,
-  SYSCALL_NUMBER_SYS_PIPE = 31,
-  SYSCALL_NUMBER_SYS_SIGACTION = 32,
-  SYSCALL_NUMBER_SYS_LINK = 34,
-  SYSCALL_NUMBER_SYS_TIMES = 35,
-  SYSCALL_NUMBER_SYS_GETCWD = 36,
-  SYSCALL_NUMBER_SYS_MPROTECT = 37,
-  SYSCALL_NUMBER_SYS_SIGPROCMASK = 38,
+  // --- Memory Management ---
+  SYSCALL_NUMBER_SYS_SBRK,
+  SYSCALL_NUMBER_SYS_MMAP,
+  SYSCALL_NUMBER_SYS_MUNMAP,
+  SYSCALL_NUMBER_SYS_MPROTECT,
+
+  // --- Signals & IPC ---
+  SYSCALL_NUMBER_SYS_PIPE,
+  SYSCALL_NUMBER_SYS_SIGACTION,
+  SYSCALL_NUMBER_SYS_SIGPROCMASK,
+  SYSCALL_NUMBER_SYS_KILL,
 
 } SYSCALL_NUMBER;
 
@@ -133,7 +135,6 @@ char *realpath(const char *path, char *resolved) {
 }
 
 /* sysconf */
-
 long sysconf(int __name) {
   switch (__name) {
   case _SC_PAGESIZE:
@@ -221,10 +222,13 @@ void _exit(int __status) {
     ;
 }
 
-int wait(int *status) {
-  return (int)_syscall6(SYSCALL_NUMBER_SYS_WAITPID, -1, (long)status, 0, 0, 0,
-                        0);
+int waitpid(pid_t pid, int *status, int options) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_WAITPID, (long)pid, (long)status,
+                        (long)options, 0, 0, 0);
 }
+
+// You can now keep wait() as a helper function that calls waitpid
+int wait(int *status) { return waitpid(-1, status, 0); }
 
 void *sbrk(ptrdiff_t __incr) {
   return (caddr_t)_syscall6(SYSCALL_NUMBER_SYS_SBRK, __incr, 0, 0, 0, 0, 0);
@@ -293,4 +297,9 @@ void yield(void) { _syscall6(SYSCALL_NUMBER_SYS_YIELD, 0, 0, 0, 0, 0, 0); }
 int sigaction(int signum, const struct sigaction *act, struct sigaction *oact) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_SIGACTION, signum, (long)act,
                         (long)oact, 0, 0, 0);
+}
+
+int getdents(int fd, void *buf, unsigned int size) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_GETDENTS, (long)fd, (long)buf,
+                        (long)size, 0, 0, 0);
 }
