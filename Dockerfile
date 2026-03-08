@@ -104,6 +104,33 @@ RUN find /src/newlib-2.5.0 -type f -name "configure" | xargs dos2unix
 
 RUN chmod -R 777 /src
 
+
+# tcc
+# ----------
+RUN apt-get update && apt-get install -y git make gcc sed
+
+# 2. Clone and Prepare TCC Source
+RUN git clone https://repo.or.cz/tinycc.git /opt/tcc-src
+WORKDIR /opt/tcc-src
+
+# 3. Configure (Sets up config.h for i386-linux target)
+RUN ./configure --cpu=i386 --targetos=linux --with-libgcc=no --disable-static
+
+# 4. Generate the stringified header (Your exact logic)
+# This creates the file that tcc.c needs to include internal definitions
+RUN gcc -E -P include/tccdefs.h | sed 's/"/\\"/g;s/^/"/;s/$/\\n"/' > tccdefs_.h
+
+# Now /opt/tcc-src is a "ready-to-build" directory for MyOS
+WORKDIR /src
+
+
+
+
+
+
+
+
+
 #---------------------------------------------------------
 # Section for quick addings so you dont need to wait alot
 # Should be moved up once in a week or so
