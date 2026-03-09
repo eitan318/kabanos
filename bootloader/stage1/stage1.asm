@@ -7,7 +7,6 @@ STAGE2_LBA          equ  1
 org STAGE1_ADDR
 
 ; Include auto-generated stage2 size AFTER the BPB area
-%include "stage2_sectors.inc"
 
 global stage1_start
 stage1_start:
