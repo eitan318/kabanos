@@ -25,10 +25,9 @@ target_include_directories(kernel.elf PRIVATE
     "${COMMON_DIR}"
 )
 
-file(MAKE_DIRECTORY "${BOOT_DIR}")
 add_custom_command(TARGET kernel.elf POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy 
             "$<TARGET_FILE:kernel.elf>" 
-            "${BOOT_DIR}/kernel.elf"
+            "${KERNEL_OUTPUT}"
     COMMENT "Deploying kernel.elf to bootroot..."
 )
