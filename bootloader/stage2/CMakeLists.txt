@@ -41,5 +41,3 @@ add_custom_target(bootloader_stage2 ALL
     DEPENDS "${STAGE2_BIN}"
 )
 
-# 3. Kernel dependency (if still needed)
-add_dependencies(bootloader_stage2 kernel.elf)

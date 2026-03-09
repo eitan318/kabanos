@@ -86,3 +86,4 @@ add_custom_target(userland_stamp_target ALL DEPENDS "${USERLAND_STAMP}")
 add_dependencies(userland_stamp_target newlib_project-flatten)
 
 set(USERLAND_STAMP_FILE "${USERLAND_STAMP}" CACHE INTERNAL "Path to userland stamp file")
+
