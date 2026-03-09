@@ -7,14 +7,14 @@ add_custom_command(
           --stage2     ${STAGE2_BIN}
           --boot_dir   ${BOOT_DIR}
           --sysroot_dir ${SYSROOT_DIR}
-          --mkfs_myfs_path ${MKFS_MYFS_EXE} # Use the variable here
+          --mkfs_myfs_path ${MKFS_MYFS_EXE}
     DEPENDS
         bootloader
         kernel.elf
         "${KERNEL_BOOT_PATH}"
         "${INITRD_IMG}"
-        "${MKFS_MYFS_EXE}" # Depend on the actual file path
-        "${USERLAND_STAMP_FILE}"
+        "${MKFS_MYFS_EXE}"
+        "${USERLAND_STAMP_FILE}"   # <-- this must point to the .stamp file
     COMMENT "Creating partitioned OS image using host-built mkfs"
     VERBATIM
 )
@@ -23,5 +23,4 @@ add_custom_target(os_image ALL
     DEPENDS "${OS_IMAGE_OUT}"
 )
 
-# Ensure the host tool is built BEFORE we try to make the image
-add_dependencies(os_image host_tools_project)
+add_dependencies(os_image host_tools_project userland_stamp_target)  # <-- ADD userland_stamp_target here
