@@ -126,12 +126,12 @@ long syscall_dispatch(syscall_info_t f) {
     sys_sleep((unsigned int)f.args[0]);
     return 0;
   case SYSCALL_NUMBER_SYS_NANOSLEEP:
-  case SYSCALL_NUMBER_SYS_GETTIMEOFDAY:
-  case SYSCALL_NUMBER_SYS_TIMES:
-    return -ENOSYS; // Unimplemented
+    sys_nan case SYSCALL_NUMBER_SYS_GETTIMEOFDAY : case SYSCALL_NUMBER_SYS_TIMES
+        : return -ENOSYS; // Unimplemented
 
   /* --- Memory Management --- */
   case SYSCALL_NUMBER_SYS_SBRK:
+
   case SYSCALL_NUMBER_SYS_MMAP:
   case SYSCALL_NUMBER_SYS_MUNMAP:
     return -ENOSYS; // Unimplemented
