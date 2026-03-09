@@ -9,6 +9,16 @@
 #include "hal.h"
 #include "klib/stddef.h"
 
+typedef enum {
+  VMA_READ = (1 << 0),
+  VMA_WRITE = (1 << 1),
+  VMA_EXECUTE = (1 << 2),
+  VMA_USER = (1 << 3),
+  VMA_STACK = (1 << 4),     // Software only: identifies the stack
+  VMA_ANONYMOUS = (1 << 5), // Software only: no file backing
+  VMA_COW = (1 << 6),       // Software only: copy-on-write active
+} vma_flags_t;
+
 /** @brief a virtual memory area */
 typedef struct vma {
   range_t range;  /**< the memory range of the area */

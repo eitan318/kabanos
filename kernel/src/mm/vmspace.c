@@ -50,6 +50,25 @@ void vmspace_switch(vmspace_t *vmspace) {
 vmspace_t *vmspace_clone(vmspace_t *original) {
   ASSERT(original);
   vmspace_t *vmspace_clone = vmspace_create();
+
+  // clone vma list
+  vma_t *curr_orig_vma = original->vma_list;
+  vma_t *prev_new_vma = NULL;
+  while (curr_orig_vma) {
+    vma_t *new_vma = kmalloc(sizeof(*new_vma));
+    new_vma->flags = curr_orig_vma->flags;
+    new_vma->range = curr_orig_vma->range;
+
+    if (prev_new_vma) {
+      prev_new_vma->next = new_vma;
+    } else {
+      vmspace_clone->vma_list = new_vma;
+    }
+    prev_new_vma = new_vma;
+    curr_orig_vma = curr_orig_vma->next;
+  }
+
+  // clone arch
   hal_vm_arch_clone(vmspace_clone->arch, original->arch);
   return vmspace_clone;
 }
@@ -62,6 +81,12 @@ void vmspace_destroy(vmspace_t *vmspace) {
   // kernel vmspace shall not be freed because it is early-kernel-allocated
   if (vmspace->arch == g_kernel_vmspace->arch)
     return;
+
+  while (vmspace->vma_list) {
+    vma_t *temp = vmspace->vma_list;
+    vmspace->vma_list = vmspace->vma_list->next;
+    kfree(temp);
+  }
 
   hal_vm_arch_destroy(vmspace->arch);
   kfree(vmspace->arch);

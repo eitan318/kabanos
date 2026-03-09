@@ -14,11 +14,11 @@
 #include "mm/memdefs.h"
 #include "mm/va_allocation.h"
 #include "mm/vmspace.h"
-//#include "proc/exec_table.h"
 #include "proc/proc.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
+#include "utils/math.h"
 
 #define MAX_ARGC 1024
 
@@ -78,13 +78,16 @@ static int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
  * failure.
  */
 static uintptr_t alloc_user_stack(vmspace_t *vm) {
-  if (!va_alloc_region(vm->arch, USER_STACK_BOTTOM + 1, USER_STACK_SIZE,
+  uintptr_t stack_base = align_down(USER_STACK_BOTTOM, PAGE_SIZE);
+  size_t stack_size = align_up(USER_STACK_SIZE, PAGE_SIZE);
+
+  if (!va_alloc_region(vm->arch, stack_base, stack_size,
                        PAGE_USER | PAGE_READWRITE)) {
     kdebugf("user stack creation failed");
-    return -1;
+    return (uintptr_t)-1;
   }
 
-  return (uintptr_t)(USER_STACK_BOTTOM + USER_STACK_SIZE);
+  return stack_base + stack_size; // stack top (ESP starts here, grows down)
 }
 
 /**
@@ -215,6 +218,7 @@ int process_spawn(const char *path, int argc, char *const argv[],
     process_destroy(proc);
     return -1;
   }
+
   uintptr_t stack_top = alloc_user_stack(proc->vmspace);
 
   uintptr_t user_sp =
