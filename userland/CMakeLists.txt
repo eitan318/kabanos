@@ -1,5 +1,7 @@
 include(${CMAKE_SOURCE_DIR}/cmake/build_newlib.cmake)
 
+set(CMAKE_SYSROOT "${SYSROOT_DIR}")
+
 # --- 1. User App Function ---
 function(add_user_app USER_DIR)
     get_filename_component(USER_NAME "${USER_DIR}" NAME)

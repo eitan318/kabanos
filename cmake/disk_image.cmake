@@ -11,6 +11,7 @@ add_custom_command(
     DEPENDS
         bootloader
         kernel.elf
+        "${KERNEL_BOOT_PATH}"
         "${INITRD_IMG}"
         "${MKFS_MYFS_EXE}" # Depend on the actual file path
         "${USERLAND_STAMP_FILE}"

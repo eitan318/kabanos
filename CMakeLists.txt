@@ -1,11 +1,12 @@
 cmake_minimum_required(VERSION 3.16)
+
+include(cmake/toolchain.cmake)
 project(myos C ASM_NASM)
 
 set(ARCH i686)
 
 enable_language(C ASM_NASM)
 
-include(cmake/toolchain.cmake)
 include(cmake/paths.cmake)
 
 add_subdirectory("${SRC_DIR}/bootloader")
