@@ -1,5 +1,8 @@
 #pragma once
-#include "proc/proc.h"
+#include "arch/types.h"
+#include "stdint.h"
+
+typedef struct process process_t;
 
 enum thread_mode { THREAD_MODE_KERNEL, THREAD_MODE_USER };
 

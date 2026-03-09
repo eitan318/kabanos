@@ -169,7 +169,6 @@ int main(int argc, char *argv[]) {
     return -1;
   }
 
-  printf("[HEREU2]");
   populate_from_dir(sb, root, partroot, 0);
 
   myfs_iput(sb, root);

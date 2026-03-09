@@ -1,4 +1,5 @@
 #include "sched/wait.h"
+#include "proc/proc.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "sched/thread.h"

@@ -1,6 +1,7 @@
 #include "mm/vmspace.h"
 #include "adt/range.h"
 #include "arch/types.h"
+#include "assert.h"
 #include "hal.h"
 #include "klib/stddef.h"
 #include "mm/kmalloc.h"
@@ -41,17 +42,21 @@ vmspace_t *vmspace_create() {
   return vmspace;
 }
 
-void vmspace_switch(vmspace_t *vmspace) { hal_vm_arch_load(vmspace->arch); }
+void vmspace_switch(vmspace_t *vmspace) {
+  ASSERT(vmspace);
+  hal_vm_arch_load(vmspace->arch);
+}
 
 vmspace_t *vmspace_clone(vmspace_t *original) {
+  ASSERT(original);
   vmspace_t *vmspace_clone = vmspace_create();
   hal_vm_arch_clone(vmspace_clone->arch, original->arch);
   return vmspace_clone;
 }
 
 void vmspace_destroy(vmspace_t *vmspace) {
-  if (!vmspace)
-    return;
+  ASSERT(vmspace);
+
   extern vmspace_t *g_kernel_vmspace;
 
   // kernel vmspace shall not be freed because it is early-kernel-allocated
@@ -61,4 +66,28 @@ void vmspace_destroy(vmspace_t *vmspace) {
   hal_vm_arch_destroy(vmspace->arch);
   kfree(vmspace->arch);
   kfree(vmspace);
+}
+
+void vmspace_add_vma(vmspace_t *vmspace, vma_t *new_vma) {
+  ASSERT(vmspace && new_vma);
+
+  new_vma->next = vmspace->vma_list;
+  vmspace->vma_list = new_vma;
+}
+
+vma_t *vmspace_find_vma(vmspace_t *vmspace, vaddr_t addr) {
+  ASSERT(vmspace);
+  if (!vmspace->vma_list) {
+    return NULL;
+  }
+
+  vma_t *curr;
+  while (curr) {
+    if (curr->range.start <= addr && curr->range.end > addr) {
+      return curr;
+    }
+    curr = curr->next;
+  }
+
+  return NULL;
 }

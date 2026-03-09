@@ -7,6 +7,8 @@
 #include "proc/sys_wait.h"
 #include "sched/sched.h"
 #include "sched/sleep.h"
+#include "sched/sys_yield.h"
+#include "sys_time.h"
 #include <fs/vfs.h>
 
 typedef enum {

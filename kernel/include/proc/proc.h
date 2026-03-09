@@ -5,6 +5,7 @@
 
 #pragma once
 #include "mm/vmspace.h"
+#include "stdint.h"
 
 typedef uint32_t pid_t;
 

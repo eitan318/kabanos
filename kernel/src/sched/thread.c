@@ -6,6 +6,7 @@
 #include "mm/memdefs.h"
 #include "mm/va_allocation.h"
 #include "mm/vmspace.h"
+#include "proc/proc.h"
 #include "sched/sched.h"
 
 static uint32_t next_tid = 1;

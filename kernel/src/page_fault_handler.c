@@ -3,6 +3,7 @@
 #include "klib/stdio.h"
 #include "modules.h"
 #include "panic.h"
+#include "proc/proc.h"
 #include "sched/dispatcher.h"
 
 void pf_handle(trap_frame_t *regs) {
