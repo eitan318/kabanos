@@ -1,3 +1,6 @@
+set(CMAKE_SYSTEM_NAME Generic)
+set(CMAKE_SYSTEM_PROCESSOR i686)
+
 file(MAKE_DIRECTORY ${KERNEL_OUT_DIR})
 
 # Architecture Validation

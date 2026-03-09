@@ -1,10 +1,6 @@
 include(ExternalProject)
 
 # --- 1. Newlib Setup ---
-set(MYOS_STUBS_SRC "${CMAKE_SOURCE_DIR}/extern/newlib_myos")
-set(NEWLIB_SRC_DIR "/src/newlib-2.5.0")
-set(NEWLIB_BUILD_DIR "${CMAKE_BINARY_DIR}/build-newlib")
-set(NEWLIB_SYSROOT "${SYSROOT_DIR}")
 
 if(NOT EXISTS "${NEWLIB_SYSROOT}")
     ExternalProject_Add(newlib_project
