@@ -1,7 +1,11 @@
 #include "sched/sleep.h"
+#include "delay.h"
 #include "klib/stddef.h"
+#include "klib/time.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
+#include "sched/timer.h"
+#include "syscall_errno.h"
 
 thread_t *sleep_queue_head;
 
@@ -42,7 +46,34 @@ void enqueue_sleeper(thread_t *t, uint32_t wake_up_time) {
 
 void sys_sleep(uint32_t seconds) {
   thread_t *current = dispatch_get_current();
-  uint32_t curr_tick = sched_time_get();
+  uint32_t curr_tick = timer_tick_get();
   enqueue_sleeper(current, curr_tick + ((seconds * 1000) / TIMER_TICK_MS));
-  sched_yield();
+  sched_switch_next();
+}
+
+int sys_nanosleep(const timespec_t *req, timespec_t *rem) {
+  if (!req)
+    return -EFAULT;
+
+  uint64_t total_ns = (uint64_t)req->tv_sec * 1000000000ULL + req->tv_nsec;
+  ticks_t delta_ticks = (total_ns * TIMER_HZ) / 1000000000ULL;
+
+  // If the delta is smaller than a tick - busy wait
+  if (delta_ticks == 0 && total_ns > 0) {
+    extern uint64_t g_cpu_loops_per_ns;
+    ndelay(total_ns, g_cpu_loops_per_ns);
+  }
+
+  thread_t *current = dispatch_get_current();
+  current->state = THREAD_STATE_BLOCKED;
+
+  ticks_t start_tick = timer_tick_get();
+  enqueue_sleeper(current, start_tick + delta_ticks);
+
+  sched_switch_next();
+
+  // TODO:Handling 'rem' (Remaining time)
+  // If the sleep was interrupted by a signal, we should calculate
+  // how much time is left and write it to *rem.
+  return 0;
 }

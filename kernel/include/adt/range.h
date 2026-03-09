@@ -1,5 +1,6 @@
 #pragma once
 #include "klib/stdbool.h"
+#include "klib/stddef.h"
 #include "klib/stdint.h"
 
 typedef struct range {

@@ -2,7 +2,6 @@
 #include "arch/types.h"
 #include "hal.h"
 #include "klib/stdio.h"
-#include "klib/string.h"
 #include "mm/kmalloc.h"
 #include "mm/memdefs.h"
 #include "mm/va_allocation.h"
@@ -52,7 +51,7 @@ thread_t *thread_create(process_t *proc, uintptr_t entry, uintptr_t user_stack,
   memset(t, 0, sizeof(*t));
   t->tid = alloc_tid();
   t->process = proc;
-  t->state = THREAD_NEW;
+  t->state = THREAD_STATE_NEW;
   t->priority = p;
   t->curr_time_quantum_ticks_passed = 0;
   t->curr_time_quantum = 0;
@@ -92,7 +91,8 @@ thread_t *thread_create_user(process_t *proc, uintptr_t entry,
 }
 
 thread_t *thread_create_kernel(process_t *proc, uintptr_t entry) {
-  return thread_create(proc, entry, 0, THREAD_MODE_KERNEL, PRIORITY_HIGH);
+  return thread_create(proc, entry, 0, THREAD_MODE_KERNEL,
+                       THREAD_PRIORITY_HIGH);
 }
 
 thread_t *thread_clone(thread_t *src, process_t *dst_proc) {
@@ -106,8 +106,8 @@ thread_t *thread_clone(thread_t *src, process_t *dst_proc) {
 
   // 3. Customize unique identifiers
   child->tid = alloc_tid();
-  child->process = dst_proc; // Point to the NEW process (and its CR3)
-  child->state = THREAD_NEW; // Scheduler will move it to READY
+  child->process = dst_proc;       // Point to the NEW process (and its CR3)
+  child->state = THREAD_STATE_NEW; // Scheduler will move it to READY
 
   // Reset scheduler stats so the child doesn't inherit parent's "tiredness"
   child->curr_time_quantum_ticks_passed = 0;
@@ -144,7 +144,7 @@ void thread_destroy(thread_t *t) {
   if (!t)
     return;
 
-  t->state = THREAD_DEAD;
+  t->state = THREAD_STATE_DEAD;
   sched_dequeue(t);
 
   if (t->kstack_top) {

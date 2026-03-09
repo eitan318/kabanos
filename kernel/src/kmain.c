@@ -13,7 +13,7 @@
 #include "mm/vmspace.h"
 #include "modules.h"
 #include "panic.h"
-#include "proc/exec.h"
+#include "proc/sys_exec.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
 #include "ut/frame_allocator_ut_main.h"
@@ -67,7 +67,7 @@ static void kmain_launch_init(const char *cmdline) {
     panic("Cmdline didnt specify init path");
   }
 
-  if (process_spawn(init_path, NULL, NULL, NULL, PRIORITY_HIGH) < 0) {
+  if (process_spawn(init_path, NULL, NULL, NULL, THREAD_PRIORITY_HIGH) < 0) {
     panic("Faild to spawn process %s", init_path);
   }
 
@@ -91,7 +91,7 @@ void kmain(uint32_t mb2_ptr) {
   kmain_launch_init(boot_info->cmdline);
 
   hal_timer_enable();
-  sched_yield();
+  sched_switch_next();
 
   // Close qemu
   hal_out16(0x604, 0x2000);

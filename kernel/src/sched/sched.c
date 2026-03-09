@@ -6,34 +6,40 @@
 #include "sched/dispatcher.h"
 #include "sched/sleep.h"
 #include "sched/thread.h"
+#include "sched/timer.h"
 #include "spinlock.h"
-#include <mm/vmspace.h>
-#include <proc/proc.h>
 
 #define AGING_THRESHOLD_MS 500
 
 // Time quantums (in milliseconds)
-static const int time_quantums[NUM_PRIORITIES] = {[PRIORITY_VERY_HIGH] = 40,
-                                                  [PRIORITY_HIGH] = 80,
-                                                  [PRIORITY_MEDIUM] = 120,
-                                                  [PRIORITY_LOW] = 200};
+static const int time_quantums[THREAD_NUM_PRIORITIES] = {
+    [THREAD_PRIORITY_VERY_HIGH] = 40,
+    [THREAD_PRIORITY_HIGH] = 80,
+    [THREAD_PRIORITY_MEDIUM] = 120,
+    [THREAD_PRIORITY_LOW] = 200};
 
 // Queue heads and tails
-static thread_t *ready_queue_heads[NUM_PRIORITIES] = {NULL};
-static thread_t *ready_queue_tails[NUM_PRIORITIES] = {NULL};
+static thread_t *ready_queue_heads[THREAD_NUM_PRIORITIES] = {NULL};
+static thread_t *ready_queue_tails[THREAD_NUM_PRIORITIES] = {NULL};
 
 static thread_t *kernel_idle_task = NULL;
 static spinlock_t sched_lock = SPINLOCK_RELEASED;
 
-uint32_t g_time_tick = 0;
+void idle_task(void *arg) {
+  while (1) {
+    hal_interrupts_enable();
+    hal_halt();
+  }
+}
 
 int sched_init(module_t *self) {
-  kernel_idle_task = dispatch_get_current();
+  kernel_idle_task = thread_create_kernel(NULL, (uintptr_t)idle_task);
   kernel_idle_task->tid = 0;
-  kernel_idle_task->priority = PRIORITY_LOW; // Doesn't matter, never enqueued
-  kernel_idle_task->curr_time_quantum = 0;   // IDLE immediatly swapped
+  kernel_idle_task->priority =
+      THREAD_PRIORITY_LOW;                 // Doesn't matter, never enqueued
+  kernel_idle_task->curr_time_quantum = 0; // IDLE immediatly swapped
 
-  for (int i = 0; i < NUM_PRIORITIES; i++) {
+  for (int i = 0; i < THREAD_NUM_PRIORITIES; i++) {
     ready_queue_heads[i] = NULL;
     ready_queue_tails[i] = NULL;
   }
@@ -52,7 +58,7 @@ void print_sched_struct() {
   kprintf("\nCurrent: ");
   print_thread_struct(dispatch_get_current());
   kprintf("\n");
-  for (int i = 0; i < NUM_PRIORITIES; i++) {
+  for (int i = 0; i < THREAD_NUM_PRIORITIES; i++) {
     kprintf("Priority %d: \n", i);
 
     for (thread_t *curr = ready_queue_heads[i]; curr != NULL;
@@ -71,11 +77,11 @@ void sched_enqueue(thread_t *t) {
   spinlock_acquire(&sched_lock);
 
   int priority = t->priority;
-  if (priority < 0 || priority >= NUM_PRIORITIES) {
-    priority = PRIORITY_MEDIUM; // Default
+  if (priority < 0 || priority >= THREAD_NUM_PRIORITIES) {
+    priority = THREAD_PRIORITY_MEDIUM; // Default
   }
 
-  t->state = THREAD_READY;
+  t->state = THREAD_STATE_READY;
   t->next = NULL;
 
   // Add to back of appropriate priority queue
@@ -90,7 +96,7 @@ void sched_enqueue(thread_t *t) {
   // Reset time quantum for this priority
   t->curr_time_quantum = time_quantums[priority];
   t->burst_ticks_estimate = t->curr_time_quantum;
-  t->last_enqueue_tick = g_time_tick;
+  t->last_enqueue_tick = timer_tick_get();
 
   spinlock_release(&sched_lock);
 }
@@ -104,9 +110,9 @@ void sched_prepare_for_cpu_burst(thread_t *t) {
   // Classify priority based on burst length
   // Shorter bursts = higher priority (more interactive/I/O bound)
   // Longer bursts = lower priority (more CPU bound)
-  t->priority = PRIORITY_LOW; // Default to lowest
+  t->priority = THREAD_PRIORITY_LOW; // Default to lowest
 
-  for (int i = 0; i < NUM_PRIORITIES; i++) {
+  for (int i = 0; i < THREAD_NUM_PRIORITIES; i++) {
     if (next_burst_ticks_estimate <= time_quantums[i]) {
       t->priority = i;
       break;
@@ -120,12 +126,12 @@ void sched_prepare_for_cpu_burst(thread_t *t) {
 
 void sched_apply_aging(void) {
   // We start from 1 because Priority 0 is already the highest
-  for (int i = 1; i < NUM_PRIORITIES; i++) {
+  for (int i = 1; i < THREAD_NUM_PRIORITIES; i++) {
     thread_t *curr = ready_queue_heads[i];
     thread_t *prev = NULL;
 
     while (curr != NULL) {
-      uint32_t wait_time = g_time_tick - curr->last_enqueue_tick;
+      uint32_t wait_time = timer_tick_get() - curr->last_enqueue_tick;
 
       if (wait_time >= (AGING_THRESHOLD_MS / TIMER_TICK_MS)) {
         thread_t *to_promote = curr;
@@ -146,7 +152,7 @@ void sched_apply_aging(void) {
         // 2. Promote and Enqueue in higher priority (i - 1)
         to_promote->priority = i - 1;
         to_promote->next = NULL;
-        to_promote->last_enqueue_tick = g_time_tick; // Reset wait clock
+        to_promote->last_enqueue_tick = timer_tick_get(); // Reset wait clock
 
         if (!ready_queue_tails[i - 1]) {
           ready_queue_heads[i - 1] = to_promote;
@@ -167,7 +173,7 @@ thread_t *sched_pick_next(void) {
   spinlock_acquire(&sched_lock);
 
   // Check from highest to lowest priority
-  for (int priority = 0; priority < NUM_PRIORITIES; priority++) {
+  for (int priority = 0; priority < THREAD_NUM_PRIORITIES; priority++) {
     if (ready_queue_heads[priority]) {
       thread_t *next = ready_queue_heads[priority];
 
@@ -189,11 +195,10 @@ thread_t *sched_pick_next(void) {
   return kernel_idle_task;
 }
 
-void sched_tick(void *context) {
-  // print_sched_struct();
-  wake_up_sleeping(g_time_tick);
+void sched_on_timer_tick(void *context) {
+  wake_up_sleeping(timer_tick_get());
 
-  if (g_time_tick % 100 == 0) {
+  if (timer_tick_get() % 100 == 0) {
     spinlock_acquire(&sched_lock);
     sched_apply_aging();
     spinlock_release(&sched_lock);
@@ -205,16 +210,9 @@ void sched_tick(void *context) {
   }
 
   // Don't preempt idle or blocked threads
-  if (current->state != THREAD_RUNNING) {
+  if (current->state != THREAD_STATE_RUNNING) {
     return;
   }
-
-  g_time_tick++;
-
-  // const int ms_between_logs = 2000;
-  // if (g_time_tick % ((ms_between_logs) / TIMER_TICK_MS) == 0) {
-  //   print_sched_struct();
-  // }
 
   current->rt_ticks++;
   current->curr_time_quantum_ticks_passed++;
@@ -225,7 +223,7 @@ void sched_tick(void *context) {
   // Check if time slice expired
   if (remain_time <= 0) {
     sched_enqueue(current);
-    sched_yield();
+    sched_switch_next();
   }
 }
 
@@ -236,7 +234,7 @@ void sched_dequeue(thread_t *t) {
   spinlock_acquire(&sched_lock);
 
   int priority = t->priority;
-  if (priority < 0 || priority >= NUM_PRIORITIES) {
+  if (priority < 0 || priority >= THREAD_NUM_PRIORITIES) {
     spinlock_release(&sched_lock);
     return;
   }
@@ -261,25 +259,17 @@ void sched_dequeue(thread_t *t) {
   }
 
   t->next = NULL;
-  t->state = THREAD_DEAD;
+  t->state = THREAD_STATE_DEAD;
 
   spinlock_release(&sched_lock);
 }
 
-void sched_yield() {
+void sched_switch_next() {
   thread_t *next = sched_pick_next();
   dispatch_switch_to(next);
 }
 
-void sys_yield() {
-  thread_t *curr = dispatch_get_current();
-  sched_enqueue(curr);
-  sched_yield();
-}
-
-uint32_t sched_time_get() { return g_time_tick; }
-
-static const char *sched_deps[] = {"dispatcher", NULL};
+static const char *sched_deps[] = {"dispatcher", "timer", NULL};
 
 ITER_MODULE(sched) = {
     .name = "sched",
@@ -287,3 +277,4 @@ ITER_MODULE(sched) = {
     .init = &sched_init,
     .fini = NULL,
 };
+;

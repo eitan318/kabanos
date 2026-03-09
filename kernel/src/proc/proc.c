@@ -18,7 +18,7 @@ process_t *process_create(void) {
 
 void process_destroy(process_t *proc) {
   if (proc->main_thread) {
-    proc->main_thread->state = THREAD_DEAD;
+    proc->main_thread->state = THREAD_STATE_DEAD;
   }
   vmspace_destroy(proc->vmspace);
   kfree(proc);

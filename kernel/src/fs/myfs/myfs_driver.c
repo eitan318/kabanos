@@ -7,7 +7,6 @@
 #include "ksys/stat.h"
 #include "mm/kmalloc.h"
 #include "modules.h"
-#include "utils/math.h"
 
 static void myfsd_v_destroy(vnode_t *vnode) {}
 
@@ -38,9 +37,7 @@ static int myfsd_f_dir_iter(file_t *parent_file, dir_ctx_t *ctx) {
   int actual_entries = bytes_read / sizeof(MyfsDirEntry);
   int emitted = 0;
 
-  uint64_t start_index = 0;
-  uint32_t rem = 0;
-  div64_32(parent_file->pos, sizeof(MyfsDirEntry), &start_index, &rem);
+  uint64_t start_index = parent_file->pos / sizeof(MyfsDirEntry);
 
   for (int i = start_index; i < actual_entries && emitted < ctx->count; i++) {
     MyfsDirEntry *entry = &entries[i];

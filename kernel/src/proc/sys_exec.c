@@ -3,7 +3,7 @@
  * @brief Implementation of process execution and ELF loading.
  */
 
-#include "proc/exec.h"
+#include "proc/sys_exec.h"
 #include "elf32.h"
 #include "fs/vfs.h"
 #include "hal.h"

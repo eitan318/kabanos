@@ -1,4 +1,5 @@
 #include "proc/exec_table.h"
+#include <klib/stddef.h>
 #include <klib/string.h>
 
 exec_table_entry_t g_exec_table[EXEC_TABLE_MAX];
