@@ -161,10 +161,15 @@ long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
     return -ENOENT;
   }
 
+  thread_t *current = dispatch_get_current();
+
   uintptr_t stack_top = USER_STACK_BOTTOM + USER_STACK_SIZE;
   vmspace_map_stack(new_vm, stack_top, USER_STACK_SIZE);
 
-  thread_t *current = dispatch_get_current();
+  vmspace_map_heap(new_vm, USER_HEAP_START, USER_HEAP_INITIAL);
+  current->process->heap_start = USER_HEAP_START;
+  current->process->brk = USER_HEAP_START + USER_HEAP_INITIAL;
+
   vmspace_t *old_vm = current->process->vmspace;
 
   current->process->vmspace = new_vm;

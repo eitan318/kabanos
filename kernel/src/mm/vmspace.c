@@ -154,3 +154,49 @@ bool vmspace_map_stack(vmspace_t *vm, uint32_t stack_top, size_t size) {
   // OR just return true here if you want lazy demand paging!
   return true;
 }
+
+bool vmspace_map_heap(vmspace_t *vm, uint32_t heap_start, size_t initial_size) {
+  ASSERT(is_aligned(heap_start, PAGE_SIZE));
+  ASSERT(is_aligned(initial_size, PAGE_SIZE));
+
+  vma_t *heap_vma = vma_create(heap_start, initial_size,
+                               VMA_READ | VMA_WRITE | VMA_USER | VMA_HEAP);
+  if (!heap_vma)
+    return false;
+
+  vmspace_add_vma(vm, heap_vma);
+
+  uint32_t flags = PAGE_PRESENT | PAGE_READWRITE | PAGE_USER;
+  return va_alloc_region(vm->arch, heap_start, initial_size, flags);
+}
+
+bool vmspace_extend_heap(vmspace_t *vm, uint32_t old_brk, uint32_t new_brk) {
+  ASSERT(is_aligned(old_brk, PAGE_SIZE));
+  ASSERT(is_aligned(new_brk, PAGE_SIZE));
+
+  if (new_brk <= old_brk)
+    return true; // shrink not supported yet
+
+  // Find the heap VMA and extend it
+  vma_t *heap_vma = NULL;
+  vma_t *curr = vm->vma_list;
+  while (curr) {
+    if (curr->flags & VMA_HEAP) {
+      heap_vma = curr;
+      break;
+    }
+    curr = curr->next;
+  }
+
+  if (!heap_vma)
+    return false;
+
+  size_t extra = new_brk - old_brk;
+  uint32_t flags = PAGE_PRESENT | PAGE_READWRITE | PAGE_USER;
+
+  if (!va_alloc_region(vm->arch, old_brk, extra, flags))
+    return false;
+
+  heap_vma->range.end = new_brk;
+  return true;
+}

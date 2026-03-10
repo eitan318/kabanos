@@ -17,6 +17,7 @@ typedef enum {
   VMA_STACK = (1 << 4),     // Software only: identifies the stack
   VMA_ANONYMOUS = (1 << 5), // Software only: no file backing
   VMA_COW = (1 << 6),       // Software only: copy-on-write active
+  VMA_HEAP = (1 << 7),
 } vma_flags_t;
 
 /** @brief a virtual memory area */
@@ -36,6 +37,7 @@ vma_t *vma_create(vaddr_t va_start, size_t mem_size, uint32_t flags);
 typedef struct {
   arch_vm_t *arch; /**< Hardware page table pointer. */
   vma_t *vma_list;
+
 } vmspace_t;
 
 /**
@@ -87,3 +89,13 @@ vma_t *vmspace_find_vma(vmspace_t *vmspace, vaddr_t addr);
  * @brief alloc a user stack
  */
 bool vmspace_map_stack(vmspace_t *vm, uint32_t stack_top, size_t size);
+
+/**
+ * @brief alloc a user heap
+ */
+bool vmspace_map_heap(vmspace_t *vm, uint32_t heap_start, size_t initial_size);
+
+/**
+ * @brief extend a user heap
+ */
+bool vmspace_extend_heap(vmspace_t *vm, uint32_t old_brk, uint32_t new_brk);

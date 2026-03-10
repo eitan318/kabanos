@@ -1,6 +1,7 @@
 #include "syscall.h"
 #include "fs/sys_fs.h"
 #include "klib/time.h"
+#include "mm/sys_sbrk.h"
 #include "proc/proc.h"
 #include "proc/sys_exec.h"
 #include "proc/sys_proc.h"
@@ -10,6 +11,7 @@
 #include "sched/sys_yield.h"
 #include "sys_time.h"
 #include <fs/vfs.h>
+#include <stdint.h>
 
 typedef enum {
   SYSCALL_NUMBER_INITIAL = 1,
@@ -137,7 +139,7 @@ long syscall_dispatch(syscall_info_t f) {
 
   /* --- Memory Management --- */
   case SYSCALL_NUMBER_SYS_SBRK:
-
+    return sys_sbrk((intptr_t)f.args[0]);
   case SYSCALL_NUMBER_SYS_MMAP:
   case SYSCALL_NUMBER_SYS_MUNMAP:
     return -ENOSYS; // Unimplemented
