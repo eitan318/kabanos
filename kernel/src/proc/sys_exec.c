@@ -14,6 +14,7 @@
 #include "mm/memdefs.h"
 #include "mm/va_allocation.h"
 #include "mm/vmspace.h"
+#include "proc/exec_table.h"
 #include "proc/proc.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
@@ -62,40 +63,13 @@ static int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
   int r = elf32_load(vm, data, st.size, entry, &text_base);
 
   if (r == 0) {
-    // exec_table_add(path, text_base);
+    exec_table_add(path, text_base);
   } else {
     kdebugf("exec_load_elf: elf_load failed: %d\n", r);
   }
 
   kfree(data);
   return r;
-}
-
-/**
- * @brief Allocates physical frames for a new user stack.
- * * @param vm The destination virtual memory space.
- * @return The initial stack pointer (top of stack), or (uintptr_t)-1 on
- * failure.
- */
-static uintptr_t alloc_user_stack(vmspace_t *vm) {
-  uintptr_t stack_base = align_down(USER_STACK_BOTTOM, PAGE_SIZE);
-  size_t stack_size = align_up(USER_STACK_SIZE, PAGE_SIZE);
-
-  if (!va_alloc_region(vm->arch, stack_base, stack_size,
-                       PAGE_USER | PAGE_READWRITE)) {
-    kdebugf("user stack creation failed");
-    return (uintptr_t)-1;
-  }
-
-  return stack_base + stack_size; // stack top (ESP starts here, grows down)
-}
-
-/**
- * @brief Frees the user stack region.
- * * @param vm The virtual memory space containing the stack.
- */
-static void free_user_stack(vmspace_t *vm) {
-  va_free_region(vm->arch, USER_STACK_BOTTOM + 1, USER_STACK_SIZE);
 }
 
 /**
@@ -186,7 +160,9 @@ long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
     vmspace_destroy(new_vm);
     return -ENOENT;
   }
-  uintptr_t stack_top = alloc_user_stack(new_vm);
+
+  uintptr_t stack_top = USER_STACK_BOTTOM + USER_STACK_SIZE;
+  vmspace_map_stack(new_vm, stack_top, USER_STACK_SIZE);
 
   thread_t *current = dispatch_get_current();
   vmspace_t *old_vm = current->process->vmspace;
@@ -219,7 +195,8 @@ int process_spawn(const char *path, int argc, char *const argv[],
     return -1;
   }
 
-  uintptr_t stack_top = alloc_user_stack(proc->vmspace);
+  uintptr_t stack_top = USER_STACK_BOTTOM + USER_STACK_SIZE;
+  vmspace_map_stack(proc->vmspace, stack_top, USER_STACK_SIZE);
 
   uintptr_t user_sp =
       setup_user_stack_args(proc->vmspace, stack_top, argc, argv, envp);

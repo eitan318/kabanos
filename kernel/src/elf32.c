@@ -16,14 +16,20 @@
 static int load_segment(vmspace_t *vmspace, vaddr_t va_start, size_t mem_size,
                         void *file_data, size_t file_size, uint32_t flags) {
 
+  vaddr_t pages_start = align_down(va_start, PAGE_SIZE);
+  vaddr_t pages_end = align_up(va_start + mem_size, PAGE_SIZE);
+  size_t alloc_size = pages_end - pages_start;
+
   vma_t *vma = vma_create(va_start, mem_size, flags | VMA_USER);
   if (!vma)
     return -1;
   vmspace_add_vma(vmspace, vma);
 
-  vaddr_t pages_start = align_down(va_start, PAGE_SIZE);
-  vaddr_t pages_end = align_up(va_start + mem_size, PAGE_SIZE);
-  size_t alloc_size = pages_end - pages_start;
+  if (!va_alloc_region(vmspace->arch, pages_start, alloc_size,
+                       PAGE_PRESENT | PAGE_USER |
+                           ((flags & PAGE_READWRITE) ? PAGE_READWRITE : 0))) {
+    return -1;
+  }
 
   for (vaddr_t page_va = pages_start; page_va < pages_end;
        page_va += PAGE_SIZE) {

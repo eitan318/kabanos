@@ -31,8 +31,7 @@ void pf_handle(trap_frame_t *regs) {
   }
 
   // Write to read-only VMA
-  if ((regs->error & PF_ERR_WRITE) &&
-      !(addr_vma->flags & VMA_WRITE)) { // fix: VMA_WRITE not VMA_READ
+  if ((regs->error & PF_ERR_WRITE) && !(addr_vma->flags & VMA_WRITE)) {
     kprintf("Segmentation Fault: Write to Read-Only VMA at 0x%p\n", addr);
     panic_from_regs(regs);
     return;

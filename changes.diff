@@ -1,0 +1,680 @@
+commit 503faa716f3bbadf52cd9c097fa7d400719d7769
+Author: eitan318 <eitanforschool08@gmail..com>
+Date:   Tue Mar 10 17:58:45 2026 +0200
+
+    Ruined stuff
+
+diff --git a/docs/tips.md b/docs/tips.md
+index 44add72..329b71d 100644
+--- a/docs/tips.md
++++ b/docs/tips.md
+@@ -1,41 +1,5 @@
+-│    0x400721        mov    ebp,esp                                                       │
+-│    0x400723        sub    esp,0x4                                                       │
+-│    0x400729        mov    eax,0x0                                                       │
+-│    0x40072e        mov    DWORD PTR [ebp-0x4],eax                                       │
+-│  > 0x400731        nop                                                                  │
+-│    0x400732        nop                                                                  │
+-│    0x400733        nop                                                                  │
+-│    0x400734        nop                                                                  │
+-│    0x400735        nop                                                                  │
+-│    0x400736        nop                                                                  │
+-│    0x400737        nop                                                                  │
+-│    0x400738        nop                                                                  │
+-│    0x400739        mov    eax,0x4134ea                                                  │
+-│    0x40073e        push   eax                                                           │
+-│    0x40073f        call   0x40084c                                                      │
+ 
+-
+-when my mkfs script:
+-
+-(gdb) p* sb
+-$2 = {on_disk = {magic = 268549871, total_inodes = 1220, total_blocks = 4882, free_inodes = 0, 
+-free_blocks = 0, block_sectors = 4, file_initial_blocks = 1,
+-    inode_bitmap_start = 4, block_bitmap_start = 1, inode_table_start = 5, data_blocks_start = 77,
+-    root_inode = 1}, dev = 0x7fffffffdbd0, block_bytes = 2048,
+-  block_bitmap = 0x55555555dde0 "\377\377\377\377\377\377\377\377\377?", 
+-  inode_bitmap = 0x55555555dd30 "\002", inode_hash_table = {0x0, 0x55555555e0d0,
+-    0x0 <repeats 254 times>}, mounted = 1, plt = 0x55555555c480}
+-(gdb)
+-
+-after when opened from disk inside os:
+-
+-(gdb) p sb->on_disk
+-$1 = {magic = 268549871, total_inodes = 8189, total_blocks = 32759, free_inodes = 0,
+-  free_blocks = 0, block_sectors = 4, file_initial_blocks = 1,
+-  inode_bitmap_start = 17, block_bitmap_start = 1, inode_table_start = 21,
+-  data_blocks_start = 501, root_inode = 1}
++(gdb) x addr
++0xbfffefec:     Cannot access memory at address 0xbfffefec
+ (gdb)
+ 
+-in driver
+-static vnode_t *myfsd_v_lookup(vnode_t *dir, const char *name) {
+-  MyfsInode *child_inode = myfs_iget(myfs_sb, child_ino);
+diff --git a/kernel/include/mm/vmspace.h b/kernel/include/mm/vmspace.h
+index 6611685..4d2ff37 100644
+--- a/kernel/include/mm/vmspace.h
++++ b/kernel/include/mm/vmspace.h
+@@ -82,3 +82,8 @@ void vmspace_add_vma(vmspace_t *vmspace, vma_t *new_vma);
+  * @note in the future should be using binary search
+  */
+ vma_t *vmspace_find_vma(vmspace_t *vmspace, vaddr_t addr);
++
++/**
++ * @brief alloc a user stack
++ */
++bool vmspace_map_stack(vmspace_t *vm, uint32_t stack_top, size_t size);
+diff --git a/kernel/include/proc/exec_table.h b/kernel/include/proc/exec_table.h
+index 5fb9fdd..60acf7d 100644
+--- a/kernel/include/proc/exec_table.h
++++ b/kernel/include/proc/exec_table.h
+@@ -10,7 +10,4 @@ typedef struct {
+   uintptr_t load_base; // lowest PT_LOAD vaddr
+ } exec_table_entry_t;
+ 
+-// This symbol is visible to GDB
+-extern exec_table_entry_t g_last_executed_proc_for_gdb;
+-
+ void exec_table_add(const char *path, uintptr_t load_base);
+diff --git a/kernel/include/sched/dispatcher.h b/kernel/include/sched/dispatcher.h
+index bec708d..a15ac5a 100644
+--- a/kernel/include/sched/dispatcher.h
++++ b/kernel/include/sched/dispatcher.h
+@@ -5,3 +5,4 @@ void dispatch_switch_preserve_context(void *context, thread_t *next);
+ void dispatch_switch_to(thread_t *next);
+ void dispatch_switch_first(thread_t *next);
+ thread_t *dispatch_get_current(void);
++thread_t *dispatch_get_idle(void);
+diff --git a/kernel/src/elf32.c b/kernel/src/elf32.c
+index 879180f..33bf929 100644
+--- a/kernel/src/elf32.c
++++ b/kernel/src/elf32.c
+@@ -15,16 +15,24 @@
+ // In future will be with VMA of process
+ static int load_segment(vmspace_t *vmspace, vaddr_t va_start, size_t mem_size,
+                         void *file_data, size_t file_size, uint32_t flags) {
++  vaddr_t pages_start = align_down(va_start, PAGE_SIZE);
++  vaddr_t pages_end = align_up(va_start + mem_size, PAGE_SIZE);
++  size_t alloc_size = pages_end - pages_start;
+ 
++  // 1. Register VMA
+   vma_t *vma = vma_create(va_start, mem_size, flags | VMA_USER);
+   if (!vma)
+     return -1;
+   vmspace_add_vma(vmspace, vma);
+ 
+-  vaddr_t pages_start = align_down(va_start, PAGE_SIZE);
+-  vaddr_t pages_end = align_up(va_start + mem_size, PAGE_SIZE);
+-  size_t alloc_size = pages_end - pages_start;
++  // 2. Actually allocate and map physical frames
++  if (!va_alloc_region(vmspace->arch, pages_start, alloc_size,
++                       PAGE_PRESENT | PAGE_USER |
++                           ((flags & PAGE_READWRITE) ? PAGE_READWRITE : 0))) {
++    return -1;
++  }
+ 
++  // 3. Now phys is valid — zero and copy
+   for (vaddr_t page_va = pages_start; page_va < pages_end;
+        page_va += PAGE_SIZE) {
+     paddr_t phys = hal_vm_virt_to_phys(vmspace->arch, page_va);
+diff --git a/kernel/src/kmain.c b/kernel/src/kmain.c
+index 8631911..ff2e468 100644
+--- a/kernel/src/kmain.c
++++ b/kernel/src/kmain.c
+@@ -93,6 +93,8 @@ void kmain(uint32_t mb2_ptr) {
+   hal_timer_enable();
+   sched_switch_next();
+ 
++  kprintf("Should not return to kmain");
++
+   // Close qemu
+   hal_out16(0x604, 0x2000);
+ }
+diff --git a/kernel/src/mm/vmspace.c b/kernel/src/mm/vmspace.c
+index f58bf7e..e4b43c5 100644
+--- a/kernel/src/mm/vmspace.c
++++ b/kernel/src/mm/vmspace.c
+@@ -6,13 +6,16 @@
+ #include "klib/stddef.h"
+ #include "mm/kmalloc.h"
+ #include "mm/memdefs.h"
++#include "mm/va_allocation.h"
+ #include <stdarg.h>
++#include <utils/math.h>
+ 
+ static arch_vm_t kernel_arch_vm;
+ 
+ void kernel_vmspace_create(vmspace_t *vmspace, range_t total_memory_range) {
+   hal_vm_empty_arch_vm_create(&kernel_arch_vm);
+   vmspace->arch = &kernel_arch_vm;
++  vmspace->vma_list = NULL;
+ 
+   // Map to HIGHER HALF ONLY
+   hal_vm_map_range(vmspace->arch, total_memory_range.start,
+@@ -40,6 +43,8 @@ vmspace_t *vmspace_create() {
+   extern vmspace_t *g_kernel_vmspace;
+   hal_vm_arch_clone_mapping(vmspace->arch, g_kernel_vmspace->arch);
+ 
++  vmspace->vma_list = NULL;
++
+   return vmspace;
+ }
+ 
+@@ -56,9 +61,10 @@ vmspace_t *vmspace_clone(vmspace_t *original) {
+   vma_t *curr_orig_vma = original->vma_list;
+   vma_t *prev_new_vma = NULL;
+   while (curr_orig_vma) {
+-    vma_t *new_vma = kmalloc(sizeof(*new_vma));
+-    new_vma->flags = curr_orig_vma->flags;
+-    new_vma->range = curr_orig_vma->range;
++    vma_t *new_vma =
++        vma_create(curr_orig_vma->range.start,
++                   curr_orig_vma->range.end - curr_orig_vma->range.start,
++                   curr_orig_vma->flags);
+ 
+     if (prev_new_vma) {
+       prev_new_vma->next = new_vma;
+@@ -128,3 +134,23 @@ vma_t *vma_create(vaddr_t va_start, size_t mem_size, uint32_t flags) {
+ 
+   return vma;
+ }
++
++bool vmspace_map_stack(vmspace_t *vm, uint32_t stack_top, size_t size) {
++  ASSERT(is_aligned(stack_top, PAGE_SIZE));
++  ASSERT(is_aligned(size, PAGE_SIZE));
++  uint32_t stack_start = stack_top - size;
++
++  vma_t *stack_vma = vma_create(stack_start, size,
++                                VMA_READ | VMA_WRITE | VMA_USER | VMA_STACK);
++  if (!stack_vma)
++    return false;
++
++  vmspace_add_vma(vm, stack_vma);
++
++  // 3. EITHER allocate now:
++  uint32_t flags = PAGE_PRESENT | PAGE_READWRITE | PAGE_USER;
++  return va_alloc_region(vm->arch, stack_start, size, flags);
++
++  // OR just return true here if you want lazy demand paging!
++  return true;
++}
+diff --git a/kernel/src/page_fault_handler.c b/kernel/src/page_fault_handler.c
+index d32e4f5..7543a1f 100644
+--- a/kernel/src/page_fault_handler.c
++++ b/kernel/src/page_fault_handler.c
+@@ -31,8 +31,7 @@ void pf_handle(trap_frame_t *regs) {
+   }
+ 
+   // Write to read-only VMA
+-  if ((regs->error & PF_ERR_WRITE) &&
+-      !(addr_vma->flags & VMA_WRITE)) { // fix: VMA_WRITE not VMA_READ
++  if ((regs->error & PF_ERR_WRITE) && !(addr_vma->flags & VMA_WRITE)) {
+     kprintf("Segmentation Fault: Write to Read-Only VMA at 0x%p\n", addr);
+     panic_from_regs(regs);
+     return;
+@@ -52,7 +51,6 @@ void pf_handle(trap_frame_t *regs) {
+     if (addr_vma->flags & VMA_USER)
+       page_flags |= PAGE_USER;
+ 
+-    kprintf("pfhandler\n");
+     if (va_alloc_region(curr_vm->arch, page_addr, PAGE_SIZE, page_flags)) {
+       return;
+     }
+diff --git a/kernel/src/proc/exec_table.c b/kernel/src/proc/exec_table.c
+index 263859f..2725dc6 100644
+--- a/kernel/src/proc/exec_table.c
++++ b/kernel/src/proc/exec_table.c
+@@ -1,5 +1,6 @@
+ #include "proc/exec_table.h"
+ #include <klib/stddef.h>
++#include <klib/stdio.h>
+ #include <klib/string.h>
+ 
+ exec_table_entry_t g_exec_table[EXEC_TABLE_MAX];
+@@ -9,7 +10,7 @@ void exec_table_add(const char *path, uintptr_t load_base) {
+   if (g_exec_table_count >= EXEC_TABLE_MAX)
+     return;
+   g_exec_table_count = 0;
+-  exec_table_entry_t *e = &g_exec_table[0];
++  exec_table_entry_t *e = &g_exec_table[g_exec_table_count++];
+   // 1. Zero out the entire struct first
+   memset(e, 0, sizeof(exec_table_entry_t));
+   strncpy(e->path, path, sizeof(e->path) - 1);
+diff --git a/kernel/src/proc/sys_exec.c b/kernel/src/proc/sys_exec.c
+index 19cefb3..f36b4bc 100644
+--- a/kernel/src/proc/sys_exec.c
++++ b/kernel/src/proc/sys_exec.c
+@@ -12,13 +12,13 @@
+ #include "ksys/fcntl.h"
+ #include "mm/kmalloc.h"
+ #include "mm/memdefs.h"
+-#include "mm/va_allocation.h"
+ #include "mm/vmspace.h"
++#include "proc/exec_table.h"
+ #include "proc/proc.h"
+ #include "sched/dispatcher.h"
+ #include "sched/sched.h"
+ #include "sched/thread.h"
+-#include "utils/math.h"
++#include <stdint.h>
+ 
+ #define MAX_ARGC 1024
+ 
+@@ -62,7 +62,7 @@ static int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
+   int r = elf32_load(vm, data, st.size, entry, &text_base);
+ 
+   if (r == 0) {
+-    // exec_table_add(path, text_base);
++    exec_table_add(path, text_base);
+   } else {
+     kdebugf("exec_load_elf: elf_load failed: %d\n", r);
+   }
+@@ -71,33 +71,6 @@ static int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
+   return r;
+ }
+ 
+-/**
+- * @brief Allocates physical frames for a new user stack.
+- * * @param vm The destination virtual memory space.
+- * @return The initial stack pointer (top of stack), or (uintptr_t)-1 on
+- * failure.
+- */
+-static uintptr_t alloc_user_stack(vmspace_t *vm) {
+-  uintptr_t stack_base = align_down(USER_STACK_BOTTOM, PAGE_SIZE);
+-  size_t stack_size = align_up(USER_STACK_SIZE, PAGE_SIZE);
+-
+-  if (!va_alloc_region(vm->arch, stack_base, stack_size,
+-                       PAGE_USER | PAGE_READWRITE)) {
+-    kdebugf("user stack creation failed");
+-    return (uintptr_t)-1;
+-  }
+-
+-  return stack_base + stack_size; // stack top (ESP starts here, grows down)
+-}
+-
+-/**
+- * @brief Frees the user stack region.
+- * * @param vm The virtual memory space containing the stack.
+- */
+-static void free_user_stack(vmspace_t *vm) {
+-  va_free_region(vm->arch, USER_STACK_BOTTOM + 1, USER_STACK_SIZE);
+-}
+-
+ /**
+  * @brief Initializes the user stack with System V i386 ABI arguments.
+  * * Copies argument strings and the argv pointer array into the target VM.
+@@ -186,7 +159,8 @@ long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
+     vmspace_destroy(new_vm);
+     return -ENOENT;
+   }
+-  uintptr_t stack_top = alloc_user_stack(new_vm);
++  uintptr_t stack_top = USER_STACK_BOTTOM + USER_STACK_SIZE;
++  vmspace_map_stack(new_vm, stack_top, USER_STACK_SIZE);
+ 
+   thread_t *current = dispatch_get_current();
+   vmspace_t *old_vm = current->process->vmspace;
+@@ -219,7 +193,8 @@ int process_spawn(const char *path, int argc, char *const argv[],
+     return -1;
+   }
+ 
+-  uintptr_t stack_top = alloc_user_stack(proc->vmspace);
++  uintptr_t stack_top = USER_STACK_BOTTOM + USER_STACK_SIZE;
++  vmspace_map_stack(proc->vmspace, stack_top, USER_STACK_SIZE);
+ 
+   uintptr_t user_sp =
+       setup_user_stack_args(proc->vmspace, stack_top, argc, argv, envp);
+diff --git a/kernel/src/sched/dispatcher.c b/kernel/src/sched/dispatcher.c
+index 1e630d9..15f38c0 100644
+--- a/kernel/src/sched/dispatcher.c
++++ b/kernel/src/sched/dispatcher.c
+@@ -1,58 +1,50 @@
+ #include "sched/dispatcher.h"
+ #include "hal.h"
+-#include "klib/string.h"
+-#include "mm/memdefs.h"
++#include "klib/stdio.h"
+ #include <proc/proc.h>
++#include <sched/thread.h>
++#include <stdint.h>
+ 
+ thread_t *g_current_thread = NULL;
++static thread_t *g_idle_thread = NULL;
++
++void idle_task(void *arg) {
++  (void)arg;
++  while (1) {
++    kprintf("idle");
++    // Enable interrupts and halt the CPU until the next tick
++    // asm volatile("sti; hlt");
++  }
++}
+ 
+-static thread_t kmain_thread;
+-static arch_thread_t kmain_arch;
+-
+-extern uint8_t stack_bottom[BOOT_STACK_SIZE];
++thread_t *dispatch_get_idle(void) { return g_idle_thread; }
+ 
+ int dispatch_init(module_t *self) {
+-  memset(&kmain_thread, 0, sizeof(thread_t));
+-
+   extern vmspace_t *g_kernel_vmspace;
+   process_t *kmain_proc = process_create();
+-  kmain_proc->main_thread = &kmain_thread;
++  kmain_proc->main_thread =
++      thread_create_kernel(kmain_proc, (uintptr_t)(idle_task));
+   kmain_proc->vmspace = g_kernel_vmspace;
+-
+-  kmain_thread.process = kmain_proc;
+-
+-  kmain_thread.tid = 0; // The first thread
+-  kmain_thread.priority = THREAD_PRIORITY_HIGH;
+-  kmain_thread.state = THREAD_STATE_RUNNING;
+-  kmain_thread.mode = THREAD_MODE_KERNEL;
+-
+-  // Crucial: Point it to its arch-specific storage
+-  kmain_thread.arch = &kmain_arch;
+-
+-  kmain_thread.kstack_top = (void *)(stack_bottom + BOOT_STACK_SIZE);
+-  kmain_thread.arch->kernel_esp = (void *)(stack_bottom + BOOT_STACK_SIZE);
+-
+-  // Adopt this as the current thread
+-  g_current_thread = &kmain_thread;
++  kmain_proc->main_thread->state = THREAD_STATE_RUNNING;
++  g_idle_thread = kmain_proc->main_thread; // ← store reference
++  g_current_thread = g_idle_thread;
+   return 0;
+ }
+ 
+ void dispatch_switch_to(thread_t *next) {
+-  thread_t *current = dispatch_get_current();
++  if (!next)
++    return;
+ 
+-  next->state = THREAD_STATE_RUNNING;
+-  if (!next || current == next) {
++  thread_t *current = dispatch_get_current();
++  if (current == next)
+     return;
+-  }
+ 
++  next->state = THREAD_STATE_RUNNING;
+   hal_update_tss_and_syssenter_kstack(0, next->kstack_top);
+-
+   g_current_thread = next;
+-
+   hal_thread_switch(current, next);
+ }
+ 
+-// if g_current_thread = null ret IDLE task i think
+ thread_t *dispatch_get_current(void) { return g_current_thread; }
+ 
+ static const char *dispatch_deps[] = {"hal", NULL};
+diff --git a/kernel/src/sched/sched.c b/kernel/src/sched/sched.c
+index 3914cf6..1562807 100644
+--- a/kernel/src/sched/sched.c
++++ b/kernel/src/sched/sched.c
+@@ -3,6 +3,7 @@
+ #include "klib/stdio.h"
+ #include "mm/kmalloc.h"
+ #include "modules.h"
++#include "panic.h"
+ #include "sched/dispatcher.h"
+ #include "sched/sleep.h"
+ #include "sched/thread.h"
+@@ -25,25 +26,13 @@ static thread_t *ready_queue_tails[THREAD_NUM_PRIORITIES] = {NULL};
+ static thread_t *kernel_idle_task = NULL;
+ static spinlock_t sched_lock = SPINLOCK_RELEASED;
+ 
+-void idle_task(void *arg) {
+-  while (1) {
+-    hal_interrupts_enable();
+-    hal_halt();
+-  }
+-}
+-
+ int sched_init(module_t *self) {
+-  kernel_idle_task = thread_create_kernel(NULL, (uintptr_t)idle_task);
+-  kernel_idle_task->tid = 0;
+-  kernel_idle_task->priority =
+-      THREAD_PRIORITY_LOW;                 // Doesn't matter, never enqueued
+-  kernel_idle_task->curr_time_quantum = 0; // IDLE immediatly swapped
++  kernel_idle_task = dispatch_get_idle();
+ 
+   for (int i = 0; i < THREAD_NUM_PRIORITIES; i++) {
+     ready_queue_heads[i] = NULL;
+     ready_queue_tails[i] = NULL;
+   }
+-
+   return 0;
+ }
+ 
+@@ -190,9 +179,8 @@ thread_t *sched_pick_next(void) {
+     }
+   }
+ 
+-  // No ready threads - return idle
+   spinlock_release(&sched_lock);
+-  return kernel_idle_task;
++  return NULL;
+ }
+ 
+ void sched_on_timer_tick(void *context) {
+@@ -213,6 +201,14 @@ void sched_on_timer_tick(void *context) {
+   if (current->state != THREAD_STATE_RUNNING) {
+     return;
+   }
++  kprintf("[");
++  //
++  // kkk
++  // const int ms_between_logs = 2000;
++  // ticks_t tick = timer_tick_get();
++  // if ((tick % ((ms_between_logs) / TIMER_TICK_MS)) == 0) {
++  //   print_sched_struct();
++  // }
+ 
+   current->rt_ticks++;
+   current->curr_time_quantum_ticks_passed++;
+@@ -265,7 +261,27 @@ void sched_dequeue(thread_t *t) {
+ }
+ 
+ void sched_switch_next() {
++  thread_t *current = dispatch_get_current();
+   thread_t *next = sched_pick_next();
++
++  if (next == NULL) {
++    kprintf("next was nul");
++    // No runnable thread — fall back to idle, or keep running if already idle
++    if (current != kernel_idle_task) {
++      kprintf("assune idle");
++      dispatch_switch_to(kernel_idle_task);
++    }
++    // If we're already on idle, just return — nothing to do
++    kprintf("assune idle");
++    return;
++  }
++
++  if (next == current) {
++    kprintf("is same");
++    current->curr_time_quantum_ticks_passed = 0;
++    return;
++  }
++
+   dispatch_switch_to(next);
+ }
+ 
+diff --git a/kernel/src/sched/thread.c b/kernel/src/sched/thread.c
+index 2d42bf6..e10eec8 100644
+--- a/kernel/src/sched/thread.c
++++ b/kernel/src/sched/thread.c
+@@ -8,6 +8,7 @@
+ #include "mm/vmspace.h"
+ #include "proc/proc.h"
+ #include "sched/sched.h"
++#include <stdint.h>
+ 
+ static uint32_t next_tid = 1;
+ static uint32_t alloc_tid() { return next_tid++; }
+@@ -91,9 +92,11 @@ thread_t *thread_create_user(process_t *proc, uintptr_t entry,
+   return thread_create(proc, entry, user_stack, THREAD_MODE_USER, p);
+ }
+ 
++extern uint8_t stack_bottom[BOOT_STACK_SIZE];
++
+ thread_t *thread_create_kernel(process_t *proc, uintptr_t entry) {
+-  return thread_create(proc, entry, 0, THREAD_MODE_KERNEL,
+-                       THREAD_PRIORITY_HIGH);
++  return thread_create(proc, entry, (uintptr_t)(stack_bottom + BOOT_STACK_SIZE),
++                       THREAD_MODE_KERNEL, THREAD_PRIORITY_HIGH);
+ }
+ 
+ thread_t *thread_clone(thread_t *src, process_t *dst_proc) {
+diff --git a/scripts/gdb/load_user_syms.py b/scripts/gdb/load_user_syms.py
+index e905e5f..b18a151 100644
+--- a/scripts/gdb/load_user_syms.py
++++ b/scripts/gdb/load_user_syms.py
+@@ -9,40 +9,47 @@ class LoadUserSymbols(gdb.Command):
+         super().__init__("load-user-syms", gdb.COMMAND_USER)
+ 
+     def invoke(self, arg, from_tty):
+-        # Base path where your ELFs live on the host
+         elf_host_base = arg.strip() if arg.strip() else "build/sysroot/bin/"
+ 
+-        count = int(gdb.parse_and_eval("g_exec_table_count"))
++        # Use parse_and_eval to get the count
++        try:
++            count = int(gdb.parse_and_eval("g_exec_table_count"))
++        except gdb.error:
++            print("[load-user-syms] Error: g_exec_table_count not found.")
++            return
++
+         print(f"[load-user-syms] {count} entries in g_exec_table")
+ 
+         for i in range(count):
+             entry = gdb.parse_and_eval(f"g_exec_table[{i}]")
+ 
+-            # 1. Check loaded flag safely
+-            if int(entry["loaded"]) == 0:
++            # 1. FIXED: Since "loaded" member doesn't exist, check if load_base is non-zero
++            load_base = int(entry["load_base"])
++            if load_base == 0:
+                 continue
+ 
+-            # 2. Safely extract the path string
++            # 2. Extract the path
+             try:
+-                # Get the raw bytes and decode, ignoring errors to prevent the crash
+-                path_ptr = entry["path"]
+-                path = path_ptr.string(errors="replace")
++                path = entry["path"].string()
++                if not path:
++                    continue
+             except Exception as e:
+-                print(f"[load-user-syms] Error reading path at index {i}: {e}")
+                 continue
+ 
+-            load_base = int(entry["load_base"])
+             filename = os.path.basename(path)
++            # Make sure we point to the actual ELF on your computer
+             host_path = os.path.join(elf_host_base, filename)
+ 
+             if not os.path.exists(host_path):
+                 print(f"[load-user-syms] Skipping: {host_path} not found")
+                 continue
+ 
+-            # 3. Use -s .text to be explicit for GDB
+-            cmd = f"add-symbol-file {host_path} -s .text 0x{load_base:x}"
++            # 3. Load symbols.
++            # Note: We use -readnow to ensure GDB pulls them in immediately
++            cmd = f"add-symbol-file {host_path} 0x{load_base:x}"
+             print(f"[load-user-syms] {cmd}")
+-            gdb.execute(cmd)
++            # 'from_tty=False' prevents GDB from asking "add symbol file? (y or n)"
++            gdb.execute(cmd, from_tty=False)
+ 
+ 
+ LoadUserSymbols()
+diff --git a/userland/user_src/init/init.c b/userland/user_src/init/init.c
+index 923bd12..9e50bb8 100644
+--- a/userland/user_src/init/init.c
++++ b/userland/user_src/init/init.c
+@@ -4,7 +4,6 @@
+ 
+ int proc_spawn(char *name, char **argv, char **envp) {
+   pid_t pid = fork();
+-
+   if (pid < 0) {
+     perror("fork failed");
+     return 1;
+@@ -19,6 +18,12 @@ int proc_spawn(char *name, char **argv, char **envp) {
+ }
+ 
+ int main(int argc, char **argv, char **envp) {
++  printf("helo init");
++
++  char line[10];
++  if (fgets(line, sizeof(line), stdin) == NULL)
++    return 0;
++
+   char *shell_args[] = {"/bin/shell.elf", "/bin/neofetch.elf", NULL};
+ 
+   // Spawn the shell
+@@ -27,16 +32,12 @@ int main(int argc, char **argv, char **envp) {
+     return 1;
+   }
+ 
+-  /// There is a schedualer bug preventing from one process to switch to itself
+-  /// so there allways gotta be at least one proc
+   for (;;) {
+   }
+ 
+-  while (1) {
+-    int status;
+-    if (wait(&status) > 0) {
+-      printf("Init: Shell exited. Restarting...\n");
+-      proc_spawn("/bin/shell.elf", shell_args, envp);
+-    }
++  int status;
++  if (wait(&status) > 0) {
++    printf("Init: Shell exited. Restarting...\n");
++    proc_spawn("/bin/shell.elf", shell_args, envp);
+   }
+ }
+diff --git a/userland/user_src/shell/shell.c b/userland/user_src/shell/shell.c
+index e7f8eaf..f12a6a2 100644
+--- a/userland/user_src/shell/shell.c
++++ b/userland/user_src/shell/shell.c
+@@ -7,7 +7,7 @@
+ 
+ #define MAX_LINE 256
+ #define MAX_ARGS 32
+-#define PROMPT "myos> "
++#define PROMPT "KabanOS> "
+ 
+ /* --- line parsing --- */
+ static int parse_line(char *line, char **argv) {
+@@ -32,6 +32,7 @@ static int parse_line(char *line, char **argv) {
+ 
+ /* --- execute --- */
+ static int execute(int argc, char **argv) {
++
+   if (argc == 0)
+     return 0;
+   if (strcmp(argv[0], "exit") == 0)
+@@ -48,6 +49,7 @@ static int execute(int argc, char **argv) {
+   fflush(stderr);
+ 
+   int pid = fork();
++
+   if (pid < 0) {
+     fprintf(stderr, "shell: fork failed\n");
+     fflush(stderr);
+@@ -65,6 +67,7 @@ static int execute(int argc, char **argv) {
+ }
+ 
+ int main(int argc, char **argv, char **envp) {
++
+   char line[MAX_LINE];
+   char *args[MAX_ARGS];
+ 

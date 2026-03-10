@@ -82,3 +82,8 @@ void vmspace_add_vma(vmspace_t *vmspace, vma_t *new_vma);
  * @note in the future should be using binary search
  */
 vma_t *vmspace_find_vma(vmspace_t *vmspace, vaddr_t addr);
+
+/**
+ * @brief alloc a user stack
+ */
+bool vmspace_map_stack(vmspace_t *vm, uint32_t stack_top, size_t size);
