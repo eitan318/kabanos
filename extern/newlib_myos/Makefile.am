@@ -6,7 +6,7 @@ AM_CCASFLAGS = $(INCLUDES)
 noinst_LIBRARIES = lib.a
 
 if MAY_SUPPLY_SYSCALLS
-extra_objs = syscalls.o helpers.o readdir.o opendir.o closedir.o
+extra_objs = syscalls.o helpers.o
 else
 extra_objs =
 endif
@@ -14,7 +14,7 @@ endif
 # 1. Put crt0.c here to satisfy the configure check
 lib_a_SOURCES = crt0.c 
 lib_a_LIBADD = $(extra_objs)
-EXTRA_lib_a_SOURCES = syscalls.c helpers.c readdir.c opendir.c closedir.c
+EXTRA_lib_a_SOURCES = syscalls.c helpers.c
 lib_a_DEPENDENCIES = $(extra_objs)
 
 # 2. Standard Newlib pattern for crt0.o
@@ -32,6 +32,8 @@ set_header_dir = $(DESTDIR)$(tooldir)/include
 install-data-local:
 	$(mkinstalldirs) $(set_header_dir)
 	$(INSTALL_DATA) $(srcdir)/include/semaphore.h $(set_header_dir)/semaphore.h
+	$(INSTALL_DATA) $(srcdir)/include/dirent.h    $(set_header_dir)/dirent.h
 
 uninstall-local:
 	rm -f $(set_header_dir)/semaphore.h
+	rm -f $(set_header_dir)/dirent.h

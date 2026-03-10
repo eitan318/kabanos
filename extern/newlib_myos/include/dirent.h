@@ -7,9 +7,8 @@
 struct dirent {
   uint32_t d_ino;
   char d_name[32];
-}
+};
 
-;
 typedef struct {
   int fd;
   int buf_pos;

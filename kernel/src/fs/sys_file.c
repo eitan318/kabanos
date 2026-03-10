@@ -57,7 +57,6 @@ long sys_open(const char *pathname, int flags) {
     return -EINVAL;
 
   int fd = vfs_open(pathname, flags);
-  kprintf("path: %s opened fd: %d", pathname);
   if (fd < 0)
     return -ENOENT;
 
