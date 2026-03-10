@@ -27,6 +27,11 @@ typedef struct vma {
   struct vma *next; /**< linking for za */
 } vma_t;
 
+/**
+ * @brief constructs a vma from params
+ */
+vma_t *vma_create(vaddr_t va_start, size_t mem_size, uint32_t flags);
+
 /** @brief Container for virtual memory metadata. */
 typedef struct {
   arch_vm_t *arch; /**< Hardware page table pointer. */

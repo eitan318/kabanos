@@ -59,7 +59,7 @@ static int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
   }
 
   uintptr_t text_base = 0;
-  int r = elf32_load(vm->arch, data, st.size, entry, &text_base);
+  int r = elf32_load(vm, data, st.size, entry, &text_base);
 
   if (r == 0) {
     // exec_table_add(path, text_base);

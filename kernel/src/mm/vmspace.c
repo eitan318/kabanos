@@ -6,6 +6,7 @@
 #include "klib/stddef.h"
 #include "mm/kmalloc.h"
 #include "mm/memdefs.h"
+#include <stdarg.h>
 
 static arch_vm_t kernel_arch_vm;
 
@@ -102,17 +103,28 @@ void vmspace_add_vma(vmspace_t *vmspace, vma_t *new_vma) {
 
 vma_t *vmspace_find_vma(vmspace_t *vmspace, vaddr_t addr) {
   ASSERT(vmspace);
-  if (!vmspace->vma_list) {
-    return NULL;
-  }
 
-  vma_t *curr;
+  // Start at the head of the list
+  vma_t *curr = vmspace->vma_list;
+
   while (curr) {
-    if (curr->range.start <= addr && curr->range.end > addr) {
+    if (addr >= curr->range.start && addr < curr->range.end) {
       return curr;
     }
     curr = curr->next;
   }
-
   return NULL;
+}
+
+vma_t *vma_create(vaddr_t va_start, size_t mem_size, uint32_t flags) {
+  vma_t *vma = kmalloc(sizeof(vma_t));
+  if (!vma)
+    return NULL;
+
+  vma->range.start = va_start;
+  vma->range.end = va_start + mem_size;
+  vma->flags = flags;
+  vma->next = NULL; // Safety first
+
+  return vma;
 }

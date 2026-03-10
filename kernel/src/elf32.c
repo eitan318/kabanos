@@ -6,25 +6,28 @@
 #include "mm/memdefs.h"
 #include "mm/pmm.h"
 #include "mm/va_allocation.h"
+#include "mm/vmspace.h"
 #include "utils/math.h"
 #include <klib/stdint.h>
 
 // Load segment: allocate, zero, and copy from file data
 // currently menually touch frame alloc and page_map
 // In future will be with VMA of process
-static int load_segment(arch_vm_t *vm, vaddr_t va_start, size_t mem_size,
+static int load_segment(vmspace_t *vmspace, vaddr_t va_start, size_t mem_size,
                         void *file_data, size_t file_size, uint32_t flags) {
+
+  vma_t *vma = vma_create(va_start, mem_size, flags | VMA_USER);
+  if (!vma)
+    return -1;
+  vmspace_add_vma(vmspace, vma);
+
   vaddr_t pages_start = align_down(va_start, PAGE_SIZE);
   vaddr_t pages_end = align_up(va_start + mem_size, PAGE_SIZE);
   size_t alloc_size = pages_end - pages_start;
 
-  if (!va_alloc_region(vm, pages_start, alloc_size, flags)) {
-    return -1;
-  }
-
   for (vaddr_t page_va = pages_start; page_va < pages_end;
        page_va += PAGE_SIZE) {
-    paddr_t phys = hal_vm_virt_to_phys(vm, page_va);
+    paddr_t phys = hal_vm_virt_to_phys(vmspace->arch, page_va);
     void *kva = (void *)(phys + KERNEL_BASE);
 
     memset(kva, 0, PAGE_SIZE);
@@ -50,9 +53,9 @@ static const char *get_elf_string(void *elf_data, uint32_t strtab_off,
 }
 
 // Load ELF file
-int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
+int elf32_load(vmspace_t *vmspace, void *elf_data, uint32_t elf_size,
                uintptr_t *entry, uintptr_t *text_base) {
-  ASSERT(vm && elf_data && entry);
+  ASSERT(vmspace && vmspace->arch && elf_data && entry);
 
   if (elf_size < sizeof(elf32_header_t)) {
     kdebugf("ELF: File too small\n");
@@ -122,7 +125,7 @@ int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
     void *file_data =
         (ph->file_size > 0) ? ((uint8_t *)elf_data + ph->off) : NULL;
 
-    if (load_segment(vm, ph->vaddr, ph->mem_size, file_data, ph->file_size,
+    if (load_segment(vmspace, ph->vaddr, ph->mem_size, file_data, ph->file_size,
                      flags) != 0) {
       kdebugf("ELF: Failed to load segment %u\n", i);
       return -1;

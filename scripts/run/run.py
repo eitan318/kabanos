@@ -38,10 +38,10 @@ qemu_debug_cmd = [
 ]
 
 # Regex for the stack backtrace
-stack_regex = re.compile(r"STACK_OF_PANIC\[123\]:\s*((?:0x[0-9A-Fa-f]+\s*)+)")
+stack_regex = re.compile(r"STACK_OF_PANIC:\s*((?:0x[0-9A-Fa-f]+\s*)+)")
 
 # Regex for the faulting instruction
-fault_regex = re.compile(r"FAULTING_INSTRUCTION_OF_PANIC\[123\]:\s*(0x[0-9A-Fa-f]+)")
+fault_regex = re.compile(r"FAULTING_INSTRUCTION_OF_PANIC:\s*(0x[0-9A-Fa-f]+)")
 
 
 proc = subprocess.Popen(
@@ -61,36 +61,34 @@ stack_addrs = []
 for line in proc.stdout:
     print(line, end="")
 
-    detect_panic = True
-    if not detect_panic:
-        continue
-
-    # Extract faulting instruction
+    # 1. Update fault_addr if found
     fmatch = fault_regex.search(line)
     if fmatch:
         fault_addr = fmatch.group(1)
 
-    # Extract stack backtrace
+    # 2. Update stack_addrs if found
     smatch = stack_regex.search(line)
     if smatch:
         stack_addrs = smatch.group(1).split()
 
-        # If panic is fully detected, resolve symbols
-        if fault_addr and stack_addrs:
-            print("\n--- Panic detected! Resolving addresses ---\n")
+    # 3. TRIGGER: Check if we have what we need
+    # We trigger if we found the fault_addr, even if stack is empty
+    # (provided we've seen the "STACK_OF_PANIC" header line)
+    if fault_addr and "STACK_OF_PANIC:" in line:
+        print("\n--- Panic detected! Resolving addresses ---\n")
 
-            if fault_addr:
-                print(f"FAULT @ {fault_addr}:")
-                subprocess.run(["addr2line", "-e", KERNEL_ELF, fault_addr])
-                print()
+        print(f"FAULT @ {fault_addr}:")
+        subprocess.run(["addr2line", "-e", KERNEL_ELF, fault_addr])
+        print()
 
-            if stack_addrs:
-                print("STACK BACKTRACE:")
-                for addr in stack_addrs:
-                    subprocess.run(["addr2line", "-e", KERNEL_ELF, addr])
-                print()
+        if stack_addrs:
+            print("STACK BACKTRACE:")
+            for addr in stack_addrs:
+                subprocess.run(["addr2line", "-e", KERNEL_ELF, addr])
+        else:
+            print("STACK BACKTRACE: (Empty)")
 
-            print("--- End of panic resolution ---")
-            break
+        print("\n--- End of panic resolution ---")
+        break
 
 proc.wait()

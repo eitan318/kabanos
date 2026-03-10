@@ -27,7 +27,7 @@ void pf_handle(trap_frame_t *regs) {
   if (addr_vma == NULL) {
     kprintf("Segmentation Fault: No VMA at 0x%p\n", addr);
     panic_from_regs(regs);
-    // return;
+    return;
   }
 
   // Write to read-only VMA
