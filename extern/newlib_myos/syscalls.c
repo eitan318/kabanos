@@ -321,11 +321,8 @@ DIR *opendir(const char *path) {
     return NULL;
   }
 
-  printf("opendir: opening\n");
-
   DIR *dir = malloc(sizeof(DIR));
   if (!dir) {
-    printf("malloc faild\n");
     close(fd);
     return NULL;
   }
@@ -341,11 +338,12 @@ extern int getdents(int fd, void *buf, unsigned int size);
 
 struct dirent *readdir(DIR *dir) {
   if (dir->buf_pos >= dir->buf_end) {
+    printf("fd: %d name file: %s", dir->fd, dir->current.d_name);
 
     int n = getdents(dir->fd, dir->buffer, sizeof(dir->buffer));
-
-    if (n <= 0)
+    if (n <= 0) {
       return NULL;
+    }
 
     dir->buf_pos = 0;
     dir->buf_end = n;

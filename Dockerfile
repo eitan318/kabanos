@@ -127,14 +127,18 @@ WORKDIR /src
 
 
 
-
-
-
-
 #---------------------------------------------------------
 # Section for quick addings so you dont need to wait alot
 # Should be moved up once in a week or so
 #---------------------------------------------------------
+
+RUN apt-get update && apt-get install -y \
+    file \
+python3-pip \
+    && rm -rf /var/lib/apt/lists/*
+
+# Use python3 -m pip to ensure you're using the right version
+RUN python3 -m pip install compiledb
 
 #---------------------------------------------------------
 

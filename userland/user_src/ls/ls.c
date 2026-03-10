@@ -13,10 +13,12 @@ int main(int argc, char *argv[]) {
   }
 
   struct dirent *entry;
+  printf("starting entries\n");
 
   while ((entry = readdir(dir)) != NULL) {
     printf("%s\n", entry->d_name);
   }
+  printf("finished entries\n");
 
   closedir(dir);
   return 0;

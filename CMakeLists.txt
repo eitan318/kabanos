@@ -16,11 +16,6 @@ add_subdirectory("${SRC_DIR}/userland")
 
 
 
-
-
-
-
-
 set(HOST_TOOLS_BINARY_DIR "${CMAKE_BINARY_DIR}/host_tools")
 set(MKFS_MYFS_EXE "${HOST_TOOLS_BINARY_DIR}/mkfs_myfs")
 set(MKFS_MYFS_SRC_DIR "${CMAKE_SOURCE_DIR}/tools/mkfs_myfs")
@@ -43,8 +38,6 @@ ExternalProject_Add(host_tools_project
     INSTALL_COMMAND ""
     BUILD_BYPRODUCTS "${MKFS_MYFS_EXE}"
 )
-
-
 
 
 
