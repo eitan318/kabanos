@@ -4,6 +4,7 @@
  */
 
 #pragma once
+#include "fs/vfs.h"
 #include "mm/vmspace.h"
 #include "stdint.h"
 
@@ -32,6 +33,8 @@ typedef struct process {
 
   struct process *parent; /**< Pointer to the parent process. */
   bool is_waiting;        /**< True if the process is blocked in waitpid. */
+
+  vnode_t *cwd; /** The vnode of the current working directory of the proc */
 
   uint32_t heap_start; /**< base of heap, set at exec time */
   uint32_t brk;        /**< current break (top of heap) */

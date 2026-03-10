@@ -35,7 +35,7 @@ static void kmain_init_services(KernelBootInfo *boot_info) {
   char *fs = cmdline_get_arg_copy(boot_info->cmdline, "fs_name");
 
   if (dev && fs) {
-    if (vfs_mount(dev, "/", fs, 0, NULL) < 0) {
+    if (vfs_mount(dev, "/", NULL, fs, 0, NULL) < 0) {
       kdebugf("Warning: Could not mount root device %s\n", dev);
     }
   }

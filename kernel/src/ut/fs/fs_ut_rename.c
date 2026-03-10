@@ -21,21 +21,21 @@
  *===========================================================================*/
 
 int ut_rename_same_dir(void) {
-  UT_ASSERT_SUCCESS(vfs_create("/oldname", 0644), "Create file");
-  int fd = vfs_open("/oldname", O_RDWR);
+  UT_ASSERT_SUCCESS(vfs_create("/oldname", NULL, 0644), "Create file");
+  int fd = vfs_open("/oldname", NULL, O_RDWR);
   const char *data = "Rename test data";
   vfs_write(fd, data, strlen(data));
   vfs_close(fd);
 
-  UT_ASSERT_SUCCESS(vfs_rename("/oldname", "/newname"), "Rename file");
+  UT_ASSERT_SUCCESS(vfs_rename("/oldname", NULL, "/newname"), "Rename file");
 
-  fd = vfs_open("/oldname", O_RDONLY);
+  fd = vfs_open("/oldname", NULL, O_RDONLY);
   if (fd != -1) {
     vfs_close(fd);
     return UT_FAIL;
   }
 
-  fd = vfs_open("/newname", O_RDONLY);
+  fd = vfs_open("/newname", NULL, O_RDONLY);
   UT_ASSERT_SUCCESS(fd, "Open renamed file");
 
   char read_buf[64];
@@ -50,25 +50,25 @@ int ut_rename_same_dir(void) {
 }
 
 int ut_rename_move(void) {
-  UT_ASSERT_SUCCESS(vfs_mkdir("/dir1", 0755), "Create dir1");
-  UT_ASSERT_SUCCESS(vfs_mkdir("/dir2", 0755), "Create dir2");
-  UT_ASSERT_SUCCESS(vfs_create("/dir1/file.txt", 0644), "Create file");
+  UT_ASSERT_SUCCESS(vfs_mkdir("/dir1", NULL, 0755), "Create dir1");
+  UT_ASSERT_SUCCESS(vfs_mkdir("/dir2", NULL, 0755), "Create dir2");
+  UT_ASSERT_SUCCESS(vfs_create("/dir1/file.txt", NULL, 0644), "Create file");
 
-  int fd = vfs_open("/dir1/file.txt", O_RDWR);
+  int fd = vfs_open("/dir1/file.txt", NULL, O_RDWR);
   const char *data = "Move test";
   vfs_write(fd, data, strlen(data));
   vfs_close(fd);
 
-  UT_ASSERT_SUCCESS(vfs_rename("/dir1/file.txt", "/dir2/file.txt"),
+  UT_ASSERT_SUCCESS(vfs_rename("/dir1/file.txt", NULL, "/dir2/file.txt"),
                     "Move file");
 
-  fd = vfs_open("/dir1/file.txt", O_RDONLY);
+  fd = vfs_open("/dir1/file.txt", NULL, O_RDONLY);
   if (fd != -1) {
     vfs_close(fd);
     return UT_FAIL;
   }
 
-  fd = vfs_open("/dir2/file.txt", O_RDONLY);
+  fd = vfs_open("/dir2/file.txt", NULL, O_RDONLY);
   UT_ASSERT_SUCCESS(fd, "Open moved file");
 
   char read_buf[64];
@@ -83,28 +83,29 @@ int ut_rename_move(void) {
 }
 
 int ut_rename_overwrite(void) {
-  UT_ASSERT_SUCCESS(vfs_create("/file1", 0644), "Create file1");
-  UT_ASSERT_SUCCESS(vfs_create("/file2", 0644), "Create file2");
+  UT_ASSERT_SUCCESS(vfs_create("/file1", NULL, 0644), "Create file1");
+  UT_ASSERT_SUCCESS(vfs_create("/file2", NULL, 0644), "Create file2");
 
-  int fd = vfs_open("/file1", O_RDWR);
+  int fd = vfs_open("/file1", NULL, O_RDWR);
   const char *data1 = "File 1 data";
   vfs_write(fd, data1, strlen(data1));
   vfs_close(fd);
 
-  fd = vfs_open("/file2", O_RDWR);
+  fd = vfs_open("/file2", NULL, O_RDWR);
   const char *data2 = "File 2 data";
   vfs_write(fd, data2, strlen(data2));
   vfs_close(fd);
 
-  UT_ASSERT_SUCCESS(vfs_rename("/file1", "/file2"), "Rename with overwrite");
+  UT_ASSERT_SUCCESS(vfs_rename("/file1", NULL, "/file2"),
+                    "Rename with overwrite");
 
-  fd = vfs_open("/file1", O_RDONLY);
+  fd = vfs_open("/file1", NULL, O_RDONLY);
   if (fd != -1) {
     vfs_close(fd);
     return UT_FAIL;
   }
 
-  fd = vfs_open("/file2", O_RDONLY);
+  fd = vfs_open("/file2", NULL, O_RDONLY);
   UT_ASSERT_SUCCESS(fd, "Open destination file");
 
   char read_buf[64];
@@ -119,23 +120,24 @@ int ut_rename_overwrite(void) {
 }
 
 int ut_rename_directory(void) {
-  UT_ASSERT_SUCCESS(vfs_mkdir("/olddir", 0755), "Create directory");
-  UT_ASSERT_SUCCESS(vfs_create("/olddir/file.txt", 0644), "Create file in dir");
+  UT_ASSERT_SUCCESS(vfs_mkdir("/olddir", NULL, 0755), "Create directory");
+  UT_ASSERT_SUCCESS(vfs_create("/olddir/file.txt", NULL, 0644),
+                    "Create file in dir");
 
-  int fd = vfs_open("/olddir/file.txt", O_RDWR);
+  int fd = vfs_open("/olddir/file.txt", NULL, O_RDWR);
   const char *data = "Dir rename test";
   vfs_write(fd, data, strlen(data));
   vfs_close(fd);
 
-  UT_ASSERT_SUCCESS(vfs_rename("/olddir", "/newdir"), "Rename directory");
+  UT_ASSERT_SUCCESS(vfs_rename("/olddir", NULL, "/newdir"), "Rename directory");
 
-  fd = vfs_open("/olddir/file.txt", O_RDONLY);
+  fd = vfs_open("/olddir/file.txt", NULL, O_RDONLY);
   if (fd != -1) {
     vfs_close(fd);
     return UT_FAIL;
   }
 
-  fd = vfs_open("/newdir/file.txt", O_RDONLY);
+  fd = vfs_open("/newdir/file.txt", NULL, O_RDONLY);
   UT_ASSERT_SUCCESS(fd, "Open file in renamed directory");
 
   char read_buf[64];

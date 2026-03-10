@@ -15,7 +15,7 @@
  *===========================================================================*/
 
 static void rmdir_recursive(const char *path, bool delete_self) {
-  int fd = vfs_open(path, O_RDONLY);
+  int fd = vfs_open(path, NULL, O_RDONLY);
   if (fd < 0)
     return;
 
@@ -34,7 +34,7 @@ static void rmdir_recursive(const char *path, bool delete_self) {
       ksnprintf(child, sizeof(child), "%s/%s", path, entries[i].file_name);
 
       fstat_t st;
-      int sfd = vfs_open(child, O_RDONLY);
+      int sfd = vfs_open(child, NULL, O_RDONLY);
       if (sfd < 0)
         continue;
       vfs_fstat(sfd, &st);
@@ -43,13 +43,13 @@ static void rmdir_recursive(const char *path, bool delete_self) {
       if (st.mode == DT_DIR)
         rmdir_recursive(child, true);
       else
-        vfs_unlink(child);
+        vfs_unlink(child, NULL);
     }
   }
 
   vfs_close(fd);
   if (delete_self)
-    vfs_rmdir(path);
+    vfs_rmdir(path, NULL);
 }
 
 int fs_test_setup(void) { return 0; }
@@ -68,11 +68,11 @@ int fs_suite_teardown(void) { return 0; }
 int remount() { return 0; }
 
 int fs_create_test_file(const char *path, const char *content) {
-  if (vfs_create(path, 0644) < 0) {
+  if (vfs_create(path, NULL, 0644) < 0) {
     return -1;
   }
 
-  int fd = vfs_open(path, O_RDWR);
+  int fd = vfs_open(path, O_RDWR, NULL);
   if (fd < 0) {
     return -1;
   }
@@ -84,7 +84,7 @@ int fs_create_test_file(const char *path, const char *content) {
 }
 
 int fs_verify_file_content(const char *path, const char *expected) {
-  int fd = vfs_open(path, O_RDONLY);
+  int fd = vfs_open(path, O_RDONLY, NULL);
   if (fd < 0) {
     return -1;
   }
@@ -101,7 +101,7 @@ int fs_verify_file_content(const char *path, const char *expected) {
 }
 
 int fs_file_exists(const char *path) {
-  int fd = vfs_open(path, O_RDONLY);
+  int fd = vfs_open(path, O_RDONLY, NULL);
   if (fd < 0) {
     return 0;
   }
