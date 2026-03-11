@@ -109,6 +109,11 @@ RUN chmod -R 777 /src
 # Should be moved up once in a week or so
 #---------------------------------------------------------
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    qemu-system-x86 \
+    iproute2 \
+    iptables \
+    && rm -rf /var/lib/apt/lists/*
 #---------------------------------------------------------
 
 WORKDIR /project

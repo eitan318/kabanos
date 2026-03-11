@@ -26,17 +26,24 @@ void i686_pic_init() {
 // Unmask (enable) a specific IRQ
 void i686_pic_unmask_irq(uint8_t irq) {
   uint16_t port;
+  uint8_t value;
 
   if (irq < 8) {
     port = PIC1_DATA;
   } else {
+    // For slave PIC (IRQ 8-15), we MUST also unmask IRQ 2 on master
+	  // because the slave connected to it - see init()
     port = PIC2_DATA;
     irq -= 8;
+    
+    value = hal_in8(PIC1_DATA);
+    hal_out8(PIC1_DATA, value & ~(1 << 2));
   }
-
-  uint8_t unmask = hal_in8(port);
-  hal_out8(port, unmask & ~(1 << irq));
+  
+  value = hal_in8(port);
+  hal_out8(port, value & ~(1 << irq));
 }
+
 
 // Mask (disable) a specific IRQ
 void i686_pic_mask_irq(uint8_t irq) {

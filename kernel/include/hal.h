@@ -38,8 +38,10 @@ void hal_serial_putc(const char c);
 // IO
 uint8_t hal_in8(uint16_t port);
 uint16_t hal_in16(uint16_t port);
+uint32_t hal_in32(uint16_t port);
 void hal_out8(uint16_t port, uint8_t value);
 void hal_out16(uint16_t port, uint16_t value);
+void hal_out32(uint16_t port, uint32_t value);
 
 // IRQ
 void hal_irq_enable(int irq);
