@@ -7,7 +7,17 @@
 
 #define MAX_LINE 256
 #define MAX_ARGS 32
-#define PROMPT "myos> "
+#define PROMPT_STR "myos> "
+
+// Define some color for convenience
+// ANSI Escape Sequences - https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
+#define ANSI_COLOR_RED "\x1b[31m"
+#define ANSI_COLOR_GREEN "\x1b[32m"
+#define ANSI_COLOR_YELLOW "\x1b[33m"
+#define ANSI_COLOR_BLUE "\x1b[34m"
+#define ANSI_COLOR_RESET "\x1b[0m"
+
+#define PROMPT ANSI_COLOR_GREEN PROMPT_STR ANSI_COLOR_RESET
 
 /* --- line parsing --- */
 static int parse_line(char *line, char **argv) {

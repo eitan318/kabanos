@@ -6,9 +6,26 @@
 extern const unsigned SCREEN_WIDTH;
 extern const unsigned SCREEN_HEIGHT;
 
+// State Machine Definitions for ANSI ESC sequences
+typedef enum {
+    STATE_NORMAL,
+    STATE_BRACKET,
+    STATE_PARAMS
+} con_state_t;
+
+static con_state_t g_state = STATE_NORMAL;
+static int g_params[4];
+static int g_param_idx = 0;
+
 static int g_con_x = 0;
 static int g_con_y = 0;
 static uint8_t g_con_color = VGA_DEFAULT_COLOR;
+
+// Mapping ANSI colors (0-7) to VGA hardware colors
+static uint8_t ansi_to_vga_lookup[] = {
+    VGA_COLOR_BLACK, VGA_COLOR_RED, VGA_COLOR_GREEN, VGA_COLOR_BROWN,
+    VGA_COLOR_BLUE, VGA_COLOR_MAGENTA, VGA_COLOR_CYAN, VGA_COLOR_LIGHT_GREY
+};
 
 void con_set_color(uint8_t color) { g_con_color = color; }
 uint8_t con_get_color(void) { return g_con_color; }
@@ -17,23 +34,87 @@ void con_cursor_get(int *x, int *y) {
   *x = g_con_x;
   *y = g_con_y;
 }
+
 void con_cursor_set(int x, int y) {
+  if (x < 0) 
+    x = 0;
+  if (x >= (int)SCREEN_WIDTH) 
+    x = SCREEN_WIDTH - 1;
+  if (y < 0) 
+    y = 0;
+  if (y >= (int)SCREEN_HEIGHT) 
+    y = SCREEN_HEIGHT - 1;
+  
   g_con_x = x;
   g_con_y = y;
   vga_cursor_set(x, y);
 }
 
-static void con_advance(void) {
-  if (g_con_x >= (int)SCREEN_WIDTH) {
-    g_con_x = 0;
-    g_con_y++;
-  }
-  if (g_con_y >= (int)SCREEN_HEIGHT)
-    vga_scroll(1);
-  vga_cursor_set(g_con_x, g_con_y);
+static void handle_csi_command(char c) {
+    switch (c) {
+        case 'H': // Cursor Home / Move: \e[row;colH
+        case 'f':
+            // ANSI is 1-based, VGA is 0-based
+            con_cursor_set(g_params[1] - 1, g_params[0] - 1);
+            break;
+
+        case 'J': // Clear Screen: \e[2J
+            if (g_params[0] == 2) {
+                con_clear();
+            }
+            break;
+
+        case 'K': // Clear Line: \e[K
+            for (int i = g_con_x; i < (int)SCREEN_WIDTH; i++) {
+                vga_write_char(i, g_con_y, ' ');
+                vga_write_color(i, g_con_y, g_con_color);
+            }
+            break;
+
+        case 'm': // Select Graphic Rendition (Color)
+            for (int i = 0; i <= g_param_idx; i++) {
+                int p = g_params[i];
+                if (p == 0) {
+                    g_con_color = VGA_DEFAULT_COLOR;
+                } else if (p >= 30 && p <= 37) { // Foreground color
+                    g_con_color = (g_con_color & 0xF0) | ansi_to_vga_lookup[p - 30];
+                } else if (p >= 40 && p <= 47) { // Background color
+                    g_con_color = (g_con_color & 0x0F) | (ansi_to_vga_lookup[p - 40] << 4);
+                }
+            }
+            break;
+    }
 }
 
 void con_putc(char c) {
+  // Process State Machine
+  if (g_state == STATE_NORMAL) {
+    if (c == '\033') { // Escape character
+      g_state = STATE_BRACKET;
+      return;
+    }
+  } else if (g_state == STATE_BRACKET) {
+    if (c == '[') {
+      g_state = STATE_PARAMS;
+      g_params[0] = g_params[1] = g_params[2] = g_params[3] = 0;
+      g_param_idx = 0;
+    } else {
+      g_state = STATE_NORMAL;
+    }
+    return;
+  } else if (g_state == STATE_PARAMS) {
+    if (c >= '0' && c <= '9') {
+      g_params[g_param_idx] = g_params[g_param_idx] * 10 + (c - '0');
+    } else if (c == ';') {
+      if (g_param_idx < 3) g_param_idx++;
+    } else {
+      handle_csi_command(c);
+      g_state = STATE_NORMAL;
+    }
+    return;
+  }
+
+  // Handle standard character printing
   if (c == '\n') {
     g_con_x = 0;
     g_con_y++;
@@ -81,8 +162,9 @@ void con_backspace(void) {
   vga_write_color(g_con_x, g_con_y, g_con_color);
   vga_cursor_set(g_con_x, g_con_y);
 }
+
 void con_puts(const char *str) {
-  while (*str)
+  while (*str) 
     con_putc(*str++);
 }
 
@@ -95,6 +177,7 @@ void con_clear(void) {
   vga_clear();
   g_con_x = 0;
   g_con_y = 0;
+  vga_cursor_set(0, 0);
 }
 
 void con_newline(void) { con_putc('\n'); }
