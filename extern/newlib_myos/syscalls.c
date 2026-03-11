@@ -92,6 +92,12 @@ typedef enum {
   SYSCALL_NUMBER_SYS_SIGPROCMASK,
   SYSCALL_NUMBER_SYS_KILL,
 
+  // --- Networking (Sockets) ---
+  SYSCALL_NUMBER_SYS_SOCKET,
+  SYSCALL_NUMBER_SYS_BIND,
+  SYSCALL_NUMBER_SYS_SENDTO,
+  SYSCALL_NUMBER_SYS_RECVFROM,
+
 } SYSCALL_NUMBER;
 
 /* getcwd */
@@ -302,6 +308,28 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oact) {
 int getdents(int fd, void *buf, unsigned int size) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_GETDENTS, (long)fd, (long)buf,
                         (long)size, 0, 0, 0);
+}
+
+typedef unsigned int myos_socklen_t;
+
+int socket(int domain, int type, int protocol) {
+    return (int)_syscall6(SYSCALL_NUMBER_SYS_SOCKET, domain, type, protocol, 0, 0, 0);
+}
+
+int bind(int fd, const void *addr, myos_socklen_t addrlen) {
+    return (int)_syscall6(SYSCALL_NUMBER_SYS_BIND, fd, (long)addr, addrlen, 0, 0, 0);
+}
+
+ssize_t sendto(int fd, const void *buf, size_t len, int flags,
+               const void *dest_addr, myos_socklen_t addrlen) {
+    return (ssize_t)_syscall6(SYSCALL_NUMBER_SYS_SENDTO, fd, (long)buf,
+                               (long)len, flags, (long)dest_addr, addrlen);
+}
+
+ssize_t recvfrom(int fd, void *buf, size_t len, int flags,
+                 void *src_addr, myos_socklen_t *addrlen) {
+    return (ssize_t)_syscall6(SYSCALL_NUMBER_SYS_RECVFROM, fd, (long)buf,
+                               (long)len, flags, (long)src_addr, (long)addrlen);
 }
 
 #include "dirent.h"

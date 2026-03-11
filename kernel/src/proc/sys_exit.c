@@ -3,6 +3,7 @@
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
+#include "net/net_syscalls.h"
 
 void sys_exit(int status) {
   thread_t *current = dispatch_get_current();
@@ -10,7 +11,7 @@ void sys_exit(int status) {
 
   proc->exit_code = status;
   proc->state = PROCESS_ZOMBIE;
-
+  
   // Tell the scheduler never to run this thread again
   sched_dequeue(current);
 

@@ -5,7 +5,14 @@
 #define TIMER_IRQ 0
 #define TIMER_INT 0x20
 
+static volatile uint32_t g_ticks = 0;
+
+uint32_t timer_get_ticks(void) {        
+    return g_ticks;
+}
+
 static void timer_isr(trap_frame_t *r) {
+  g_ticks++;
   hal_irq_send_eoi(TIMER_IRQ); // Works only with eoi before
   timer_on_tick(r);
 }

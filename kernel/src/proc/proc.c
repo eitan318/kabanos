@@ -4,6 +4,7 @@
 #include "mm/kmalloc.h"
 #include "mm/vmspace.h"
 #include "sched/thread.h"
+#include "net/net_syscalls.h"
 
 static uint32_t next_pid = 1;
 static uint32_t alloc_pid() { return next_pid++; }
@@ -21,6 +22,7 @@ void process_destroy(process_t *proc) {
   if (proc->main_thread) {
     proc->main_thread->state = THREAD_STATE_DEAD;
   }
+  sys_net_close_all();
   vmspace_destroy(proc->vmspace);
   kfree(proc);
 }

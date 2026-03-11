@@ -8,6 +8,7 @@
 #include "proc/sys_wait.h"
 #include "sched/sched.h"
 #include "sched/sleep.h"
+#include "net/net_syscalls.h"
 #include "sched/sys_yield.h"
 #include "sys_time.h"
 #include <fs/vfs.h>
@@ -63,6 +64,12 @@ typedef enum {
   SYSCALL_NUMBER_SYS_SIGPROCMASK, // Added: Used by sigprocmask()
   SYSCALL_NUMBER_SYS_KILL,        // Added: Used by kill()
 
+  // --- Networking (Sockets) ---
+  SYSCALL_NUMBER_SYS_SOCKET,
+  SYSCALL_NUMBER_SYS_BIND,
+  SYSCALL_NUMBER_SYS_SENDTO,
+  SYSCALL_NUMBER_SYS_RECVFROM,
+
 } SYSCALL_NUMBER;
 
 long syscall_dispatch(syscall_info_t f) {
@@ -71,6 +78,8 @@ long syscall_dispatch(syscall_info_t f) {
   case SYSCALL_NUMBER_SYS_OPEN:
     return sys_open((const char *)f.args[0], (int)f.args[1]);
   case SYSCALL_NUMBER_SYS_CLOSE:
+    if ((int)f.args[0] >= 64) // socket fd
+          return sys_net_close((int)f.args[0]);
     return sys_close((int)f.args[0]);
   case SYSCALL_NUMBER_SYS_READ:
     return sys_read((int)f.args[0], (char *)f.args[1], (size_t)f.args[2]);
@@ -136,6 +145,9 @@ long syscall_dispatch(syscall_info_t f) {
                          (timespec_t *)f.args[1]);
   case SYSCALL_NUMBER_SYS_GETTIMEOFDAY:
     return sys_gettimeofday((timespec_t *)f.args[0], (void *)f.args[1]);
+  case SYSCALL_NUMBER_SYS_TIMES: {
+    return (long)timer_get_ticks();
+  }
 
   /* --- Memory Management --- */
   case SYSCALL_NUMBER_SYS_SBRK:
@@ -149,6 +161,17 @@ long syscall_dispatch(syscall_info_t f) {
   case SYSCALL_NUMBER_SYS_PIPE:
   case SYSCALL_NUMBER_SYS_SIGACTION:
     return -ENOSYS; // Unimplemented
+  
+  case SYSCALL_NUMBER_SYS_SOCKET:
+    return sys_socket((int)f.args[0], (int)f.args[1], (int)f.args[2]);
+  case SYSCALL_NUMBER_SYS_BIND:
+    return sys_bind((int)f.args[0], (struct sockaddr*)f.args[1], (uint32_t)f.args[2]);
+  case SYSCALL_NUMBER_SYS_SENDTO:
+    return sys_sendto((int)f.args[0], (void*)f.args[1], (size_t)f.args[2],
+                      (int)f.args[3], (struct sockaddr*)f.args[4], (uint32_t)f.args[5]);
+  case SYSCALL_NUMBER_SYS_RECVFROM:
+    return sys_recvfrom((int)f.args[0], (void*)f.args[1], (size_t)f.args[2],
+                        (int)f.args[3], (struct sockaddr*)f.args[4], (uint32_t*)f.args[5]);
 
   default:
     return -EINVAL;
