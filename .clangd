@@ -1,12 +1,12 @@
----
-If:
-  PathMatch: .*
 CompileFlags:
-  CompilationDatabase: .
+  # If your compile_commands.json is in the 'build' folder, change this to 'build'
+  CompilationDatabase: "build" 
   Add: [
+    "-m32",
     "-nostdinc",
-    "-nobuiltininc",
-    "-D__myos__",  
+    "-ffreestanding",
+    "-D__myos__",
+    # This is the "Magic" include that usually contains stdint.h on host Ubuntu
     "-isystem", "/usr/lib/gcc/x86_64-linux-gnu/11/include",
     "-I", "/home/magshimim/repos/1001_myos/kernel/include",
     "-I", "/home/magshimim/repos/1001_myos/bootloader/stage2/include",
@@ -15,8 +15,5 @@ CompileFlags:
     "-I", "/home/magshimim/repos/1001_myos/extern/newlib_myos/include"
   ]
 
-
-
 Index:
   StandardLibrary: No
-
