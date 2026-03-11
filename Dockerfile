@@ -19,6 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     mtools \
     nasm \
     patch \
+    clangd \
     python3 \
     texinfo \
     wget \

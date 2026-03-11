@@ -58,6 +58,17 @@ if(NOT "${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
     )
 endif()
 
+# A script to merge two JSON files
+set(MERGE_SCRIPT "${CMAKE_SOURCE_DIR}/scripts/build/merge_compile_commands.py")
+add_custom_target(combine_db ALL
+    COMMAND python3 ${MERGE_SCRIPT} 
+            ${CMAKE_BINARY_DIR}/compile_commands.json 
+            ${NEWLIB_BUILD_DIR}/compile_commands.json
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    DEPENDS newlib_project # Ensure newlib is built so its JSON exists
+    COMMENT "Merging Newlib and Kernel compile commands"
+)
+
 
 include(cmake/initrd.cmake)
 include(cmake/disk_image.cmake)

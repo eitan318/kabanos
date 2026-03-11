@@ -1,6 +1,7 @@
 #pragma once
 #include "arch/types.h"
-#include "stdint.h"
+#include "klib/stddef.h"
+#include "klib/stdint.h"
 
 typedef struct process process_t;
 

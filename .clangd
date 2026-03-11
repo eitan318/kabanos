@@ -3,14 +3,20 @@ If:
   PathMatch: .*
 CompileFlags:
   CompilationDatabase: .
-  # This tells clangd: "If you see an include path starting with /project, 
-  # swap it for the actual path on my host machine."
   Add: [
-    "-isystem", "/home/magshimim/repos/1001_myos/kernel/include",
-    "-isystem", "/home/magshimim/repos/1001_myos/libs",
-    "-I", "/home/magshimim/repos/1001_myos/kernel/include"
+    "-nostdinc",
+    "-nobuiltininc",
+    "-D__myos__",  
+    "-isystem", "/usr/lib/gcc/x86_64-linux-gnu/11/include",
+    "-I", "/home/magshimim/repos/1001_myos/kernel/include",
+    "-I", "/home/magshimim/repos/1001_myos/bootloader/stage2/include",
+    "-I", "/home/magshimim/repos/1001_myos/libs",
+    "-I", "/home/magshimim/repos/1001_myos/common",
+    "-I", "/home/magshimim/repos/1001_myos/extern/newlib_myos/include"
   ]
----
-# This is the 'brute force' path fixer
+
+
+
 Index:
   StandardLibrary: No
+
