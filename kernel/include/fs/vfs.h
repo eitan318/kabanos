@@ -41,8 +41,8 @@ typedef struct {
 
 /** @brief Directory entry structure for vfs_getdents. */
 typedef struct {
-  char file_name[32]; /**< Name of the directory entry */
   uint32_t inode_num; /**< Associated inode number */
+  char file_name[32]; /**< Name of the directory entry */
 } vdir_entry_t;
 
 /* --- FILE OPERATIONS --- */

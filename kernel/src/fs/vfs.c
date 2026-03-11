@@ -75,7 +75,7 @@ int vfs_getdents(fd_t fd, vdir_entry_t *dentry, uint32_t count) {
   if (result < 0)
     return result;
 
-  return (int)entries_read;
+  return (int)entries_read * sizeof(vdir_entry_t);
 }
 
 int vfs_fs_type_register(fs_type_t *fs_type) {

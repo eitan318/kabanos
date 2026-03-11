@@ -310,12 +310,12 @@ int getdents(int fd, void *buf, unsigned int size) {
 int closedir(DIR *dir) {
   close(dir->fd);
   free(dir);
+  return 0;
 }
 
 DIR *opendir(const char *path) {
   int fd = open(path, O_RDONLY);
   if (fd < 0) {
-    printf("small fd\n");
     return NULL;
   }
 
@@ -341,9 +341,6 @@ struct dirent *readdir(DIR *dir) {
     if (n <= 0) {
       return NULL;
     }
-
-    printf("fd: %d name file: %s, buf:", dir->fd, dir->current.d_name,
-           dir->buffer);
 
     dir->buf_pos = 0;
     dir->buf_end = n;
