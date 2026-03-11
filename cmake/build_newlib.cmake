@@ -24,8 +24,8 @@ if(FORCE_NEWLIB_BUILD OR NOT EXISTS "${NEWLIB_SYSROOT}")
                     --prefix=/usr \
                     --with-sysroot=${NEWLIB_SYSROOT} \
                     --enable-newlib-io-long-long"
-        BUILD_COMMAND compiledb make -C ${NEWLIB_BUILD_DIR} all -j$(nproc)
-        INSTALL_COMMAND compiledb make -C ${NEWLIB_BUILD_DIR} DESTDIR=${NEWLIB_SYSROOT} install
+        BUILD_COMMAND make -C ${NEWLIB_BUILD_DIR} all -j$(nproc)
+        INSTALL_COMMAND make -C ${NEWLIB_BUILD_DIR} DESTDIR=${NEWLIB_SYSROOT} install
         STEP_TARGETS flatten
     )
 

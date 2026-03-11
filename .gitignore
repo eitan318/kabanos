@@ -1,4 +1,5 @@
 /build/
+/extern/src/
 /docs/html
 .cache
 *.bat

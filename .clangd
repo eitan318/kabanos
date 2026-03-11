@@ -6,8 +6,8 @@ CompileFlags:
     "-nostdinc",
     "-ffreestanding",
     "-D__myos__",
-    # This is the "Magic" include that usually contains stdint.h on host Ubuntu
     "-isystem", "/usr/lib/gcc/x86_64-linux-gnu/11/include",
+    "-isystem", "/home/magshimim/repos/1001_myos/build/sysroot/usr/include",
     "-I", "/home/magshimim/repos/1001_myos/kernel/include",
     "-I", "/home/magshimim/repos/1001_myos/bootloader/stage2/include",
     "-I", "/home/magshimim/repos/1001_myos/libs",
