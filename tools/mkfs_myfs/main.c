@@ -75,7 +75,7 @@ static int copy_file(MyfsSuperBlock *sb, MyfsInode *parent_dir,
     offset += bytes_read;
   }
 
-  // printf("  [F] %s (%u bytes)\n", name, offset);
+  printf("  [F] %s (%u bytes)\n", name, offset);
   myfs_iput(sb, inode);
   fclose(f);
   return 0;
@@ -107,7 +107,7 @@ static int populate_from_dir(MyfsSuperBlock *sb, MyfsInode *fs_parent_dir,
     if (S_ISDIR(st.st_mode)) {
       for (int i = 0; i < depth; i++)
         printf("  ");
-      // printf("[D] %s/\n", ent->d_name);
+      printf("[D] %s/\n", ent->d_name);
 
       uint32_t new_dir_ino;
       if (myfs_create_dir(sb, fs_parent_dir, ent->d_name, &new_dir_ino) < 0) {
@@ -168,6 +168,7 @@ int main(int argc, char *argv[]) {
   if (root == NULL) {
     return -1;
   }
+
   populate_from_dir(sb, root, partroot, 0);
 
   myfs_iput(sb, root);

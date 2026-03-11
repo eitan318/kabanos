@@ -1,5 +1,6 @@
 #include "stdio.h"
 #include "string.h"
+#include <dirent.h>
 
 struct CommandHelp {
   char *name;    // The command (e.g., "ls")
@@ -72,7 +73,7 @@ struct CommandHelp help_table[] = {
 };
 // clang-format on
 
-void main(int argc, char **argv) {
+int main(int argc, char **argv) {
   int total_commands = sizeof(help_table) / sizeof(struct CommandHelp);
 
   if (argc > 1 && strcmp(argv[1], "-l") == 0) {
@@ -80,7 +81,7 @@ void main(int argc, char **argv) {
     for (int i = 0; i < total_commands; i++) {
       printf("  %s\n", help_table[i].name);
     }
-    return;
+    return -1;
   }
 
   // Case 2: Specific command help (e.g., "help ls")
@@ -90,15 +91,16 @@ void main(int argc, char **argv) {
         printf("Command: %s\n", help_table[i].name);
         printf("Description: %s\n", help_table[i].summary);
         printf("\n%s\n", help_table[i].details);
-        return;
+        return -1;
       }
     }
     printf("Error: Command '%s' not found.\n", argv[1]);
-    return;
+    return -1;
   }
 
   printf("Type 'help [command]' for more info, or 'help -l' to list all.\n\n");
   for (int i = 0; i < total_commands; i++) {
     printf("%-10s - %s\n", help_table[i].name, help_table[i].summary);
   }
+  return 0;
 }

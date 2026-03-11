@@ -4,7 +4,9 @@
  */
 
 #pragma once
+#include "fs/vfs.h"
 #include "mm/vmspace.h"
+#include "stdint.h"
 
 typedef uint32_t pid_t;
 
@@ -32,6 +34,11 @@ typedef struct process {
   struct process *parent; /**< Pointer to the parent process. */
   bool is_waiting;        /**< True if the process is blocked in waitpid. */
 
+  vnode_t *cwd; /** The vnode of the current working directory of the proc */
+
+  uint32_t heap_start; /**< base of heap, set at exec time */
+  uint32_t brk;        /**< current break (top of heap) */
+
   struct process *first_child;  /**< Head of the linked list of children. */
   struct process *next_sibling; /**< Next sibling in the parent's child list. */
 } process_t;
@@ -47,21 +54,3 @@ process_t *process_create(void);
  * @param proc Pointer to the process to destroy.
  */
 void process_destroy(process_t *proc);
-
-/**
- * @brief Clones the current process.
- * @return In parent: PID of child. In child: 0. On failure: negative error.
- */
-long sys_fork();
-
-/**
- * @brief Terminates the current process.
- * @param status The exit code to return to the parent.
- */
-void sys_exit(int status);
-
-/**
- * @brief Gets the PID of the calling process.
- * @return The current PID.
- */
-long sys_getpid();

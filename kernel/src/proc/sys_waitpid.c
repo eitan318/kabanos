@@ -1,4 +1,4 @@
-#include "proc/wait.h"
+#include "proc/sys_wait.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "syscall_errno.h"
@@ -54,7 +54,7 @@ pid_t sys_waitpid(pid_t target_pid, int *wstatus, int options) {
     // Block and wait for a signal from sys_exit
     caller->is_waiting = 1;
     sched_dequeue(current);
-    sched_yield();
+    sched_switch_next();
     caller->is_waiting = 0;
 
     // After waking up, the loop runs again to find the now-zombie child(after

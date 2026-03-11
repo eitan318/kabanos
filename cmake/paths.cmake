@@ -22,5 +22,12 @@ set(OS_IMAGE_OUT ${OUT_DIR}/os.img)
 
 set(SYSROOT_DIR ${CMAKE_BINARY_DIR}/sysroot)
 
+set(MYOS_STUBS_SRC "${CMAKE_SOURCE_DIR}/extern/newlib_myos")
+set(NEWLIB_SRC_DIR "/src/newlib-2.5.0")
+set(NEWLIB_BUILD_DIR "${CMAKE_BINARY_DIR}/build-newlib")
+set(NEWLIB_SYSROOT "${SYSROOT_DIR}")
+
+
+
 set(CREATE_IMAGE_PY "${CMAKE_SOURCE_DIR}/scripts/build/create_disk_img.py")
 set(MAKE_INITRD_PY "${CMAKE_SOURCE_DIR}/scripts/build/create_initrd.py")

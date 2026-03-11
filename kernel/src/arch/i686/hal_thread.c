@@ -3,6 +3,7 @@
 #include "hal.h"
 #include "klib/string.h"
 #include "mm/memdefs.h"
+#include "proc/proc.h"
 #include "sched/sched.h"
 
 extern void __attribute__((naked))

@@ -1,55 +1,35 @@
-file(MAKE_DIRECTORY ${KERNEL_OUT_DIR})
+# In kernel/CMakeLists.txt
+file(GLOB_RECURSE KERNEL_GENERIC_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
+list(FILTER KERNEL_GENERIC_SOURCES EXCLUDE REGEX "${CMAKE_CURRENT_SOURCE_DIR}/src/arch/")
 
-# Architecture Validation
-if(${ARCH} STREQUAL "i386" OR ${ARCH} STREQUAL "i686")
-    set(NASM_FORMAT elf32)
-    set(LINKER_TARGET elf_i386)
-else()
-    message(FATAL_ERROR "Architecture ${ARCH} not supported!")
-endif()
-
-file(GLOB_RECURSE ALL_C_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.c")
+file(GLOB_RECURSE KERNEL_ARCH_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/arch/${ARCH}/*.c")
 file(GLOB_RECURSE LIB_SOURCES "${COMMON_DIR}/*.c")
-file(GLOB_RECURSE ARCH_SPECIFIC_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/arch/${ARCH}/*.c")
 
+file(GLOB_RECURSE KERNEL_ASM_SOURCES "src/arch/${ARCH}/*.asm")
 
-set(KERNEL_GENERIC_SOURCES ${ALL_C_SOURCES})
-list(FILTER KERNEL_GENERIC_SOURCES EXCLUDE REGEX "^${CMAKE_CURRENT_SOURCE_DIR}/src/arch/.*")
+set(KERNEL_C_SOURCES ${KERNEL_GENERIC_SOURCES} ${KERNEL_ARCH_SOURCES} ${LIB_SOURCES})
 
-set(KERNEL_C_SOURCES ${KERNEL_GENERIC_SOURCES} ${ARCH_SPECIFIC_SOURCES} ${LIB_SOURCES})
+add_executable(kernel.elf ${KERNEL_C_SOURCES} ${KERNEL_ASM_SOURCES})
 
-# 3. ASM Processing (Same as before)
-file(GLOB_RECURSE KERNEL_ASM_SOURCES ${CMAKE_CURRENT_SOURCE_DIR}/src/arch/${ARCH}/*.asm)
-foreach(ASM_SOURCE ${KERNEL_ASM_SOURCES})
-    get_filename_component(ASM_NAME ${ASM_SOURCE} NAME_WE)
-    get_filename_component(ASM_DIR ${ASM_SOURCE} DIRECTORY)
-    file(RELATIVE_PATH ASM_REL_DIR ${CMAKE_CURRENT_SOURCE_DIR} ${ASM_DIR})
-    set(ASM_OBJECT "${CMAKE_CURRENT_BINARY_DIR}/${ASM_REL_DIR}/${ASM_NAME}.o")
-    
-    add_custom_command(
-        OUTPUT ${ASM_OBJECT}
-        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/${ASM_REL_DIR}"
-        COMMAND nasm -f ${NASM_FORMAT} ${ASM_SOURCE} -o ${ASM_OBJECT} -g -F dwarf
-        DEPENDS ${ASM_SOURCE}
-    )
-    list(APPEND KERNEL_ASM_OBJECTS ${ASM_OBJECT})
-endforeach()
-
-add_executable(kernel.elf ${KERNEL_C_SOURCES} ${KERNEL_ASM_OBJECTS})
-
-set_target_properties(kernel.elf PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${KERNEL_OUT_DIR}"
-    OUTPUT_NAME "kernel"
-    SUFFIX ".elf"
+set(LINKER_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/src/arch/${ARCH}/linker.ld")
+target_link_options(kernel.elf PRIVATE 
+    "-T${LINKER_SCRIPT}"
+    "-nostdlib"        
+    "-static"         
+    "LINKER:-m,elf_i386"
 )
 
-target_include_directories(kernel.elf PRIVATE
-    ${CMAKE_CURRENT_SOURCE_DIR}/include                 
-    ${CMAKE_CURRENT_SOURCE_DIR}/src/arch/${ARCH}/include 
-    ${COMMON_DIR}                                    
+# Explicitly use absolute paths for headers
+target_include_directories(kernel.elf PRIVATE 
+    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+    "${COMMON_DIR}"
 )
 
-# 6. Options and Linker (Unchanged)
-target_compile_options(kernel.elf PRIVATE -ffreestanding -nostdinc -nostdlib -g -g3 -O0 -fno-omit-frame-pointer -fno-inline)
-target_link_options(kernel.elf PRIVATE -nostdlib LINKER:-m,${LINKER_TARGET} LINKER:-T,${CMAKE_CURRENT_SOURCE_DIR}/src/arch/${ARCH}/linker.ld)
+target_link_libraries(kernel.elf PRIVATE gcc)
 
+add_custom_command(TARGET kernel.elf POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy 
+            "$<TARGET_FILE:kernel.elf>" 
+            "${KERNEL_OUTPUT}"
+    COMMENT "Deploying kernel.elf to bootroot..."
+)

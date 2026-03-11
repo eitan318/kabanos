@@ -21,11 +21,11 @@ build:
 
 
 run: build
-	python3 scripts/run/run.py --kernel $(BUILD_DIR)/kernel.elf --image $(OUT_DIR)/os.img 
+	python3 scripts/run/run.py --kernel $(BUILD_DIR)/kernel/kernel.elf --image $(OUT_DIR)/os.img 
 
 
 debug: build
-	python3 scripts/run/run.py --kernel $(BUILD_DIR)/kernel.elf --image $(OUT_DIR)/os.img --is_debug
+	python3 scripts/run/run.py --kernel $(BUILD_DIR)/kernel/kernel.elf --image $(OUT_DIR)/os.img --is_debug 
 
 shell:
 	docker run --rm -it \

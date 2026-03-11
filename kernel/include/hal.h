@@ -95,3 +95,4 @@ void hal_thread_trap_frame_reset(thread_t *t, uintptr_t entry,
 
 // Timer
 void hal_timer_enable();
+void hal_timer_init(uint32_t frequency_hz);

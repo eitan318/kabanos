@@ -1,6 +1,6 @@
+#include "sched/timer.h"
 #include "hal.h"
 #include "isr.h"
-#include "sched/sched.h"
 
 #define TIMER_IRQ 0
 #define TIMER_INT 0x20
@@ -14,12 +14,12 @@ uint32_t timer_get_ticks(void) {
 static void timer_isr(trap_frame_t *r) {
   g_ticks++;
   hal_irq_send_eoi(TIMER_IRQ); // Works only with eoi before
-  sched_tick(r);
+  timer_on_tick(r);
 }
 
 void hal_timer_enable() { hal_irq_enable(TIMER_IRQ); }
 
-void i686_timer_init(uint32_t frequency_hz) {
+void hal_timer_init(uint32_t frequency_hz) {
   isr_handler_register(TIMER_INT, timer_isr);
   // 2. Calculate the divisor
   // Base frequency is 1.193182 MHz

@@ -1,13 +1,18 @@
 #include "syscall.h"
-#include "fs/fs_syscalls.h"
-#include "proc/exec.h"
+#include "fs/sys_fs.h"
+#include "klib/time.h"
+#include "mm/sys_sbrk.h"
 #include "proc/proc.h"
-#include "proc/wait.h"
+#include "proc/sys_exec.h"
+#include "proc/sys_proc.h"
+#include "proc/sys_wait.h"
 #include "sched/sched.h"
 #include "sched/sleep.h"
-#include "arch/i686/timer.h"
 #include "net/net_syscalls.h"
+#include "sched/sys_yield.h"
+#include "sys_time.h"
 #include <fs/vfs.h>
+#include <stdint.h>
 
 typedef enum {
   SYSCALL_NUMBER_INITIAL = 1,
@@ -136,14 +141,17 @@ long syscall_dispatch(syscall_info_t f) {
     sys_sleep((unsigned int)f.args[0]);
     return 0;
   case SYSCALL_NUMBER_SYS_NANOSLEEP:
+    return sys_nanosleep((const timespec_t *)f.args[0],
+                         (timespec_t *)f.args[1]);
   case SYSCALL_NUMBER_SYS_GETTIMEOFDAY:
-    return -ENOSYS;
+    return sys_gettimeofday((timespec_t *)f.args[0], (void *)f.args[1]);
   case SYSCALL_NUMBER_SYS_TIMES: {
     return (long)timer_get_ticks();
   }
 
   /* --- Memory Management --- */
   case SYSCALL_NUMBER_SYS_SBRK:
+    return sys_sbrk((intptr_t)f.args[0]);
   case SYSCALL_NUMBER_SYS_MMAP:
   case SYSCALL_NUMBER_SYS_MUNMAP:
     return -ENOSYS; // Unimplemented

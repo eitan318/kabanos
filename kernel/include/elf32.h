@@ -3,6 +3,7 @@
 #include "hal.h"
 #include "klib/stdbool.h"
 #include "klib/stdint.h"
+#include "mm/vmspace.h"
 
 #define ELF_MAGIC                                                              \
   "\x7F"                                                                       \
@@ -97,6 +98,6 @@ enum ELFProgramFlags {
   ELF_PROGRAM_FLAG_READABLE = 0x4,
 };
 
-int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
-               uintptr_t *entry, uintptr_t *load_base);
+int elf32_load(vmspace_t *vmspace, void *elf_data, uint32_t elf_size,
+               uintptr_t *entry, uintptr_t *text_base);
 uintptr_t elf32_find_text_section(void *elf_data, elf32_header_t *hdr);

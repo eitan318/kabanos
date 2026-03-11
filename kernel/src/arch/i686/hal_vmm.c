@@ -6,6 +6,7 @@
 #include "klib/stdio.h"
 #include "mm/memdefs.h"
 #include "mm/pmm.h"
+#include "proc/proc.h"
 #include "utils/math.h"
 #include <sched/dispatcher.h>
 

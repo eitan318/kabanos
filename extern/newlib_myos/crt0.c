@@ -4,4 +4,4 @@ __asm__(".section .text\n"
         "    call main\n"
         "    \n"
         "    push %eax\n"
-        "    call _exit\n");
+        "    call exit\n");

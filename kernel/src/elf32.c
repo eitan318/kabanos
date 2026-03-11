@@ -6,46 +6,50 @@
 #include "mm/memdefs.h"
 #include "mm/pmm.h"
 #include "mm/va_allocation.h"
+#include "mm/vmspace.h"
 #include "utils/math.h"
 #include <klib/stdint.h>
 
 // Load segment: allocate, zero, and copy from file data
 // currently menually touch frame alloc and page_map
 // In future will be with VMA of process
-static int load_segment(arch_vm_t *vm, vaddr_t va_start, size_t mem_size,
+static int load_segment(vmspace_t *vmspace, vaddr_t va_start, size_t mem_size,
                         void *file_data, size_t file_size, uint32_t flags) {
-
-  if (!va_alloc_region(vm, va_start, mem_size, flags)) {
-    return -1;
-  }
 
   vaddr_t pages_start = align_down(va_start, PAGE_SIZE);
   vaddr_t pages_end = align_up(va_start + mem_size, PAGE_SIZE);
+  size_t alloc_size = pages_end - pages_start;
+
+  vma_t *vma = vma_create(va_start, mem_size, flags | VMA_USER);
+  if (!vma)
+    return -1;
+  vmspace_add_vma(vmspace, vma);
+
+  if (!va_alloc_region(vmspace->arch, pages_start, alloc_size,
+                       PAGE_PRESENT | PAGE_USER |
+                           ((flags & PAGE_READWRITE) ? PAGE_READWRITE : 0))) {
+    return -1;
+  }
 
   for (vaddr_t page_va = pages_start; page_va < pages_end;
        page_va += PAGE_SIZE) {
-    paddr_t phys = hal_vm_virt_to_phys(vm, page_va);
+    paddr_t phys = hal_vm_virt_to_phys(vmspace->arch, page_va);
     void *kva = (void *)(phys + KERNEL_BASE);
 
-    // 1. Zero the whole page first to handle BSS and padding
     memset(kva, 0, PAGE_SIZE);
 
-    // 2. Calculate intersection of this page and the segment
-    vaddr_t seg_start = va_start;
-    vaddr_t seg_end = va_start + file_size; // Only copy what's in the file
-
-    vaddr_t intersect_start = MAX(page_va, seg_start);
-    vaddr_t intersect_end = MIN(page_va + PAGE_SIZE, seg_end);
+    vaddr_t intersect_start = MAX(page_va, va_start);
+    vaddr_t intersect_end = MIN(page_va + PAGE_SIZE, va_start + file_size);
 
     if (intersect_start < intersect_end) {
       size_t dest_offset = intersect_start - page_va;
       size_t src_offset = intersect_start - va_start;
       size_t bytes_to_copy = intersect_end - intersect_start;
-
       memcpy((uint8_t *)kva + dest_offset, (uint8_t *)file_data + src_offset,
              bytes_to_copy);
     }
   }
+
   return 0;
 }
 
@@ -55,9 +59,9 @@ static const char *get_elf_string(void *elf_data, uint32_t strtab_off,
 }
 
 // Load ELF file
-int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
+int elf32_load(vmspace_t *vmspace, void *elf_data, uint32_t elf_size,
                uintptr_t *entry, uintptr_t *text_base) {
-  ASSERT(vm && elf_data && entry);
+  ASSERT(vmspace && vmspace->arch && elf_data && entry);
 
   if (elf_size < sizeof(elf32_header_t)) {
     kdebugf("ELF: File too small\n");
@@ -127,7 +131,7 @@ int elf32_load(arch_vm_t *vm, void *elf_data, uint32_t elf_size,
     void *file_data =
         (ph->file_size > 0) ? ((uint8_t *)elf_data + ph->off) : NULL;
 
-    if (load_segment(vm, ph->vaddr, ph->mem_size, file_data, ph->file_size,
+    if (load_segment(vmspace, ph->vaddr, ph->mem_size, file_data, ph->file_size,
                      flags) != 0) {
       kdebugf("ELF: Failed to load segment %u\n", i);
       return -1;

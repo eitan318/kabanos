@@ -22,8 +22,8 @@ int dispatch_init(module_t *self) {
   kmain_thread.process = kmain_proc;
 
   kmain_thread.tid = 0; // The first thread
-  kmain_thread.priority = PRIORITY_HIGH;
-  kmain_thread.state = THREAD_RUNNING;
+  kmain_thread.priority = THREAD_PRIORITY_HIGH;
+  kmain_thread.state = THREAD_STATE_RUNNING;
   kmain_thread.mode = THREAD_MODE_KERNEL;
 
   // Crucial: Point it to its arch-specific storage
@@ -40,7 +40,7 @@ int dispatch_init(module_t *self) {
 void dispatch_switch_to(thread_t *next) {
   thread_t *current = dispatch_get_current();
 
-  next->state = THREAD_RUNNING;
+  next->state = THREAD_STATE_RUNNING;
   if (!next || current == next) {
     return;
   }
