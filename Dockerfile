@@ -19,12 +19,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     mtools \
     nasm \
     patch \
-file \
-python3-pip \
+    file \
+    python3-pip \
     python3 \
     texinfo \
     wget \
     dos2unix \ 
+    qemu-system-x86 \
+    iproute2 \
+    iptables \
     && rm -rf /var/lib/apt/lists/*
 
 # i686-myos-gcc and friends
@@ -138,11 +141,6 @@ WORKDIR /src
 # Should be moved up once in a week or so
 #---------------------------------------------------------
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    qemu-system-x86 \
-    iproute2 \
-    iptables \
-    && rm -rf /var/lib/apt/lists/*
 #---------------------------------------------------------
 
 WORKDIR /project
