@@ -25,6 +25,8 @@ target_include_directories(kernel.elf PRIVATE
     "${COMMON_DIR}"
 )
 
+target_link_libraries(kernel.elf PRIVATE gcc)
+
 add_custom_command(TARGET kernel.elf POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy 
             "$<TARGET_FILE:kernel.elf>" 

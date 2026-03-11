@@ -3,7 +3,6 @@
 #include "klib/stdbool.h"
 #include "klib/stdint.h"
 #include "klib/unistd.h"
-#include "utils/math.h"
 
 // ============================================================================
 // Output abstraction layer
@@ -60,9 +59,8 @@ static void output_unsigned(printf_output_t *out, unsigned long long number,
   int pos = 0;
 
   do {
-    uint32_t reminder_out;
-    uint64_t quotient_out;
-    div64_32(number, radix, &quotient_out, &reminder_out);
+    uint32_t reminder_out = number % radix;
+    uint64_t quotient_out = number / radix;
     number = quotient_out;
     buffer[pos] = g_hex_chars[reminder_out];
     pos++;

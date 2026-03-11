@@ -25,7 +25,7 @@ int test_seek_set(void) {
 
   UT_ASSERT_SUCCESS(fs_create_test_file("/seektest", data), "Create test file");
 
-  int fd = vfs_open("/seektest", O_RDWR);
+  int fd = vfs_open("/seektest", NULL, O_RDWR);
   UT_ASSERT_SUCCESS(fd, "Open file");
 
   // Seek to position 5
@@ -47,7 +47,7 @@ int test_seek_cur(void) {
 
   UT_ASSERT_SUCCESS(fs_create_test_file("/seektest", data), "Create test file");
 
-  int fd = vfs_open("/seektest", O_RDWR);
+  int fd = vfs_open("/seektest", NULL, O_RDWR);
   UT_ASSERT_SUCCESS(fd, "Open file");
 
   // Read 3 bytes (now at position 3)
@@ -73,7 +73,7 @@ int test_seek_end(void) {
 
   UT_ASSERT_SUCCESS(fs_create_test_file("/seektest", data), "Create test file");
 
-  int fd = vfs_open("/seektest", O_RDWR);
+  int fd = vfs_open("/seektest", NULL, O_RDWR);
   UT_ASSERT_SUCCESS(fd, "Open file");
 
   // Seek to 2 bytes before end
@@ -94,7 +94,7 @@ int test_seek_beyond_eof(void) {
 
   UT_ASSERT_SUCCESS(fs_create_test_file("/seektest", data), "Create test file");
 
-  int fd = vfs_open("/seektest", O_RDWR);
+  int fd = vfs_open("/seektest", NULL, O_RDWR);
   UT_ASSERT_SUCCESS(fd, "Open file");
 
   // Try to seek beyond EOF (behavior depends on implementation)

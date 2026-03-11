@@ -3,7 +3,7 @@
  * @brief Implementation of process execution and ELF loading.
  */
 
-#include "proc/exec.h"
+#include "proc/sys_exec.h"
 #include "elf32.h"
 #include "fs/vfs.h"
 #include "hal.h"
@@ -14,11 +14,12 @@
 #include "mm/memdefs.h"
 #include "mm/va_allocation.h"
 #include "mm/vmspace.h"
-//#include "proc/exec_table.h"
+#include "proc/exec_table.h"
 #include "proc/proc.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
+#include "utils/math.h"
 
 #define MAX_ARGC 1024
 
@@ -31,10 +32,11 @@
  * @param entry [out] Pointer to store the program entry point (EIP).
  * @return 0 on success, negative errno on failure.
  */
-static int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
+static int exec_load_elf(vmspace_t *vm, const char *path, vnode_t *cwd,
+                         uintptr_t *entry) {
   paddr_t path_phys = hal_vm_virt_to_phys(vm->arch, (vaddr_t)path);
 
-  int fd = vfs_open(path, O_RDONLY);
+  int fd = vfs_open(path, cwd, O_RDONLY);
   if (fd < 0)
     return fd;
 
@@ -59,40 +61,16 @@ static int exec_load_elf(vmspace_t *vm, const char *path, uintptr_t *entry) {
   }
 
   uintptr_t text_base = 0;
-  int r = elf32_load(vm->arch, data, st.size, entry, &text_base);
+  int r = elf32_load(vm, data, st.size, entry, &text_base);
 
   if (r == 0) {
-    // exec_table_add(path, text_base);
+    exec_table_add(path, text_base);
   } else {
     kdebugf("exec_load_elf: elf_load failed: %d\n", r);
   }
 
   kfree(data);
   return r;
-}
-
-/**
- * @brief Allocates physical frames for a new user stack.
- * * @param vm The destination virtual memory space.
- * @return The initial stack pointer (top of stack), or (uintptr_t)-1 on
- * failure.
- */
-static uintptr_t alloc_user_stack(vmspace_t *vm) {
-  if (!va_alloc_region(vm->arch, USER_STACK_BOTTOM + 1, USER_STACK_SIZE,
-                       PAGE_USER | PAGE_READWRITE)) {
-    kdebugf("user stack creation failed");
-    return -1;
-  }
-
-  return (uintptr_t)(USER_STACK_BOTTOM + USER_STACK_SIZE);
-}
-
-/**
- * @brief Frees the user stack region.
- * * @param vm The virtual memory space containing the stack.
- */
-static void free_user_stack(vmspace_t *vm) {
-  va_free_region(vm->arch, USER_STACK_BOTTOM + 1, USER_STACK_SIZE);
 }
 
 /**
@@ -176,16 +154,23 @@ static captured_args_t capture_args(char *const argv[], char *const envp[]) {
 long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
   char *kpath = strdup(pathname);
   captured_args_t captured = capture_args(argv, envp);
+  thread_t *current = dispatch_get_current();
 
   vmspace_t *new_vm = vmspace_create();
   uintptr_t entry = 0;
-  if (exec_load_elf(new_vm, kpath, &entry) < 0) {
+  if (exec_load_elf(new_vm, kpath, current->process->cwd, &entry) < 0) {
+    kdebugf("Couldnt load: %s");
     vmspace_destroy(new_vm);
     return -ENOENT;
   }
-  uintptr_t stack_top = alloc_user_stack(new_vm);
 
-  thread_t *current = dispatch_get_current();
+  uintptr_t stack_top = USER_STACK_BOTTOM + USER_STACK_SIZE;
+  vmspace_map_stack(new_vm, stack_top, USER_STACK_SIZE);
+
+  vmspace_map_heap(new_vm, USER_HEAP_START, USER_HEAP_INITIAL);
+  current->process->heap_start = USER_HEAP_START;
+  current->process->brk = USER_HEAP_START + USER_HEAP_INITIAL;
+
   vmspace_t *old_vm = current->process->vmspace;
 
   current->process->vmspace = new_vm;
@@ -211,11 +196,13 @@ int process_spawn(const char *path, int argc, char *const argv[],
   proc->vmspace = vmspace_create();
 
   uintptr_t entry;
-  if (exec_load_elf(proc->vmspace, path, &entry) < 0) {
+  if (exec_load_elf(proc->vmspace, path, proc->cwd, &entry) < 0) {
     process_destroy(proc);
     return -1;
   }
-  uintptr_t stack_top = alloc_user_stack(proc->vmspace);
+
+  uintptr_t stack_top = USER_STACK_BOTTOM + USER_STACK_SIZE;
+  vmspace_map_stack(proc->vmspace, stack_top, USER_STACK_SIZE);
 
   uintptr_t user_sp =
       setup_user_stack_args(proc->vmspace, stack_top, argc, argv, envp);

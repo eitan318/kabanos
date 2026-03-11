@@ -1,5 +1,9 @@
 #pragma once
-#include "proc/proc.h"
+#include "arch/types.h"
+#include "klib/stddef.h"
+#include "klib/stdint.h"
+
+typedef struct process process_t;
 
 enum thread_mode { THREAD_MODE_KERNEL, THREAD_MODE_USER };
 
@@ -20,19 +24,19 @@ typedef struct thread {
   uint32_t wakeup_time;
 
   enum thread_state {
-    THREAD_NEW,
-    THREAD_READY,
-    THREAD_RUNNING,
-    THREAD_DEAD,
-    THREAD_BLOCKED,
+    THREAD_STATE_NEW,
+    THREAD_STATE_READY,
+    THREAD_STATE_RUNNING,
+    THREAD_STATE_DEAD,
+    THREAD_STATE_BLOCKED,
   } state;
 
   enum thread_priority {
-    PRIORITY_VERY_HIGH = 0,
-    PRIORITY_HIGH = 1,
-    PRIORITY_MEDIUM = 2,
-    PRIORITY_LOW = 3,
-    NUM_PRIORITIES = 4
+    THREAD_PRIORITY_VERY_HIGH = 0,
+    THREAD_PRIORITY_HIGH = 1,
+    THREAD_PRIORITY_MEDIUM = 2,
+    THREAD_PRIORITY_LOW = 3,
+    THREAD_NUM_PRIORITIES = 4
   } priority;
 
   enum thread_mode mode;

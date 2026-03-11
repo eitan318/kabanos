@@ -1,63 +1,71 @@
+#include "assert.h"
 #include "fs/vfs.h"
 #include "klib/errno.h"
-#include "klib/stdio.h"
 #include "klib/unistd.h"
 #include "ksys/stat.h"
+#include "proc/proc.h"
+#include "sched/dispatcher.h"
+#include "sched/thread.h"
+#include <sched/thread.h>
+
+static vnode_t *get_cwd() {
+  thread_t *curr_thread = dispatch_get_current();
+  ASSERT(curr_thread);
+  return curr_thread->process->cwd;
+}
 
 long sys_mkdir(const char *path, mode_t mode) {
-
   if (!path)
     return -EINVAL;
-  return vfs_mkdir(path, mode);
+  return vfs_mkdir(path, get_cwd(), mode);
 }
 
 long sys_rmdir(const char *path) {
   if (!path)
     return -EINVAL;
-  return vfs_rmdir(path);
+  return vfs_rmdir(path, get_cwd());
 }
 long sys_unlink(const char *path) {
   if (!path)
     return -EINVAL;
-  return vfs_unlink(path);
+  return vfs_unlink(path, get_cwd());
 }
 
 long sys_rename(const char *oldpath, const char *newpath) {
   if (!oldpath || !newpath)
     return -EINVAL;
-  return vfs_rename(oldpath, newpath);
+  return vfs_rename(oldpath, get_cwd(), newpath);
 }
 
 long sys_symlink(const char *target, const char *linkpath) {
   if (!target || !linkpath)
     return -EINVAL;
-  return vfs_symlink(target, linkpath);
+  return vfs_symlink(target, get_cwd(), linkpath);
 }
 
 long sys_readlink(const char *path, char *buf, size_t bufsize) {
   if (!path || !buf || bufsize == 0)
     return -EINVAL;
-  return vfs_readlink(path, buf, bufsize);
+  return vfs_readlink(path, get_cwd(), buf, bufsize);
 }
 long sys_mount(const char *source, const char *target, const char *fs_name,
                unsigned long flags, void *data) {
   if (!target || !fs_name)
     return -EINVAL;
-  return vfs_mount(source, target, fs_name, flags, data);
+  return vfs_mount(source, target, get_cwd(), fs_name, flags, data);
 }
 
 long sys_umount(const char *target) {
   if (!target)
     return -EINVAL;
-  return vfs_umount(target);
+  return vfs_umount(target, get_cwd());
 }
 
 long sys_open(const char *pathname, int flags) {
   if (!pathname)
     return -EINVAL;
 
-  int fd = vfs_open(pathname, flags);
-  kprintf("path: %s opened fd: %d", pathname);
+  int fd = vfs_open(pathname, get_cwd(), flags);
   if (fd < 0)
     return -ENOENT;
 

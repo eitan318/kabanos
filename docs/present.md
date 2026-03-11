@@ -10,4 +10,6 @@
 * 
 
 
-
+lines of code count:
+find . -type f -regextype posix-egrep -regex ".*\.(c|h|sh|cmake|py|md)$|.*CMakeLists\.txt$" -exec cat {} + | wc -l
+18036

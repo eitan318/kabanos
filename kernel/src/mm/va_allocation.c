@@ -4,35 +4,49 @@
 #include "klib/stdio.h"
 #include "mm/pmm.h"
 #include "utils/math.h"
+#include <assert.h>
 
 bool va_alloc_region(arch_vm_t *vm, uint32_t virt_start, size_t size,
                      uint32_t flags) {
+  ASSERT(vm);
+  ASSERT(is_aligned(virt_start, PAGE_SIZE));
+  ASSERT(is_aligned(size, PAGE_SIZE));
+
   uint32_t start = align_down(virt_start, PAGE_SIZE);
   uint32_t end = align_up(virt_start + size, PAGE_SIZE);
-  uint32_t pages = (end - start) / PAGE_SIZE;
+  uint32_t curr;
 
-  for (uint32_t i = 0; i < pages; i++) {
+  for (curr = start; curr < end; curr += PAGE_SIZE) {
     uint32_t phys = pmm_frame_alloc();
-    if (!phys) {
-      for (uint32_t j = 0; j < i; j++)
-        hal_vm_unmap(vm, start + j * PAGE_SIZE);
-      return false;
-    }
+    if (!phys)
+      goto fail;
 
-    if (!hal_vm_map(vm, start + i * PAGE_SIZE, phys, flags)) {
+    if (!hal_vm_map(vm, curr, phys, flags)) {
       pmm_frame_free(phys);
-      for (uint32_t j = 0; j < i; j++)
-        hal_vm_unmap(vm, start + j * PAGE_SIZE);
-      return false;
+      goto fail;
     }
   }
   return true;
+
+fail:
+  for (uint32_t clean = start; clean < curr; clean += PAGE_SIZE) {
+    uint32_t p = hal_vm_virt_to_phys(vm, clean);
+    if (p)
+      pmm_frame_free(p);
+    hal_vm_unmap(vm, clean);
+  }
+  return false;
 }
 
 void va_free_region(arch_vm_t *vm, uint32_t virt_start, size_t size) {
-  uint32_t pages = (size + PAGE_SIZE - 1) / PAGE_SIZE;
+  ASSERT(vm);
+  ASSERT(is_aligned(virt_start, PAGE_SIZE));
+  ASSERT(is_aligned(size, PAGE_SIZE));
 
-  // Free physical frames before unmapping
+  size = align_up(size, PAGE_SIZE);
+  uint32_t pages =
+      size / PAGE_SIZE; // fix: was align_down(size) giving bytes not pages
+
   for (uint32_t i = 0; i < pages; i++) {
     uint32_t va = virt_start + i * PAGE_SIZE;
     uint32_t phys = hal_vm_virt_to_phys(vm, va);
@@ -41,8 +55,6 @@ void va_free_region(arch_vm_t *vm, uint32_t virt_start, size_t size) {
     }
   }
 
-  uint32_t start = align_up(virt_start, PAGE_SIZE);
-  size = align_down(virt_start + size, PAGE_SIZE);
-
-  hal_vm_unmap_range(vm, start, size);
+  hal_vm_unmap_range(vm, virt_start,
+                     size); // fix: use virt_start not re-aligned start
 }

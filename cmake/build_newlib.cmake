@@ -1,8 +1,9 @@
 include(ExternalProject)
 
-# --- 1. Newlib Setup ---
+option(FORCE_NEWLIB_BUILD "Force rebuilding Newlib even if sysroot exists" ON)
 
-if(NOT EXISTS "${NEWLIB_SYSROOT}")
+# --- 1. Newlib Setup ---
+if(FORCE_NEWLIB_BUILD OR NOT EXISTS "${NEWLIB_SYSROOT}")
     ExternalProject_Add(newlib_project
         SOURCE_DIR "${NEWLIB_SRC_DIR}"
         BINARY_DIR "${NEWLIB_BUILD_DIR}"

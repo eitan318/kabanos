@@ -235,11 +235,8 @@ MyfsInode *myfs_disk_inode_read(MyfsSuperBlock *sb, int ino) {
 
   int inode_size = sizeof(*inode);
   uint64_t inode_offset_bytes = (uint64_t)ino * (uint64_t)inode_size;
-  uint64_t first_block_index;
-  uint32_t offset_in_block;
-  div64_32(inode_offset_bytes, sb->block_bytes, &first_block_index,
-           &offset_in_block);
-
+  uint64_t first_block_index = inode_offset_bytes / sb->block_bytes;
+  uint32_t offset_in_block = inode_offset_bytes % sb->block_bytes;
   uint32_t start_block = sb->on_disk.inode_table_start + first_block_index;
   disk_rw_spanning(sb, start_block, offset_in_block, inode, inode_size, false);
   return inode;
@@ -260,10 +257,9 @@ int myfs_disk_inode_write(MyfsSuperBlock *sb, int ino) {
 
   int inode_size = sizeof(*inode);
   uint64_t inode_offset_bytes = (uint64_t)inode->i_ino * (uint64_t)inode_size;
-  uint64_t first_block_index;
-  uint32_t offset_in_block;
-  div64_32(inode_offset_bytes, sb->block_bytes, &first_block_index,
-           &offset_in_block);
+
+  uint64_t first_block_index = inode_offset_bytes / sb->block_bytes;
+  uint32_t offset_in_block = inode_offset_bytes % sb->block_bytes;
 
   uint32_t start_block = sb->on_disk.inode_table_start + first_block_index;
   disk_rw_spanning(sb, start_block, offset_in_block, inode, inode_size, true);

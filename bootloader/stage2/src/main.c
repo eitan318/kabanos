@@ -8,8 +8,7 @@
 #include "memory_map.h"
 #include "multiboot2.h"
 #include "s2lib/stdio.h"
-#include "s2lib/string.h"
-#include <stdint.h>
+#include "stdint.h"
 
 #define CMDLINE_SIZE 2048
 

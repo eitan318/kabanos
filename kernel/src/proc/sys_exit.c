@@ -19,6 +19,6 @@ void sys_exit(int status) {
     sched_enqueue(proc->parent->main_thread);
   }
 
-  sched_yield();
+  sched_switch_next();
   panic("returned from exit!");
 }

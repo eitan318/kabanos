@@ -3,7 +3,6 @@
 #include "arch/i686/interrupts.h"
 #include "arch/i686/pic.h"
 #include "arch/i686/sysenter.h"
-#include "arch/i686/timer.h"
 #include "modules.h"
 #include "panic.h"
 #include "sched/sched.h"
@@ -30,7 +29,6 @@ int hal_arch_init(module_t *self) {
   i686_idt_init();
   i686_isr_init();
   i686_pic_init();
-  i686_timer_init(1000 / TIMER_TICK_MS);
   i686_sysenter_init();
   return 0;
 }

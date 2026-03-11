@@ -108,7 +108,8 @@ mount_point_t *vfs_find_mount_point(const char *path);
 int vfs_fs_type_register(fs_type_t *fs_type);
 int vfs_fs_type_unregister(const char *name);
 
-vnode_t *vfs_lookup_path(const char *path, bool follow_final_symlink);
+vnode_t *vfs_lookup_path(const char *path, vnode_t *cwd,
+                         bool follow_final_symlink);
 
 vnode_t *vfs_vnode_alloc(super_block_t *sb, ino_t ino, mode_t mode, size_t size,
                          void *fs_specific);

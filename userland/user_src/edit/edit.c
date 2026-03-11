@@ -2,10 +2,9 @@
 #include "stdio.h"
 
 int main(int argc, char **argv) {
-  printf("argc: %d", argc);
-  printf("argv: %s", argv);
   if (argc < 2)
-    return 1;
+    printf("usage edit file\n");
+  return 1;
 
   char buf[100000];
 

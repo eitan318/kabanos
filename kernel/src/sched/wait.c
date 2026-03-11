@@ -1,4 +1,5 @@
 #include "sched/wait.h"
+#include "proc/proc.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
@@ -10,7 +11,7 @@ void wait_on_queue(wait_queue_t *queue, spinlock_t *condition_lock) {
   spinlock_acquire(&queue->lock);
 
   // Add to wait queue
-  current->state = THREAD_BLOCKED;
+  current->state = THREAD_STATE_BLOCKED;
   current->next = NULL;
   if (!queue->tail) {
     queue->head = queue->tail = current;
@@ -45,7 +46,7 @@ void wake_up_queue(wait_queue_t *queue) {
       queue->tail = NULL;
     }
     thread->next = NULL;
-    thread->state = THREAD_READY;
+    thread->state = THREAD_STATE_READY;
     sched_enqueue(thread); // Has its own internal lock
   }
 

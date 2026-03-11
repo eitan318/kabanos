@@ -19,6 +19,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     mtools \
     nasm \
     patch \
+file \
+python3-pip \
     python3 \
     texinfo \
     wget \
@@ -135,6 +137,11 @@ WORKDIR /src
 # Section for quick addings so you dont need to wait alot
 # Should be moved up once in a week or so
 #---------------------------------------------------------
+
+
+
+
+
 
 #---------------------------------------------------------
 

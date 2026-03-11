@@ -16,11 +16,6 @@ add_subdirectory("${SRC_DIR}/userland")
 
 
 
-
-
-
-
-
 set(HOST_TOOLS_BINARY_DIR "${CMAKE_BINARY_DIR}/host_tools")
 set(MKFS_MYFS_EXE "${HOST_TOOLS_BINARY_DIR}/mkfs_myfs")
 set(MKFS_MYFS_SRC_DIR "${CMAKE_SOURCE_DIR}/tools/mkfs_myfs")
@@ -46,8 +41,6 @@ ExternalProject_Add(host_tools_project
 
 
 
-
-
 configure_file(
     "${CMAKE_SOURCE_DIR}/boot.cfg" 
     "${BOOT_DIR}/boot.cfg" 
@@ -64,6 +57,17 @@ if(NOT "${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
         COMMENT "Fixing compile_commands.json for host IDE"
     )
 endif()
+
+# A script to merge two JSON files
+set(MERGE_SCRIPT "${CMAKE_SOURCE_DIR}/scripts/build/merge_compile_commands.py")
+add_custom_target(combine_db ALL
+    COMMAND python3 ${MERGE_SCRIPT} 
+            ${CMAKE_BINARY_DIR}/compile_commands.json 
+            ${NEWLIB_BUILD_DIR}/compile_commands.json
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    DEPENDS newlib_project # Ensure newlib is built so its JSON exists
+    COMMENT "Merging Newlib and Kernel compile commands"
+)
 
 
 include(cmake/initrd.cmake)
