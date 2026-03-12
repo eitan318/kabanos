@@ -702,7 +702,7 @@ static int vfs_parent_operation(const char *path, vnode_t *base_node,
   vnode_t *parent = vfs_lookup_path(parent_path, base_node, true);
   if (!parent) {
     kfree(path_copy);
-    return -1;
+    return -ENOENT;
   }
 
   int result = op(parent, child_name, mode);

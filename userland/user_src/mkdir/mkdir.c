@@ -5,6 +5,21 @@
 
 extern int __myos_errno;
 
+void handle_error(const char *path)
+{
+  switch(__myos_errno) {
+    case EEXIST:
+      printf("mkdir: cannot create directory '%s': File exists\n", path);
+      break;
+    case ENOENT:
+      printf("mkdir: cannot create directory '%s': No such file or directory\n", path);
+      break;
+
+    default:
+      printf("mkdir failed: unknown error\n");
+  }
+}
+
 int main(int argc, char *argv[]) {
   if (argc != 2) {
     printf("Usage: mkdir <path>\n");
@@ -24,13 +39,9 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  if (__myos_errno == EEXIST) {
-    printf("mkdir: cannot create directory '%s': File exists\n", argv[1]);
-    free(path);
-    return 1;
-  }
+  if (__myos_errno)
+    handle_error(path);
 
-  printf("mkdir failed\n");
   free(path);
   return 1;
 }
