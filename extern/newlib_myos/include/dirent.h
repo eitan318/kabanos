@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 struct dirent {
   uint32_t d_ino;
@@ -23,5 +24,6 @@ typedef struct __dirstream DIR;
 int closedir(DIR *dir);
 DIR *opendir(const char *path);
 struct dirent *readdir(DIR *dir);
+int mkdir(const char *path, mode_t mode);
 
 #endif

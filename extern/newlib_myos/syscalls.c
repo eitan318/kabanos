@@ -382,3 +382,7 @@ struct dirent *readdir(DIR *dir) {
 
   return &dir->current;
 }
+
+int mkdir(const void *path, mode_t mode) {
+    return (int)_syscall6(SYSCALL_NUMBER_SYS_MKDIR, path, mode, 0, 0, 0, 0);
+}
