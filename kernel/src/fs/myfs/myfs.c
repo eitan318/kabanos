@@ -17,6 +17,7 @@
 #include "mm/kmalloc.h"
 #endif
 
+#include "klib/errno.h"
 #include "klib/stdbool.h"
 #include "utils/math.h"
 
@@ -968,8 +969,8 @@ int myfs_create_dir(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name,
                     uint32_t *new_ino) {
 
   uint32_t existing;
-  if (myfs_lookup(sb, parent_dir, name, &existing) == 0)
-    return -1;
+  if (myfs_lookup(sb, parent_dir, name, &existing) == 0) 
+    return -EEXIST;
 
   MyfsInode *new_inode;
   if (myfs_inode_alloc(sb, &new_inode, S_IFDIR) < 0)
