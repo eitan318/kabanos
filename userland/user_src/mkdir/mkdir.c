@@ -41,7 +41,7 @@ int main(int argc, char *argv[]) {
   }
 
   if (__myos_errno)
-    handle_error(path);
+    handle_error(argv[1]);
 
   free(path);
   return 1;
