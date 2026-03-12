@@ -9,6 +9,7 @@ int main(int argc, char *argv[]) {
         total_length += strlen(argv[i]) + 1; // +1 for null terminator
     }
 
+    // Using char* for easy passing of the string to functions in the future(pipe)
     char *res = (char*)calloc(total_length + 1, sizeof(char)); // +1 for null terminator
     for (int i = 1; i < argc; i++) {
         strcat(res, argv[i]);
