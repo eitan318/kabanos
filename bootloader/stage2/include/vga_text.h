@@ -33,7 +33,7 @@ void vga_scrollback(int lines);
 
 // High-level output functions (use current color state)
 void vga_putc(char c);
-void vga_puts(const char* str);
+void vga_puts(const char *str);
 void vga_clrscr();
 
 // Color management

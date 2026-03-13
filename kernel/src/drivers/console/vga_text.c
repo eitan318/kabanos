@@ -3,9 +3,6 @@
 #include "mm/memdefs.h"
 #include "modules.h"
 
-const unsigned SCREEN_WIDTH = 80;
-const unsigned SCREEN_HEIGHT = 25;
-
 static uint8_t *g_vga_buf = (uint8_t *)VGA_SCREEN_BUF;
 static int g_cursor_x = 0;
 static int g_cursor_y = 0;

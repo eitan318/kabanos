@@ -963,8 +963,8 @@ static void init(void) {
   E.buf.lines = malloc(sizeof(char *));
   E.buf.count = 0;
   memset(E.undo_stack, 0, sizeof E.undo_stack);
-  E.screenrows = 10;
-  E.screencols = 10;
+  E.screenrows = 26;
+  E.screencols = 80;
   E.screenrows -= 2; /* status + message rows */
 }
 
