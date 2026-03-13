@@ -18,6 +18,9 @@
 #define VGA_COLOR_YELLOW 0xE
 #define VGA_COLOR_WHITE 0xF
 
+#define SCREEN_WIDTH 80
+#define SCREEN_HEIGHT 25
+
 #define VGA_MAKE_COLOR(fg, bg) (((bg) << 4) | (fg))
 #define VGA_DEFAULT_COLOR VGA_MAKE_COLOR(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK)
 

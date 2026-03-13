@@ -1,5 +1,7 @@
 #include <stddef.h>
+#include <stdint.h>
 #include <stdio.h>
+#include <string.h> // Fixes the memcpy warning
 #include <sys/errno.h>
 #include <sys/fcntl.h>
 #include <sys/mman.h>
@@ -313,23 +315,25 @@ int getdents(int fd, void *buf, unsigned int size) {
 typedef unsigned int myos_socklen_t;
 
 int socket(int domain, int type, int protocol) {
-    return (int)_syscall6(SYSCALL_NUMBER_SYS_SOCKET, domain, type, protocol, 0, 0, 0);
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_SOCKET, domain, type, protocol, 0, 0,
+                        0);
 }
 
 int bind(int fd, const void *addr, myos_socklen_t addrlen) {
-    return (int)_syscall6(SYSCALL_NUMBER_SYS_BIND, fd, (long)addr, addrlen, 0, 0, 0);
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_BIND, fd, (long)addr, addrlen, 0, 0,
+                        0);
 }
 
 ssize_t sendto(int fd, const void *buf, size_t len, int flags,
                const void *dest_addr, myos_socklen_t addrlen) {
-    return (ssize_t)_syscall6(SYSCALL_NUMBER_SYS_SENDTO, fd, (long)buf,
-                               (long)len, flags, (long)dest_addr, addrlen);
+  return (ssize_t)_syscall6(SYSCALL_NUMBER_SYS_SENDTO, fd, (long)buf, (long)len,
+                            flags, (long)dest_addr, addrlen);
 }
 
-ssize_t recvfrom(int fd, void *buf, size_t len, int flags,
-                 void *src_addr, myos_socklen_t *addrlen) {
-    return (ssize_t)_syscall6(SYSCALL_NUMBER_SYS_RECVFROM, fd, (long)buf,
-                               (long)len, flags, (long)src_addr, (long)addrlen);
+ssize_t recvfrom(int fd, void *buf, size_t len, int flags, void *src_addr,
+                 myos_socklen_t *addrlen) {
+  return (ssize_t)_syscall6(SYSCALL_NUMBER_SYS_RECVFROM, fd, (long)buf,
+                            (long)len, flags, (long)src_addr, (long)addrlen);
 }
 
 #include "dirent.h"
@@ -383,6 +387,7 @@ struct dirent *readdir(DIR *dir) {
   return &dir->current;
 }
 
-int mkdir(const void *path, mode_t mode) {
-    return (int)_syscall6(SYSCALL_NUMBER_SYS_MKDIR, path, mode, 0, 0, 0, 0);
+int mkdir(const char *path, mode_t mode) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_MKDIR, (uintptr_t)path,
+                        (unsigned int)mode, 0, 0, 0, 0);
 }

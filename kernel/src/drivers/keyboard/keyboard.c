@@ -1,6 +1,7 @@
 #include "adt/circular_buffer.h"
 #include "device.h"
 #include "drivers/console/console.h"
+#include "drivers/console/tty.h"
 #include "hal.h"
 #include "isr.h"
 #include "modules.h"
@@ -41,16 +42,35 @@ static char scancode_to_ascii_shift[128] = {
     'J', 'K', 'L',  ':',  '"',  '~', 0,   '|', 'Z', 'X', 'C', 'V',
     'B', 'N', 'M',  '<',  '>',  '?', 0,   '*', 0,   ' ', 0};
 
-typedef struct {
-  char buf[256];
-  int len;
-  int read_pos; /* how far read() has consumed */
-} tty_t;
+extern tty_t g_tty;
 
-static tty_t g_tty;
+static void handle_key_ascii(char key_ascii) {
+  device_t *dev = get_device_by_handle(DEVICE_HANDLE_KEYBOARD);
+
+  spinlock_acquire(&g_keyboard_lock);
+
+  if (g_tty.flags & TTY_ICANON) {
+    if (key_ascii == '\b' || key_ascii == 127) {
+      if (g_tty.len > 0) {
+        g_tty.len--;
+        con_backspace();
+      }
+    } else {
+      con_putc(key_ascii);
+      if (g_tty.len < (int)sizeof(g_tty.buf) - 1)
+        g_tty.buf[g_tty.len++] = key_ascii;
+      if (key_ascii == '\n')
+        circular_buff_enqueue(&g_keyboard_buff, (void *)1);
+      wake_up_queue(&dev->wait_queue);
+    }
+  } else {
+    circular_buff_enqueue(&g_keyboard_buff, (void *)1);
+    wake_up_queue(&dev->wait_queue);
+  }
+  spinlock_release(&g_keyboard_lock);
+}
 
 static void keyboard_isr_handler(trap_frame_t *regs) {
-  device_t *dev = get_device_by_handle(DEVICE_HANDLE_KEYBOARD);
   uint8_t scancode = hal_in8(KEYBOARD_PORT);
   int key_released = scancode & MAX_PRESS_SCANCODE;
   uint8_t keycode = scancode & 0x7F;
@@ -65,37 +85,13 @@ static void keyboard_isr_handler(trap_frame_t *regs) {
   }
 
   if (!key_released) {
-    // F1 = 0x3B, F2 = 0x3C, F3 = 0x3D
-    if (keycode >= 0x3B && keycode <= 0x3F) {
-      int target_workspace = keycode - 0x3B;
-      // active_workspace = target_workspace;
-      // refresh_screen();
-
-      goto eoi; // Don't process this key as text
-    }
     char key_ascii = shift_pressed ? scancode_to_ascii_shift[keycode]
                                    : scancode_to_ascii[keycode];
     if (ctrl_pressed && key_ascii >= 'a' && key_ascii <= 'z')
       key_ascii = key_ascii - 'a' + 1;
 
     if (key_ascii) {
-      spinlock_acquire(&g_keyboard_lock);
-
-      if (key_ascii == '\b' || key_ascii == 127) {
-        if (g_tty.len > 0) {
-          g_tty.len--;
-          con_backspace();
-        }
-      } else {
-        con_putc(key_ascii);
-        if (g_tty.len < (int)sizeof(g_tty.buf) - 1)
-          g_tty.buf[g_tty.len++] = key_ascii;
-        if (key_ascii == '\n')
-          circular_buff_enqueue(&g_keyboard_buff, (void *)1);
-        wake_up_queue(&dev->wait_queue);
-      }
-
-      spinlock_release(&g_keyboard_lock);
+      handle_key_ascii(key_ascii);
     }
   }
 eoi:
@@ -140,6 +136,8 @@ static struct device_ops kbd_ops = {.read = tty_read, .write = NULL};
 int kbd_init(module_t *module) {
   g_tty.len = 0;
   g_tty.read_pos = 0;
+  g_tty.flags = TTY_ICANON;
+
   circular_buff_init(&g_keyboard_buff);
   g_keyboard_lock = (spinlock_t)SPINLOCK_RELEASED;
   isr_handler_register(KBD_INT, keyboard_isr_handler);
