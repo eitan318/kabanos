@@ -4,6 +4,8 @@
 #include "fs/vfs_internal.h"
 #include "klib/stdio.h"
 #include "klib/string.h"
+#include "klib/errno.h"
+#include "ksys/stat.h"
 #include "ksys/stat.h"
 #include "mm/kmalloc.h"
 #include "modules.h"
@@ -256,6 +258,9 @@ static int myfsd_f_close(file_t *file) {
 }
 
 static int myfsd_v_rmdir(vnode_t *parent, const char *dir_name) {
+  if (!S_ISDIR(parent->mode)) {
+    return -ENOTDIR;
+  }
   return myfsd_v_unlink(parent, dir_name);
 }
 

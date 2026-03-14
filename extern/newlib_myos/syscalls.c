@@ -31,10 +31,9 @@ static inline long __syscall6(long num, long a1, long a2, long a3, long a4,
   return ret;
 }
 
-static int __myos_errno;
 static inline long __syscall_ret(unsigned long r) {
   if (r > -4096) {
-    __myos_errno = -r;
+    errno = -r;
     return -1;
   }
   return r;
@@ -388,6 +387,10 @@ struct dirent *readdir(DIR *dir) {
 }
 
 int mkdir(const char *path, mode_t mode) {
-  return (int)_syscall6(SYSCALL_NUMBER_SYS_MKDIR, (uintptr_t)path,
-                        (unsigned int)mode, 0, 0, 0, 0);
+    return (int)_syscall6(SYSCALL_NUMBER_SYS_MKDIR, path, mode, 0, 0, 0, 0);
 }
+
+int rmdir(const char *path) {
+    return (int)_syscall6(SYSCALL_NUMBER_SYS_RMDIR, path, 0, 0, 0, 0, 0);
+}
+

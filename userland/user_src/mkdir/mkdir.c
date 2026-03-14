@@ -4,18 +4,18 @@
 #include <stdlib.h>
 #include <string.h>
 
-void handle_error(const char *path) {
-  switch (errno) {
-  case EEXIST:
-    printf("mkdir: cannot create directory '%s': File exists\n", path);
-    break;
-  case ENOENT:
-    printf("mkdir: cannot create directory '%s': No such file or directory\n",
-           path);
-    break;
+void handle_error(const char *path)
+{
+  switch(errno) {
+    case EEXIST:
+      printf("mkdir: cannot create directory '%s': File exists\n", path);
+      break;
+    case ENOENT:
+      printf("mkdir: cannot create directory '%s': No such file or directory\n", path);
+      break;
 
-  default:
-    printf("mkdir failed: unknown error\n");
+    default:
+      printf("mkdir failed: unknown error\n");
   }
 }
 
