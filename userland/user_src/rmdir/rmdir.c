@@ -4,20 +4,23 @@
 #include <stdlib.h>
 #include <errno.h>
 
-extern int __myos_errno;
-
 void handle_error(const char *path)
 {
-  switch(__myos_errno) {
-    case EEXIST:
-      printf("mkdir: cannot create directory '%s': File exists\n", path);
-      break;
+  switch(errno) {
     case ENOENT:
-      printf("mkdir: cannot create directory '%s': No such file or directory\n", path);
+      printf("rmdir: failed to remove '%s': No such file or directory\n", path);
       break;
-
+    case ENOTEMPTY:
+      printf("rmdir: failed to remove '%s': Directory not empty\n", path);
+      break;
+    case ENOTDIR:
+      printf("rmdir: failed to remove '%s': Not a directory\n", path);
+      break;
+    
     default:
-      printf("mkdir failed: unknown error\n");
+      printf("errno: %d\n", errno);
+      printf("ENOTEMPTY: %d\n", ENOTEMPTY);
+      printf("rmdir failed: unknown error\n");
   }
 }
 
@@ -40,7 +43,7 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  if (__myos_errno)
+  if (errno)
     handle_error(argv[1]);
 
   free(path);

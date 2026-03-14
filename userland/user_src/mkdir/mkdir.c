@@ -4,11 +4,9 @@
 #include <stdlib.h>
 #include <errno.h>
 
-extern int __myos_errno;
-
 void handle_error(const char *path)
 {
-  switch(__myos_errno) {
+  switch(errno) {
     case EEXIST:
       printf("mkdir: cannot create directory '%s': File exists\n", path);
       break;
@@ -40,7 +38,7 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  if (__myos_errno)
+  if (errno)
     handle_error(argv[1]);
 
   free(path);

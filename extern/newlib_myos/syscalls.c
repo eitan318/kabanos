@@ -29,10 +29,9 @@ static inline long __syscall6(long num, long a1, long a2, long a3, long a4,
   return ret;
 }
 
-int __myos_errno;
 static inline long __syscall_ret(unsigned long r) {
   if (r > -4096) {
-    __myos_errno = -r;
+    errno = -r;
     return -1;
   }
   return r;

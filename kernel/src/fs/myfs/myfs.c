@@ -949,7 +949,7 @@ int myfs_create_file(MyfsSuperBlock *sb, MyfsInode *parent_dir,
                      const char *name, uint32_t *new_ino) {
   uint32_t existing;
   if (myfs_lookup(sb, parent_dir, name, &existing) == 0)
-    return -1;
+    return -EEXIST;
 
   MyfsInode *new_inode;
   if (myfs_inode_alloc(sb, &new_inode, S_IFREG) < 0)
@@ -992,11 +992,16 @@ int myfs_create_dir(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name,
 int myfs_unlink(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name) {
   uint32_t target_ino;
   if (myfs_lookup(sb, parent_dir, name, &target_ino) < 0)
-    return -1;
+    return -ENOENT;
 
   MyfsInode *target = myfs_iget(sb, target_ino);
   if (target)
     myfs_inode_free(sb, target);
+
+  int entry_count = target->size / sizeof(MyfsDirEntry);
+  if (entry_count > 2) {
+    return -ENOTEMPTY;
+  }
 
   return myfs_dir_rm_entry(sb, parent_dir, name);
 }
