@@ -246,7 +246,7 @@ int open(const char *name, int flags, ...) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_OPEN, (long)name, flags, 0, 0, 0, 0);
 }
 
-int _close(int __fildes) {
+int close(int __fildes) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_CLOSE, __fildes, 0, 0, 0, 0, 0);
 }
 
