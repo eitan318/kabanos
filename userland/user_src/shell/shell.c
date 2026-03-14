@@ -10,7 +10,8 @@
 #define PROMPT_STR "myos> "
 
 // Define some color for convenience
-// ANSI Escape Sequences - https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
+// ANSI Escape Sequences -
+// https://gist.github.com/fnky/458719343aabd01cfb17a3a4f7296797
 #define ANSI_COLOR_RED "\x1b[31m"
 #define ANSI_COLOR_GREEN "\x1b[32m"
 #define ANSI_COLOR_YELLOW "\x1b[33m"
@@ -78,10 +79,12 @@ int main(int argc, char **argv, char **envp) {
   char line[MAX_LINE];
   char *args[MAX_ARGS];
 
+  printf("\n");
   if (argc > 1) {
     char **init_argv = &argv[1];
     execute(argc - 1, init_argv);
   }
+  printf("\n");
 
   while (1) {
     printf(PROMPT);
