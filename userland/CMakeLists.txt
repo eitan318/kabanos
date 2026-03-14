@@ -77,6 +77,7 @@ endforeach()
 set(USERLAND_STAMP "${CMAKE_CURRENT_BINARY_DIR}/userland.stamp")
 add_custom_command(
     OUTPUT "${USERLAND_STAMP}"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/pre_inserted" "${NEWLIB_SYSROOT}"
     COMMAND ${CMAKE_COMMAND} -E touch "${USERLAND_STAMP}"
     DEPENDS ${ALL_ELF_FILES}
     VERBATIM
