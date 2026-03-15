@@ -394,3 +394,6 @@ int rmdir(const char *path) {
     return (int)_syscall6(SYSCALL_NUMBER_SYS_RMDIR, path, 0, 0, 0, 0, 0);
 }
 
+int create(const char *path) {
+    return (int)_syscall6(SYSCALL_NUMBER_SYS_CREATE, (long)path, 0, 0, 0, 0, 0);
+}

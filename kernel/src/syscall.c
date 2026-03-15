@@ -93,6 +93,8 @@ long syscall_dispatch(syscall_info_t f) {
     return sys_stat((int)f.args[0], (fstat_t *)f.args[1]);
   case SYSCALL_NUMBER_SYS_GETDENTS:
     return sys_getdents(f.args[0], (vdir_entry_t *)f.args[1], f.args[2]);
+  case SYSCALL_NUMBER_SYS_CREATE:
+    return sys_create((const char *)f.args[0]);
 
   /* --- Directory & Path Ops --- */
   case SYSCALL_NUMBER_SYS_MKDIR:

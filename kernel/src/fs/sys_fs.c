@@ -14,6 +14,12 @@ static vnode_t *get_cwd() {
   return curr_thread->process->cwd;
 }
 
+long sys_create(const char *path) {
+  if (!path)
+    return -EINVAL;
+  return vfs_create(path, get_cwd(), 0);
+}
+
 long sys_mkdir(const char *path, mode_t mode) {
   if (!path)
     return -EINVAL;
