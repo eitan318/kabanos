@@ -264,7 +264,7 @@ static int myfsd_v_rmdir(vnode_t *parent, const char *dir_name) {
   if (!dir_inode)
     return -1;
 
-  int result = myfs_rmdir(myfs_sb, dir_inode, dir_name);
+  int result = myfs_remove_dir(myfs_sb, dir_inode, dir_name);
 
   if (result == 0)
     parent->size = dir_inode->size;
