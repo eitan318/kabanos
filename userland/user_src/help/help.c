@@ -56,6 +56,16 @@ struct CommandHelp help_table[] = {
         "Usage: rm [file]"
     },
     {
+        "mv",
+        "Move a file from source to destination.",
+        "Usage: mv [src] [dst]"
+    },
+    {
+        "cp",
+        "Copy a file from source to destination.",
+        "Usage: mv [src] [dst]"
+    },
+    {
         "rmdir",
         "Remove an empty directory.",
         "Usage: rmdir [directory]"
