@@ -66,6 +66,11 @@ struct CommandHelp help_table[] = {
         "Usage: clear"
     },
     {
+        "ping",
+        "pinging to an ip to check if its up.",
+        "Usage: ping x.x.x.x"
+    },
+    {
         "exit",
         "Exit the shell.",
         "Usage: exit"
