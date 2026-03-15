@@ -217,6 +217,8 @@ static ssize_t myfsd_f_read(file_t *file, void *buf, size_t size) {
   }
 
   ssize_t bytes_read = myfs_node_read(myfs_sb, inode, file->pos, buf, size);
+  if (bytes_read > 0)
+    file->pos += bytes_read;
 
   myfs_iput(myfs_sb, inode);
   return bytes_read;
@@ -233,6 +235,7 @@ static ssize_t myfsd_f_write(file_t *file, const void *buf, size_t size) {
 
   ssize_t result = myfs_node_write(myfs_sb, inode, file->pos, buf, size);
   if (result > 0) {
+    file->pos += result; 
     vnode->size = inode->size;
   }
 

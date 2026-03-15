@@ -103,10 +103,7 @@ long sys_read(int fd, char *buf, size_t count) {
 
   file_t *f = g_fd_table[fd];
   if (f->f_ops && f->f_ops->read) {
-    ssize_t ret = f->f_ops->read(f, buf, count);
-    if (ret > 0)
-      f->pos += ret;
-    return ret;
+    return f->f_ops->read(f, buf, count);  
   }
 
   return -EINVAL;
