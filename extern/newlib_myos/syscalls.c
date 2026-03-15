@@ -98,6 +98,7 @@ typedef enum {
   SYSCALL_NUMBER_SYS_BIND,
   SYSCALL_NUMBER_SYS_SENDTO,
   SYSCALL_NUMBER_SYS_RECVFROM,
+  SYSCALL_NUMBER_SYS_ARP_RESOLVE,
 
   // --- Console ---
   SYSCALL_NUMBER_SYS_CLEAR,
@@ -340,6 +341,11 @@ ssize_t recvfrom(int fd, void *buf, size_t len, int flags, void *src_addr,
                  myos_socklen_t *addrlen) {
   return (ssize_t)_syscall6(SYSCALL_NUMBER_SYS_RECVFROM, fd, (long)buf,
                             (long)len, flags, (long)src_addr, (long)addrlen);
+}
+
+int arp_resolve(uint8_t *target_ip, uint8_t *out_mac) {
+    return (int)_syscall6(SYSCALL_NUMBER_SYS_ARP_RESOLVE,
+                          (long)target_ip, (long)out_mac, 0, 0, 0, 0);
 }
 
 #include "dirent.h"

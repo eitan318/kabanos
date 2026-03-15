@@ -16,6 +16,15 @@ typedef struct __attribute__((packed)) {
     uint8_t  dst_ip[4];
 } arp_packet_t;
 
+// ARP cache
+#define ARP_CACHE_SIZE 16
+
+typedef struct {
+    uint8_t ip[4];
+    uint8_t mac[6];
+    bool valid;
+} arp_cache_entry_t;
+
 // ARP operations
 #define ARP_OP_REQUEST 1
 #define ARP_OP_REPLY   2
@@ -27,3 +36,9 @@ bool check_arp_is_for_us(arp_packet_t *arp, uint8_t *our_ip);
 void arp_send_reply(arp_packet_t *request, uint8_t *our_mac, uint8_t *our_ip);
 void arp_send_request(uint8_t *target_ip, uint8_t *our_mac, uint8_t *our_ip);
 bool arp_is_reply(uint8_t *packet_buffer, uint32_t len, uint8_t *out_mac);
+bool arp_resolve(uint8_t *target_ip, uint8_t *our_mac,
+                 uint8_t *our_ip, uint8_t *out_mac);
+
+// Cache API
+bool arp_cache_lookup(uint8_t *ip, uint8_t *out_mac);
+void arp_cache_insert(uint8_t *ip, uint8_t *mac);
