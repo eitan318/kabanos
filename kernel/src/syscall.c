@@ -9,6 +9,7 @@
 #include "sched/sched.h"
 #include "sched/sleep.h"
 #include "net/net_syscalls.h"
+#include "drivers/console/sys_console.h"
 #include "sched/sys_yield.h"
 #include "sys_time.h"
 #include <fs/vfs.h>
@@ -69,6 +70,9 @@ typedef enum {
   SYSCALL_NUMBER_SYS_BIND,
   SYSCALL_NUMBER_SYS_SENDTO,
   SYSCALL_NUMBER_SYS_RECVFROM,
+
+  // --- Console ---
+  SYSCALL_NUMBER_SYS_CLEAR,
 
 } SYSCALL_NUMBER;
 
@@ -174,6 +178,9 @@ long syscall_dispatch(syscall_info_t f) {
   case SYSCALL_NUMBER_SYS_RECVFROM:
     return sys_recvfrom((int)f.args[0], (void*)f.args[1], (size_t)f.args[2],
                         (int)f.args[3], (struct sockaddr*)f.args[4], (uint32_t*)f.args[5]);
+
+  case SYSCALL_NUMBER_SYS_CLEAR:
+    return sys_clear();                      
 
   default:
     return -EINVAL;
