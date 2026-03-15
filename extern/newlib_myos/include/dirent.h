@@ -25,5 +25,6 @@ int closedir(DIR *dir);
 DIR *opendir(const char *path);
 struct dirent *readdir(DIR *dir);
 int mkdir(const char *path, mode_t mode);
+int rmdir(const char *path);
 
 #endif
