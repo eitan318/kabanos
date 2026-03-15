@@ -352,7 +352,7 @@ int myfs_create_dir(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name,
                     uint32_t *new_ino);
 
 /**
- * myfs_unlink() - Delete a file or directory
+ * myfs_unlink() - Delete a file
  * @sb: Superblock
  * @parent_dir: Parent directory inode
  * @name: Name of entry to delete
@@ -360,6 +360,16 @@ int myfs_create_dir(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name,
  * Return: 0 on success, negative on error
  */
 int myfs_unlink(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name);
+
+/**
+ * myfs_unlink() - Delete a directory
+ * @sb: Superblock
+ * @parent_dir: Parent directory inode
+ * @name: Name of entry to delete
+ *
+ * Return: 0 on success, negative on error
+ */
+int myfs_remove_dir(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name);
 
 /**
  * myfs_find_entry_idx() - Find the index of a directory entry

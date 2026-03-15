@@ -998,11 +998,29 @@ int myfs_unlink(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name) {
   if (target)
     myfs_inode_free(sb, target);
 
-  int entry_count = target->size / sizeof(MyfsDirEntry);
-  if (entry_count > 2) {
+  return myfs_dir_rm_entry(sb, parent_dir, name);
+}
+
+int myfs_remove_dir(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name) {
+  uint32_t target_ino;
+  if (myfs_lookup(sb, parent_dir, name, &target_ino) < 0)
+    return -ENOENT;
+
+  MyfsInode *target = myfs_iget(sb, target_ino);
+  if (!target)
+    return -ENOENT;
+
+  if (!S_ISDIR(target->mode)) {
+    myfs_iput(sb, target);
+    return -ENOTDIR;
+  }
+
+  if (target->size / sizeof(MyfsDirEntry) > 2) {
+    myfs_iput(sb, target);
     return -ENOTEMPTY;
   }
 
+  myfs_inode_free(sb, target);
   return myfs_dir_rm_entry(sb, parent_dir, name);
 }
 

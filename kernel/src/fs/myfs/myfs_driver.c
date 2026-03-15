@@ -258,10 +258,19 @@ static int myfsd_f_close(file_t *file) {
 }
 
 static int myfsd_v_rmdir(vnode_t *parent, const char *dir_name) {
-  if (!S_ISDIR(parent->mode)) {
-    return -ENOTDIR;
-  }
-  return myfsd_v_unlink(parent, dir_name);
+  MyfsSuperBlock *myfs_sb = parent->super_block->fs_private;
+
+  MyfsInode *dir_inode = myfs_iget(myfs_sb, parent->i_ino);
+  if (!dir_inode)
+    return -1;
+
+  int result = myfs_remove_dir(myfs_sb, dir_inode, dir_name);
+
+  if (result == 0)
+    parent->size = dir_inode->size;
+
+  myfs_iput(myfs_sb, dir_inode);
+  return result;
 }
 
 static int myfsd_v_symlink(vnode_t *dir, const char *name, const char *target) {
