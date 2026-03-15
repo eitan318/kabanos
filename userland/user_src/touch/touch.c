@@ -1,8 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-extern int create(const char *path);
+#include <dirent.h>
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
