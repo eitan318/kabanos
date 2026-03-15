@@ -84,14 +84,6 @@ static int parse_ip(const char *str, uint8_t *out) {
     return (count == 4) ? 0 : -1;
 }
 
-// Drain any stale packets from previous operations
-static void flush_socket(int sock) {
-    uint8_t rx[MAX_PACKET_SIZE];
-    sockaddr_ll_t from;
-    myos_socklen_t flen = sizeof(from);
-    while (recvfrom(sock, rx, sizeof(rx), 0, &from, &flen) > 0);
-}
-
 // Build + send one ICMP echo request 
 static void send_ping(int sock, uint8_t *dst_mac, uint8_t *our_mac,
                       uint8_t *our_ip, uint8_t *dst_ip, uint16_t seq) {
@@ -232,8 +224,6 @@ int main(int argc, char *argv[]) {
         printf("ping: ARP resolution failed\n");
         return 1;
     }
-    
-    flush_socket(sock);
     
     int sent = 0;
     int received = 0;
