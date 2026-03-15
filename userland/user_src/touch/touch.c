@@ -2,6 +2,20 @@
 #include <stdlib.h>
 #include <string.h>
 #include <dirent.h>
+#include <errno.h>
+
+void handle_error(const char *path)
+{
+  switch(errno) {
+    case EEXIST:
+      printf("touch: cannot create file '%s': File exists\n", path);
+      break;
+
+    default:  
+      printf("errno: %d\n", errno);
+      printf("touch failed: unknown error\n");
+  }
+}
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
@@ -22,7 +36,9 @@ int main(int argc, char *argv[]) {
     return 0;
   }
 
-  printf("touch: cannot create file '%s'\n", argv[1]);
+  if (errno)
+    handle_error(argv[1]);
+
   free(path);
   return 1;
 }
