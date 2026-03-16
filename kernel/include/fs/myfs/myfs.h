@@ -369,7 +369,8 @@ int myfs_unlink(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name);
  *
  * Return: 0 on success, negative on error
  */
-int myfs_remove_dir(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name);
+int myfs_remove_dir(MyfsSuperBlock *sb, MyfsInode *parent_dir,
+                    const char *name);
 
 /**
  * myfs_find_entry_idx() - Find the index of a directory entry

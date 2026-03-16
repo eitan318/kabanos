@@ -18,7 +18,7 @@ is_debug = args.is_debug  # True if --is_debug was passed
 # Setup TAP interface
 script_dir = os.path.dirname(os.path.abspath(__file__))
 setup_script = os.path.join(script_dir, "setup-tap.sh")
-# subprocess.run(["sudo", "bash", setup_script], check=True)
+subprocess.run(["sudo", "bash", setup_script], check=True)
 
 # QEMU command
 qemu_run_cmd = [

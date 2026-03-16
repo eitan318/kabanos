@@ -11,24 +11,14 @@ struct CommandHelp {
 // clang-format off
 struct CommandHelp help_table[] = {
     {   
-        "help",
-        "Display information about built-in commands.",
-        "Usage: help [-l] [command]"
+        "man",
+        "Display information about commands.",
+        "Usage: man [-l] [command]"
     },
     {
         "ls",
         "List directory contents.",
         "Usage: ls [directory]\nOptions: -a (all), -l (long format)"
-    },
-    {
-        "cd",
-        "Change the working directory.",
-        "Usage: cd [path]\nUse '..' to go up one level."
-    },
-    {
-        "pwd",
-        "Print the current working directory.",
-        "Usage: pwd"
     },
     {
         "cat",
@@ -99,7 +89,6 @@ int main(int argc, char **argv) {
     return -1;
   }
 
-  // Case 2: Specific command help (e.g., "help ls")
   if (argc > 1) {
     for (int i = 0; i < total_commands; i++) {
       if (strcmp(argv[1], help_table[i].name) == 0) {
