@@ -8,9 +8,9 @@
 
 tty_t g_tty;
 
-tty_t *tty_init(uint32_t flags) {
+tty_t *tty_init(termios_t conf) {
   circular_buff_init(&g_tty.queue);
-  g_tty.flags = flags;
+  g_tty.conf = conf;
   g_tty.lock = (spinlock_t)SPINLOCK_RELEASED;
   return &g_tty;
 }
@@ -20,15 +20,15 @@ int tty_ioctl(device_t *dev, uint32_t request, void *arg) {
 
   switch (request) {
   case TCGETS:
-    if (uaccess_copy_to_user(arg, &tty->flags, sizeof(int)))
+    if (uaccess_copy_to_user(arg, &tty->conf, sizeof(termios_t)))
       return -EFAULT;
     break;
 
   case TCSETS:
-    if (uaccess_copy_from_user(&tty->flags, arg, sizeof(int)))
+    if (uaccess_copy_from_user(&tty->conf, arg, sizeof(termios_t)))
       return -EFAULT;
 
-    if (!(tty->flags & TTY_ICANON)) {
+    if (!(tty->conf.c_lflag & TTY_ICANON)) {
       wake_up_queue(&dev->waitq);
     }
     break;
@@ -44,7 +44,7 @@ void tty_input(device_t *dev, char key_ascii) {
 
   spinlock_acquire(&tty->lock);
 
-  if (tty->flags & TTY_ICANON) {
+  if (tty->conf.c_lflag & TTY_ICANON) {
     if (key_ascii == '\b' || key_ascii == 127) {
       if (circular_buff_dequeue_last(&tty->queue)) {
         con_backspace();
@@ -85,7 +85,7 @@ ssize_t tty_read(device_t *dev, void *buf, size_t size) {
     out[bytes_read++] = c;
 
     // In ICANON mode, we return after a newline
-    if ((tty->flags & TTY_ICANON) && c == '\n') {
+    if ((tty->conf.c_lflag & TTY_ICANON) && c == '\n') {
       break;
     }
   }

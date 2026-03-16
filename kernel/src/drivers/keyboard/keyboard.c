@@ -74,7 +74,8 @@ int kbd_init(module_t *module) {
 
   device_t *dev = device_init(DEVICE_HANDLE_KEYBOARD);
   dev->ops = &kbd_ops;
-  tty_t *tty = tty_init(TTY_ICANON);
+  termios_t init_conf = {.c_lflag = TTY_ICANON};
+  tty_t *tty = tty_init(init_conf);
   dev->priv = tty;
   return 0;
 }
