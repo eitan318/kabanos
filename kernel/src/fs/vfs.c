@@ -565,10 +565,33 @@ int vfs_bind_vnode_to_fd(vnode_t *vnode, int flags) {
   return alloc_fd(file);
 }
 
-int vfs_open(const char *path, vnode_t *base_node, int flags) {
+int vfs_open(const char *path, vnode_t *base_node, int flags, int mode) {
   vnode_t *vnode = vfs_lookup_path(path, base_node, true);
-  if (!vnode)
-    return -1;
+
+  if (!vnode) {
+    if (!(flags & O_CREAT)) {
+      return -ENOENT;
+    }
+
+    // Create the file
+    int res = vfs_create(path, base_node, mode);
+    if (res != 0)
+      return res;
+
+    // Look it up again to get the new vnode
+    vnode = vfs_lookup_path(path, base_node, true);
+    if (!vnode)
+      return -EIO; // Should not happen if create worked
+  } else {
+    // If it exists and O_EXCL is set with O_CREAT, open should fail
+    if ((flags & O_CREAT) && (flags & O_EXCL)) {
+      return -EEXIST;
+    }
+  }
+
+  if (flags & O_TRUNC) {
+    // TODO implement
+  }
 
   return vfs_bind_vnode_to_fd(vnode, flags);
 }
@@ -691,8 +714,9 @@ static int vfs_parent_operation(const char *path, vnode_t *base_node,
 
   char *last_slash = strrchr(path_copy, '/');
   if (!last_slash) {
+    int result = op(base_node, path_copy, mode);
     kfree(path_copy);
-    return -1;
+    return result;
   }
 
   *last_slash = '\0';
@@ -713,11 +737,15 @@ static int vfs_parent_operation(const char *path, vnode_t *base_node,
 }
 
 int vfs_create(const char *path, vnode_t *base_node, mode_t mode) {
-
-  mount_point_t *mp = vfs_find_mount_point(path);
-  struct vnode_ops *vnode_ops = mp->super_block->v_ops;
-
-  if (!mp || !vnode_ops || !vnode_ops->create) {
+  struct vnode_ops *vnode_ops;
+  if (base_node) {
+    vnode_ops = base_node->super_block->v_ops;
+  } else {
+    mount_point_t *mp = vfs_find_mount_point(path);
+    vnode_ops = mp->super_block->v_ops;
+  }
+  if (!vnode_ops || !vnode_ops->create) {
+    kdebugf("No vnode ops");
     return -1;
   }
   return vfs_parent_operation(path, base_node, vnode_ops->create, mode);

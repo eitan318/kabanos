@@ -49,7 +49,7 @@ typedef struct {
 
 /** @brief Opens a file at the given path. Returns file descriptor or negative
  * error. */
-int vfs_open(const char *path, vnode_t *cwd, int flags);
+int vfs_open(const char *path, vnode_t *base_node, int flags, int mode);
 
 /** @brief Closes an open file descriptor. */
 int vfs_close(int fd);

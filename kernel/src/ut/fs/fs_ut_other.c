@@ -23,7 +23,7 @@
 
 int ut_error_handling(void) {
   // Try to open non-existent file
-  int fd = vfs_open("/nonexistent", NULL, O_RDONLY);
+  int fd = vfs_open("/nonexistent", NULL, O_RDONLY, 0);
   UT_ASSERT_FAIL(fd, "Opening non-existent file should fail");
 
   // Try to delete non-existent file
@@ -81,7 +81,7 @@ int ut_persistence(void) {
   UT_ASSERT_SUCCESS(vfs_create("/dir/file1", NULL, 0644), "Create file1");
 
   const char *data = "Persistent data";
-  int fd = vfs_open("/dir/file1", NULL, O_RDWR);
+  int fd = vfs_open("/dir/file1", NULL, O_RDWR, 0);
   UT_ASSERT_SUCCESS(fd, "Open file1");
 
   ssize_t written = vfs_write(fd, data, strlen(data));
@@ -92,7 +92,7 @@ int ut_persistence(void) {
   UT_ASSERT_SUCCESS(remount(), "Remount filesystem");
 
   // Verify file still exists and has correct content
-  fd = vfs_open("/dir/file1", NULL, O_RDONLY);
+  fd = vfs_open("/dir/file1", NULL, O_RDONLY, 0);
   UT_ASSERT_SUCCESS(fd, "File exists after remount");
 
   char buf[64] = {0};
@@ -128,7 +128,7 @@ int ut_stress_small(void) {
 
     UT_ASSERT_SUCCESS(vfs_create(filename, NULL, 0644), "Create stress file");
 
-    int fd = vfs_open(filename, NULL, O_RDWR);
+    int fd = vfs_open(filename, NULL, O_RDWR, 0);
     UT_ASSERT_SUCCESS(fd, "Open stress file");
 
     ssize_t written = vfs_write(fd, test_data, file_size);
@@ -145,7 +145,7 @@ int ut_stress_small(void) {
     char filename[64];
     ksnprintf(filename, sizeof(filename), "/stress_%d", i);
 
-    int fd = vfs_open(filename, NULL, O_RDONLY);
+    int fd = vfs_open(filename, NULL, O_RDONLY, 0);
     UT_ASSERT_SUCCESS(fd, "Open stress file for verification");
 
     ssize_t read_bytes = vfs_read(fd, read_buffer, file_size);
@@ -173,9 +173,9 @@ int ut_concurrent_fd(void) {
   UT_ASSERT_SUCCESS(vfs_create("/file3", NULL, 0644), "Create file3");
 
   // Open all three simultaneously
-  int fd1 = vfs_open("/file1", NULL, O_RDWR);
-  int fd2 = vfs_open("/file2", NULL, O_RDWR);
-  int fd3 = vfs_open("/file3", NULL, O_RDWR);
+  int fd1 = vfs_open("/file1", NULL, O_RDWR, 0);
+  int fd2 = vfs_open("/file2", NULL, O_RDWR, 0);
+  int fd3 = vfs_open("/file3", NULL, O_RDWR, 0);
 
   UT_ASSERT_SUCCESS(fd1, "Open file1");
   UT_ASSERT_SUCCESS(fd2, "Open file2");

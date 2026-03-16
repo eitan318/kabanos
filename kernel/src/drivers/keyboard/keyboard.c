@@ -1,12 +1,9 @@
-#include "adt/circular_buffer.h"
 #include "device.h"
-#include "drivers/console/console.h"
 #include "drivers/console/tty.h"
 #include "hal.h"
 #include "isr.h"
 #include "modules.h"
-#include "sched/wait.h"
-#include "spinlock.h"
+#include <stdint.h>
 
 #define KBD_IRQ 1
 #define KBD_INT 0x21
@@ -18,9 +15,6 @@
 
 #define MAX_PRESS_SCANCODE 0x80
 #define KEYBOARD_PORT 0x60
-
-circular_buff_t g_keyboard_buff;
-spinlock_t g_keyboard_lock;
 
 // Modifier key states
 static int shift_pressed = 0;
@@ -41,34 +35,6 @@ static char scancode_to_ascii_shift[128] = {
     'O', 'P', '{',  '}',  '\n', 0,   'A', 'S', 'D', 'F', 'G', 'H',
     'J', 'K', 'L',  ':',  '"',  '~', 0,   '|', 'Z', 'X', 'C', 'V',
     'B', 'N', 'M',  '<',  '>',  '?', 0,   '*', 0,   ' ', 0};
-
-extern tty_t g_tty;
-
-static void handle_key_ascii(char key_ascii) {
-  device_t *dev = get_device_by_handle(DEVICE_HANDLE_KEYBOARD);
-
-  spinlock_acquire(&g_keyboard_lock);
-
-  if (g_tty.flags & TTY_ICANON) {
-    if (key_ascii == '\b' || key_ascii == 127) {
-      if (g_tty.len > 0) {
-        g_tty.len--;
-        con_backspace();
-      }
-    } else {
-      con_putc(key_ascii);
-      if (g_tty.len < (int)sizeof(g_tty.buf) - 1)
-        g_tty.buf[g_tty.len++] = key_ascii;
-      if (key_ascii == '\n')
-        circular_buff_enqueue(&g_keyboard_buff, (void *)1);
-      wake_up_queue(&dev->wait_queue);
-    }
-  } else {
-    circular_buff_enqueue(&g_keyboard_buff, (void *)1);
-    wake_up_queue(&dev->wait_queue);
-  }
-  spinlock_release(&g_keyboard_lock);
-}
 
 static void keyboard_isr_handler(trap_frame_t *regs) {
   uint8_t scancode = hal_in8(KEYBOARD_PORT);
@@ -91,60 +57,26 @@ static void keyboard_isr_handler(trap_frame_t *regs) {
       key_ascii = key_ascii - 'a' + 1;
 
     if (key_ascii) {
-      handle_key_ascii(key_ascii);
+      device_t *dev = get_device_by_handle(DEVICE_HANDLE_KEYBOARD);
+      tty_input(dev, key_ascii);
     }
   }
 eoi:
   hal_irq_send_eoi(KBD_IRQ);
 }
 
-static ssize_t tty_read(device_t *dev, void *buf, size_t count) {
-  char *out = (char *)buf;
-  size_t n = 0;
-
-  spinlock_acquire(&g_keyboard_lock);
-
-  // Wait until at least one full line (marked by a newline in ISR) is ready
-  while (g_tty.len == 0 || g_tty.buf[g_tty.len - 1] != '\n') {
-    if (circular_buff_is_empty(&g_keyboard_buff)) {
-      wait_on_queue(&dev->wait_queue, &g_keyboard_lock);
-    } else {
-      // If the buffer wasn't empty but len is 0, someone
-      // consumed the signal but not the data. Just clear it.
-      circular_buff_dequeue(&g_keyboard_buff);
-    }
-  }
-
-  // Serve the data that is already in g_tty.buf
-  while (n < count && g_tty.read_pos < g_tty.len) {
-    out[n++] = g_tty.buf[g_tty.read_pos++];
-  }
-
-  // Reset positions if we consumed the whole line
-  if (g_tty.read_pos >= g_tty.len) {
-    g_tty.len = 0;
-    g_tty.read_pos = 0;
-    // Clear the "line ready" signal we just processed
-    circular_buff_dequeue(&g_keyboard_buff);
-  }
-
-  spinlock_release(&g_keyboard_lock);
-  return (ssize_t)n;
-}
-static struct device_ops kbd_ops = {.read = tty_read, .write = NULL};
+static struct device_ops kbd_ops = {
+    .read = tty_read, .write = NULL, .ioctl = tty_ioctl};
 
 int kbd_init(module_t *module) {
-  g_tty.len = 0;
-  g_tty.read_pos = 0;
-  g_tty.flags = TTY_ICANON;
-
-  circular_buff_init(&g_keyboard_buff);
-  g_keyboard_lock = (spinlock_t)SPINLOCK_RELEASED;
   isr_handler_register(KBD_INT, keyboard_isr_handler);
   hal_irq_enable(KBD_IRQ);
 
   device_t *dev = device_init(DEVICE_HANDLE_KEYBOARD);
   dev->ops = &kbd_ops;
+  termios_t init_conf = {.c_lflag = TTY_ICANON};
+  tty_t *tty = tty_init(init_conf);
+  dev->priv = tty;
   return 0;
 }
 

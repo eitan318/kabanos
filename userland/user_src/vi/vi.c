@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-//#include <termios.h>
+#include <termios.h>
 #include <unistd.h>
 
 /* ───────────── constants ───────────── */
@@ -45,7 +45,7 @@ typedef struct {
 
 /* ───────────── globals ───────────── */
 static Editor E;
-// static struct termios orig_termios;
+static struct termios orig_termios;
 
 /* ───────────── terminal ───────────── */
 static void die(const char *s) {
@@ -54,26 +54,26 @@ static void die(const char *s) {
   exit(1);
 }
 
-// static void disable_raw(void) {
-//   tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
-//   write(STDOUT_FILENO, "\x1b[2J\x1b[H", 7);
-//   write(STDOUT_FILENO, "\x1b[?25h", 6);
-// }
-// static void enable_raw(void) {
-//   if (tcgetattr(STDIN_FILENO, &orig_termios) == -1)
-//     die("tcgetattr");
-//   atexit(disable_raw);
-//   struct termios raw = orig_termios;
-//   raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-//   raw.c_oflag &= ~(OPOST);
-//   raw.c_cflag |= (CS8);
-//   raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-//   raw.c_cc[VMIN] = 0;
-//   raw.c_cc[VTIME] = 1;
-//   if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
-//     die("tcsetattr");
-// }
-//
+static void disable_raw(void) {
+  tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios);
+  write(STDOUT_FILENO, "\x1b[2J\x1b[H", 7);
+  write(STDOUT_FILENO, "\x1b[?25h", 6);
+}
+static void enable_raw(void) {
+  if (tcgetattr(STDIN_FILENO, &orig_termios) == -1)
+    die("tcgetattr");
+  atexit(disable_raw);
+  struct termios raw = orig_termios;
+  raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
+  raw.c_oflag &= ~(OPOST);
+  raw.c_cflag |= (CS8);
+  raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
+  raw.c_cc[VMIN] = 0;
+  raw.c_cc[VTIME] = 1;
+  if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
+    die("tcsetattr");
+}
+
 /* ───────────── key reading ───────────── */
 enum {
   KEY_ESC = 27,
@@ -963,14 +963,14 @@ static void init(void) {
   E.buf.lines = malloc(sizeof(char *));
   E.buf.count = 0;
   memset(E.undo_stack, 0, sizeof E.undo_stack);
-  E.screenrows = 26;
-  E.screencols = 80;
+  E.screenrows = 25;
+  E.screencols = 70;
   E.screenrows -= 2; /* status + message rows */
 }
 
 int main(int argc, char *argv[]) {
   init();
-  // enable_raw();
+  enable_raw();
   if (argc >= 2)
     file_open(argv[1]);
   else

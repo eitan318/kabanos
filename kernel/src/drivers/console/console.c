@@ -79,9 +79,8 @@ static void handle_csi_command(char c) {
 }
 
 void con_putc(char c) {
-  // Process State Machine
   if (g_state == STATE_NORMAL) {
-    if (c == '\033') { // Escape character
+    if (c == '\033') {
       g_state = STATE_BRACKET;
       return;
     }
@@ -90,21 +89,27 @@ void con_putc(char c) {
       g_state = STATE_PARAMS;
       g_params[0] = g_params[1] = g_params[2] = g_params[3] = 0;
       g_param_idx = 0;
+      return;
     } else {
+      // Not a CSI sequence.
+      // Better behavior: Print the ESC we skipped, then handle this char.
       g_state = STATE_NORMAL;
+      // Optional: draw a '^[' or just ignore.
+      // Most real terms ignore raw ESC if not followed by bracket.
     }
-    return;
   } else if (g_state == STATE_PARAMS) {
     if (c >= '0' && c <= '9') {
       g_params[g_param_idx] = g_params[g_param_idx] * 10 + (c - '0');
+      return;
     } else if (c == ';') {
       if (g_param_idx < 3)
         g_param_idx++;
+      return;
     } else {
       handle_csi_command(c);
       g_state = STATE_NORMAL;
+      return;
     }
-    return;
   }
 
   // Handle standard character printing

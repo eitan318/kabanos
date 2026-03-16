@@ -3,12 +3,14 @@
 #include "arch/types.h"
 #include "assert.h"
 #include "hal.h"
+#include "klib/errno.h"
 #include "klib/stddef.h"
 #include "mm/kmalloc.h"
 #include "mm/memdefs.h"
 #include "mm/va_allocation.h"
+#include "proc/proc.h"
+#include "sched/dispatcher.h"
 #include "utils/math.h"
-#include <stdarg.h>
 
 static arch_vm_t kernel_arch_vm;
 
@@ -199,4 +201,81 @@ bool vmspace_extend_heap(vmspace_t *vm, uint32_t old_brk, uint32_t new_brk) {
 
   heap_vma->range.end = new_brk;
   return true;
+}
+
+static spinlock_t kmpping_lock;
+
+int vmspace_copy_from(arch_vm_t *src_vmspace, vaddr_t dst_vaddr,
+                      vaddr_t src_vaddr, size_t size) {
+  if (!src_vmspace)
+    return -EINVAL;
+
+  arch_vm_t *curr_vmspace = dispatch_get_current()->process->vmspace->arch;
+  size_t remaining = size;
+
+  spinlock_acquire(&kmpping_lock);
+
+  while (remaining > 0) {
+    vaddr_t page_base = src_vaddr & ~((vaddr_t)PAGE_SIZE - 1);
+    uint32_t offset = src_vaddr % PAGE_SIZE; // Offset must follow the source!
+    size_t to_copy = PAGE_SIZE - offset;
+    if (to_copy > remaining)
+      to_copy = remaining;
+
+    paddr_t src_phys = hal_vm_virt_to_phys(src_vmspace, page_base);
+    if (src_phys == 0) {
+      spinlock_release(&kmpping_lock);
+      return -EFAULT;
+    }
+
+    hal_vm_map(curr_vmspace, KMAPPING_BASE, src_phys, PAGE_READWRITE);
+    memcpy((void *)dst_vaddr, (void *)(KMAPPING_BASE + offset), to_copy);
+    hal_vm_unmap(curr_vmspace, KMAPPING_BASE);
+
+    remaining -= to_copy;
+    dst_vaddr += to_copy;
+    src_vaddr += to_copy;
+  }
+
+  spinlock_release(&kmpping_lock);
+  return 0;
+}
+
+int vmspace_copy_to(arch_vm_t *dst_vmspace, vaddr_t dst_vaddr,
+                    vaddr_t src_vaddr, size_t size) {
+  if (!dst_vmspace)
+    return -EINVAL;
+
+  arch_vm_t *curr_vmspace = dispatch_get_current()->process->vmspace->arch;
+  size_t remaining = size;
+
+  spinlock_acquire(&kmpping_lock);
+
+  while (remaining > 0) {
+    vaddr_t page_base = dst_vaddr & ~((vaddr_t)PAGE_SIZE - 1);
+    uint32_t offset = dst_vaddr % PAGE_SIZE;
+    size_t to_copy = PAGE_SIZE - offset;
+    if (to_copy > remaining)
+      to_copy = remaining;
+
+    paddr_t dst_phys = hal_vm_virt_to_phys(dst_vmspace, page_base);
+    if (dst_phys == 0) {
+      spinlock_release(&kmpping_lock);
+      return -EFAULT;
+    }
+
+    hal_vm_map(curr_vmspace, KMAPPING_BASE, dst_phys, PAGE_READWRITE);
+
+    // Copy FROM current vmspace (src) TO the mapped window (dst)
+    memcpy((void *)(KMAPPING_BASE + offset), (void *)src_vaddr, to_copy);
+
+    hal_vm_unmap(curr_vmspace, KMAPPING_BASE);
+
+    remaining -= to_copy;
+    dst_vaddr += to_copy;
+    src_vaddr += to_copy;
+  }
+
+  spinlock_release(&kmpping_lock);
+  return 0;
 }

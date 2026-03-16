@@ -68,8 +68,6 @@ bool hal_vm_map_range(arch_vm_t *pd_virt, paddr_t pa_start, vaddr_t va_start,
                       size_t size, uint32_t flags);
 bool hal_vm_unmap_range(arch_vm_t *pd_virt, vaddr_t va_start, size_t size);
 void hal_vm_arch_clone_mapping(arch_vm_t *dst, arch_vm_t *src);
-void hal_vm_copy_to_vmspace(arch_vm_t *dst_vmspace, vaddr_t dst_vaddr,
-                            vaddr_t src_vaddr, size_t size);
 
 //  - context
 bool hal_vm_empty_arch_vm_create(arch_vm_t *kernel_arch_vm);

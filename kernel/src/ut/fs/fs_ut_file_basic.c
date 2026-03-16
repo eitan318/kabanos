@@ -24,7 +24,7 @@ int ut_create(void) {
   UT_ASSERT_SUCCESS(vfs_create("/testfile", NULL, 0644), "File creation");
 
   // Verify file exists
-  int fd = vfs_open("/testfile", NULL, O_RDONLY);
+  int fd = vfs_open("/testfile", NULL, O_RDONLY, 0);
   UT_ASSERT_SUCCESS(fd, "File should be openable");
   vfs_close(fd);
 
@@ -37,7 +37,7 @@ int ut_open_close(void) {
                     "Create file for open test");
 
   // Open file
-  int fd = vfs_open("/opentest", NULL, O_RDWR);
+  int fd = vfs_open("/opentest", NULL, O_RDWR, 0);
   UT_ASSERT_SUCCESS(fd, "Open file");
 
   // Close file
@@ -50,7 +50,7 @@ int ut_basic_rw(void) {
   // Create and open file
   UT_ASSERT_SUCCESS(vfs_create("/rwtest", NULL, 0644), "Create file");
 
-  int fd = vfs_open("/rwtest", NULL, O_RDWR);
+  int fd = vfs_open("/rwtest", NULL, O_RDWR, 0);
   UT_ASSERT_SUCCESS(fd, "Open file");
 
   // Write data
@@ -78,7 +78,7 @@ int ut_append(void) {
   UT_ASSERT_SUCCESS(vfs_create("/appendtest", NULL, 0644),
                     "Create append test file");
 
-  int fd = vfs_open("/appendtest", NULL, O_RDWR);
+  int fd = vfs_open("/appendtest", NULL, O_RDWR, 0);
   UT_ASSERT_SUCCESS(fd, "Open append test file");
 
   const char *initial = "Initial";
@@ -114,7 +114,7 @@ int ut_empty_file(void) {
   // Create empty file
   UT_ASSERT_SUCCESS(vfs_create("/empty", NULL, 0644), "Create empty file");
 
-  int fd = vfs_open("/empty", NULL, O_RDWR);
+  int fd = vfs_open("/empty", NULL, O_RDWR, 0);
   UT_ASSERT_SUCCESS(fd, "Open empty file");
 
   // Try to read from empty file
@@ -133,7 +133,7 @@ int ut_empty_file(void) {
 int ut_large_write(void) {
   UT_ASSERT_SUCCESS(vfs_create("/large", NULL, 0644), "Create file");
 
-  int fd = vfs_open("/large", NULL, O_RDWR);
+  int fd = vfs_open("/large", NULL, O_RDWR, 0);
   UT_ASSERT_SUCCESS(fd, "Open file");
 
   // Allocate 8KB buffer
@@ -171,7 +171,7 @@ int ut_unlink(void) {
   UT_ASSERT_SUCCESS(vfs_create("/delete_me", NULL, 0644), "Create file");
 
   // Write some data
-  int fd = vfs_open("/delete_me", NULL, O_RDWR);
+  int fd = vfs_open("/delete_me", NULL, O_RDWR, 0);
   UT_ASSERT_SUCCESS(fd, "Open file");
   vfs_write(fd, data, strlen(data));
   vfs_close(fd);
@@ -182,7 +182,7 @@ int ut_unlink(void) {
   // Verify it's gone
   //
   //
-  fd = vfs_open("/delete_me", NULL, O_RDONLY);
+  fd = vfs_open("/delete_me", NULL, O_RDONLY, 0);
   UT_ASSERT_FAIL(fd, "File should not exist");
 
   return UT_PASS;
@@ -199,7 +199,7 @@ int ut_multiple_files(void) {
 
     UT_ASSERT_SUCCESS(vfs_create(filename, NULL, 0644), "Create file");
 
-    fds[i] = vfs_open(filename, NULL, O_RDWR);
+    fds[i] = vfs_open(filename, NULL, O_RDWR, 0);
     UT_ASSERT_SUCCESS(fds[i], "Open file");
 
     // Write unique data

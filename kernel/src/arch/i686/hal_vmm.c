@@ -1,12 +1,12 @@
 #include "arch/types.h"
 #include "assert.h"
 #include "hal.h"
+#include "klib/errno.h"
 #include "klib/stdbool.h"
 #include "klib/stddef.h"
 #include "klib/stdio.h"
 #include "mm/memdefs.h"
 #include "mm/pmm.h"
-#include "proc/proc.h"
 #include "utils/math.h"
 #include <sched/dispatcher.h>
 
@@ -206,7 +206,7 @@ static uint32_t calculate_map_size(uint32_t pt_index, vaddr_t va,
 
 bool hal_vm_map_range(arch_vm_t *vm, paddr_t pa_start, vaddr_t va_start,
                       size_t size, uint32_t public_flags) {
-
+  ASSERT(vm);
   uint32_t arch_flags = public_flags_to_arch_flags(public_flags);
   page_dir_entry_t *pd_virt = vm->pd;
 
@@ -405,33 +405,6 @@ static void hal_vmm_set_cow(arch_vm_t *arch_vm) {
     }
   }
   tlb_flush_all();
-}
-
-void hal_vm_copy_to_vmspace(arch_vm_t *dst_vmspace, vaddr_t dst_vaddr,
-                            vaddr_t src_vaddr, size_t size) {
-
-  arch_vm_t *curr_vmspace = dispatch_get_current()->process->vmspace->arch;
-  size_t remaining = size;
-  vaddr_t curr_dst = dst_vaddr;
-  vaddr_t curr_src = src_vaddr;
-
-  while (remaining > 0) {
-    uint32_t offset = curr_dst % PAGE_SIZE;
-
-    // 2. Determine how much we can copy in THIS page
-    size_t to_copy = PAGE_SIZE - offset;
-    if (to_copy > remaining) {
-      to_copy = remaining;
-    }
-    paddr_t dst_phys_page = hal_vm_virt_to_phys(dst_vmspace, curr_dst - offset);
-    hal_vm_map(curr_vmspace, KMAPPING_BASE, dst_phys_page, PAGE_READWRITE);
-    memcpy((void *)(KMAPPING_BASE + offset), (void *)curr_src, to_copy);
-    hal_vm_unmap(curr_vmspace, KMAPPING_BASE);
-
-    remaining -= to_copy;
-    curr_dst += to_copy;
-    curr_src += to_copy;
-  }
 }
 
 void hal_vm_arch_clone_mapping(arch_vm_t *dst, arch_vm_t *src) {

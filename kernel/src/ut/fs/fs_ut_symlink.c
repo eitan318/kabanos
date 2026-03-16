@@ -24,7 +24,7 @@ int ut_symlink_basic(void) {
   UT_ASSERT_SUCCESS(vfs_create("/target_file", NULL, 0644),
                     "Target file creation");
 
-  int fd = vfs_open("/target_file", NULL, O_RDWR);
+  int fd = vfs_open("/target_file", NULL, O_RDWR, 0);
   UT_ASSERT_SUCCESS(fd, "Open target file");
   const char *data = "Target content";
   UT_ASSERT_SUCCESS(vfs_write(fd, data, strlen(data)), "Write to target");
@@ -44,7 +44,7 @@ int ut_symlink_basic(void) {
     return UT_FAIL;
 
   // Open through symlink
-  fd = vfs_open("/link_to_target", NULL, O_RDONLY);
+  fd = vfs_open("/link_to_target", NULL, O_RDONLY, 0);
   UT_ASSERT_SUCCESS(fd, "Open via symlink");
 
   char read_buf[64];
@@ -63,7 +63,7 @@ int ut_symlink_relative(void) {
   UT_ASSERT_SUCCESS(vfs_mkdir("/dir2", NULL, 0755), "Create dir2");
   UT_ASSERT_SUCCESS(vfs_create("/dir1/file.txt", NULL, 0644), "Create file");
 
-  int fd = vfs_open("/dir1/file.txt", NULL, O_RDWR);
+  int fd = vfs_open("/dir1/file.txt", NULL, O_RDWR, 0);
   UT_ASSERT_SUCCESS(fd, "Open file");
   const char *data = "Relative symlink test";
   UT_ASSERT_SUCCESS(vfs_write(fd, data, strlen(data)), "Write file");
@@ -72,7 +72,7 @@ int ut_symlink_relative(void) {
   UT_ASSERT_SUCCESS(vfs_symlink("../dir1/file.txt", NULL, "/dir2/link_to_file"),
                     "Create relative symlink");
 
-  fd = vfs_open("/dir2/link_to_file", NULL, O_RDONLY);
+  fd = vfs_open("/dir2/link_to_file", NULL, O_RDONLY, 0);
   UT_ASSERT_SUCCESS(fd, "Open relative symlink");
 
   char read_buf[64];
@@ -89,7 +89,7 @@ int ut_symlink_relative(void) {
 int ut_symlink_chain(void) {
 
   UT_ASSERT_SUCCESS(vfs_create("/real_file", NULL, 0644), "Create target file");
-  int fd = vfs_open("/real_file", NULL, O_RDWR);
+  int fd = vfs_open("/real_file", NULL, O_RDWR, 0);
   const char *data = "Chain end data";
   UT_ASSERT_SUCCESS(vfs_write(fd, data, strlen(data)), "Write data");
   vfs_close(fd);
@@ -98,7 +98,7 @@ int ut_symlink_chain(void) {
   UT_ASSERT_SUCCESS(vfs_symlink("/link3", NULL, "/link2"), "link2");
   UT_ASSERT_SUCCESS(vfs_symlink("/link2", NULL, "/link1"), "link1");
 
-  fd = vfs_open("/link1", NULL, O_RDONLY);
+  fd = vfs_open("/link1", NULL, O_RDONLY, 0);
   UT_ASSERT_SUCCESS(fd, "Open symlink chain");
 
   char read_buf[64];
@@ -119,7 +119,7 @@ int ut_symlink_to_dir(void) {
   UT_ASSERT_SUCCESS(vfs_symlink("/mydir", NULL, "/link_to_dir"),
                     "Symlink to directory");
 
-  int fd = vfs_open("/link_to_dir/file.txt", NULL, O_RDONLY);
+  int fd = vfs_open("/link_to_dir/file.txt", NULL, O_RDONLY, 0);
   UT_ASSERT_SUCCESS(fd, "Open file through directory symlink");
   vfs_close(fd);
 
@@ -138,7 +138,7 @@ int ut_symlink_broken(void) {
   if (strcmp(buf, "/nonexistent") != 0)
     return UT_FAIL;
 
-  int fd = vfs_open("/broken_link", NULL, O_RDONLY);
+  int fd = vfs_open("/broken_link", NULL, O_RDONLY, 0);
   if (fd != -1) {
     vfs_close(fd);
     return UT_FAIL;

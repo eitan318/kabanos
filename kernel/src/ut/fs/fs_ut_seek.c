@@ -25,7 +25,7 @@ int test_seek_set(void) {
 
   UT_ASSERT_SUCCESS(fs_create_test_file("/seektest", data), "Create test file");
 
-  int fd = vfs_open("/seektest", NULL, O_RDWR);
+  int fd = vfs_open("/seektest", NULL, O_RDWR, 0);
   UT_ASSERT_SUCCESS(fd, "Open file");
 
   // Seek to position 5
@@ -47,7 +47,7 @@ int test_seek_cur(void) {
 
   UT_ASSERT_SUCCESS(fs_create_test_file("/seektest", data), "Create test file");
 
-  int fd = vfs_open("/seektest", NULL, O_RDWR);
+  int fd = vfs_open("/seektest", NULL, O_RDWR, 0);
   UT_ASSERT_SUCCESS(fd, "Open file");
 
   // Read 3 bytes (now at position 3)
@@ -73,7 +73,7 @@ int test_seek_end(void) {
 
   UT_ASSERT_SUCCESS(fs_create_test_file("/seektest", data), "Create test file");
 
-  int fd = vfs_open("/seektest", NULL, O_RDWR);
+  int fd = vfs_open("/seektest", NULL, O_RDWR, 0);
   UT_ASSERT_SUCCESS(fd, "Open file");
 
   // Seek to 2 bytes before end
@@ -94,7 +94,7 @@ int test_seek_beyond_eof(void) {
 
   UT_ASSERT_SUCCESS(fs_create_test_file("/seektest", data), "Create test file");
 
-  int fd = vfs_open("/seektest", NULL, O_RDWR);
+  int fd = vfs_open("/seektest", NULL, O_RDWR, 0);
   UT_ASSERT_SUCCESS(fd, "Open file");
 
   // Try to seek beyond EOF (behavior depends on implementation)
@@ -129,54 +129,3 @@ ut_test_suite_t fs_seek_suite = {
     .num_tests = sizeof(tests) / sizeof(tests[0]),
 
 };
-
-/*=============================================================================
- * MAKEFILE EXAMPLE
- *===========================================================================*/
-
-/*
-# Makefile for filesystem tests
-
-CC = gcc
-CFLAGS = -Wall -Wextra -std=c11 -I../include
-LDFLAGS = -L../lib -lvfs -lmyfs -ldisk
-
-# Test framework
-FRAMEWORK_OBJS = ut_framework.o
-
-# Test helper objects
-HELPER_OBJS = fs_test_helpers.o
-
-# Individual test suite objects
-TEST_OBJS = fs_basic_tests.o \
-            fs_symlink_tests.o \
-            fs_rename_tests.o \
-            fs_iter_tests.o \
-            fs_seek_tests.o \
-            fs_large_file_tests.o
-
-# Main test runner
-MAIN_OBJ = fs_test_main.o
-
-# Target executable
-TARGET = fs_tests
-
-all: $(TARGET)
-
-$(TARGET): $(FRAMEWORK_OBJS) $(HELPER_OBJS) $(TEST_OBJS) $(MAIN_OBJ)
-        $(CC) -o $@ $^ $(LDFLAGS)
-
-%.o: %.c
-        $(CC) $(CFLAGS) -c $<
-
-clean:
-        rm -f *.o $(TARGET)
-
-run: $(TARGET)
-        ./$(TARGET)
-
-run-verbose: $(TARGET)
-        ./$(TARGET) -v
-
-.PHONY: all clean run run-verbose
-*/

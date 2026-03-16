@@ -99,3 +99,8 @@ bool vmspace_map_heap(vmspace_t *vm, uint32_t heap_start, size_t initial_size);
  * @brief extend a user heap
  */
 bool vmspace_extend_heap(vmspace_t *vm, uint32_t old_brk, uint32_t new_brk);
+
+int vmspace_copy_from(arch_vm_t *src_vmspace, vaddr_t dst_vaddr,
+                      vaddr_t src_vaddr, size_t size);
+int vmspace_copy_to(arch_vm_t *dst_vmspace, vaddr_t dst_vaddr,
+                    vaddr_t src_vaddr, size_t size);

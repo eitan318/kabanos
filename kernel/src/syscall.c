@@ -2,6 +2,7 @@
 #include "fs/sys_fs.h"
 #include "klib/time.h"
 #include "mm/sys_sbrk.h"
+#include "net/net_syscalls.h"
 #include "proc/proc.h"
 #include "proc/sys_exec.h"
 #include "proc/sys_proc.h"
@@ -11,6 +12,7 @@
 #include "net/net_syscalls.h"
 #include "drivers/console/sys_console.h"
 #include "sched/sys_yield.h"
+#include "sys_ioctl.h"
 #include "sys_time.h"
 #include <fs/vfs.h>
 #include <stdint.h>
@@ -75,6 +77,8 @@ typedef enum {
   // --- Console ---
   SYSCALL_NUMBER_SYS_CLEAR,
 
+  // --- IO ---
+  SYSCALL_NUMBER_SYS_IOCTL,
 } SYSCALL_NUMBER;
 
 long syscall_dispatch(syscall_info_t f) {
@@ -84,7 +88,7 @@ long syscall_dispatch(syscall_info_t f) {
     return sys_open((const char *)f.args[0], (int)f.args[1]);
   case SYSCALL_NUMBER_SYS_CLOSE:
     if ((int)f.args[0] >= 64) // socket fd
-          return sys_net_close((int)f.args[0]);
+      return sys_net_close((int)f.args[0]);
     return sys_close((int)f.args[0]);
   case SYSCALL_NUMBER_SYS_READ:
     return sys_read((int)f.args[0], (char *)f.args[1], (size_t)f.args[2]);
@@ -168,22 +172,31 @@ long syscall_dispatch(syscall_info_t f) {
   case SYSCALL_NUMBER_SYS_PIPE:
   case SYSCALL_NUMBER_SYS_SIGACTION:
     return -ENOSYS; // Unimplemented
-  
+
   case SYSCALL_NUMBER_SYS_SOCKET:
     return sys_socket((int)f.args[0], (int)f.args[1], (int)f.args[2]);
   case SYSCALL_NUMBER_SYS_BIND:
-    return sys_bind((int)f.args[0], (struct sockaddr*)f.args[1], (uint32_t)f.args[2]);
+    return sys_bind((int)f.args[0], (struct sockaddr *)f.args[1],
+                    (uint32_t)f.args[2]);
   case SYSCALL_NUMBER_SYS_SENDTO:
-    return sys_sendto((int)f.args[0], (void*)f.args[1], (size_t)f.args[2],
-                      (int)f.args[3], (struct sockaddr*)f.args[4], (uint32_t)f.args[5]);
+    return sys_sendto((int)f.args[0], (void *)f.args[1], (size_t)f.args[2],
+                      (int)f.args[3], (struct sockaddr *)f.args[4],
+                      (uint32_t)f.args[5]);
   case SYSCALL_NUMBER_SYS_RECVFROM:
+    return sys_recvfrom((int)f.args[0], (void *)f.args[1], (size_t)f.args[2],
+                        (int)f.args[3], (struct sockaddr *)f.args[4],
+                        (uint32_t *)f.args[5]);
+
     return sys_recvfrom((int)f.args[0], (void*)f.args[1], (size_t)f.args[2],
                         (int)f.args[3], (struct sockaddr*)f.args[4], (uint32_t*)f.args[5]);
   case SYSCALL_NUMBER_SYS_ARP_RESOLVE:
     return sys_arp_resolve((uint8_t *)f.args[0], (uint8_t *)f.args[1]);
   
   case SYSCALL_NUMBER_SYS_CLEAR:
-    return sys_clear();                      
+    return sys_clear();              
+  case SYSCALL_NUMBER_SYS_IOCTL:
+    return sys_ioctl((int)f.args[0], (unsigned long)f.args[1],
+                     (void *)f.args[2]);       
 
   default:
     return -EINVAL;

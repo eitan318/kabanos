@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -102,6 +103,9 @@ typedef enum {
 
   // --- Console ---
   SYSCALL_NUMBER_SYS_CLEAR,
+
+  // --- IO ---
+  SYSCALL_NUMBER_SYS_IOCTL,
 
 } SYSCALL_NUMBER;
 
@@ -246,10 +250,18 @@ void *sbrk(ptrdiff_t __incr) {
 }
 
 int open(const char *name, int flags, ...) {
-  return (int)_syscall6(SYSCALL_NUMBER_SYS_OPEN, (long)name, flags, 0, 0, 0, 0);
+  mode_t mode = 0;
+  if (flags & O_CREAT) {
+    va_list args;
+    va_start(args, flags);
+    mode = va_arg(args, mode_t);
+    va_end(args);
+  }
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_OPEN, (long)name, flags, mode, 0, 0,
+                        0);
 }
 
-int _close(int __fildes) {
+int close(int __fildes) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_CLOSE, __fildes, 0, 0, 0, 0, 0);
 }
 
@@ -403,6 +415,23 @@ int mkdir(const char *path, mode_t mode) {
     return (int)_syscall6(SYSCALL_NUMBER_SYS_MKDIR, path, mode, 0, 0, 0, 0);
 }
 
+#include "termios.h"
+
+int ioctl(int fd, unsigned long request, ...) {
+  va_list ap;
+  va_start(ap, request);
+  unsigned long arg = va_arg(ap, unsigned long);
+  va_end(ap);
+
+  return _syscall6(SYSCALL_NUMBER_SYS_IOCTL, (long)fd, (long)request, (long)arg,
+                   0, 0, 0);
+}
+
+int tcgetattr(int fd, struct termios *t) { return ioctl(fd, TCGETS, t); }
+
+int tcsetattr(int fd, int optional_actions, const struct termios *t) {
+  return ioctl(fd, TCSETS, (void *)t);
+}
 int rmdir(const char *path) {
     return (int)_syscall6(SYSCALL_NUMBER_SYS_RMDIR, path, 0, 0, 0, 0, 0);
 }
