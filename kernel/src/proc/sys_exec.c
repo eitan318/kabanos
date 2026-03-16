@@ -94,7 +94,7 @@ static uintptr_t setup_user_stack_args(vmspace_t *dst_vm, uintptr_t stack_top,
     size_t len = strlen(argv[i]) + 1;
     user_sp -= len;
     user_sp &= ~0x3; // 4-byte alignment
-    hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)argv[i], len);
+    vmspace_copy_to(dst_vm->arch, user_sp, (vaddr_t)argv[i], len);
     user_argv_ptrs[i] = user_sp;
   }
   user_argv_ptrs[argc] = 0;
@@ -104,21 +104,20 @@ static uintptr_t setup_user_stack_args(vmspace_t *dst_vm, uintptr_t stack_top,
   user_sp -= ptr_array_size;
   user_sp &= ~0x3;
   uintptr_t argv_array_base = user_sp;
-  hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)user_argv_ptrs,
-                         ptr_array_size);
+  vmspace_copy_to(dst_vm->arch, user_sp, (vaddr_t)user_argv_ptrs,
+                  ptr_array_size);
 
   // 3. Construct ABI stack frame
   uintptr_t null_env = 0;
   user_sp -= sizeof(uintptr_t); // envp
-  hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)&null_env,
-                         sizeof(uintptr_t));
+  vmspace_copy_to(dst_vm->arch, user_sp, (vaddr_t)&null_env, sizeof(uintptr_t));
 
   user_sp -= sizeof(uintptr_t); // argv pointer
-  hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)&argv_array_base,
-                         sizeof(uintptr_t));
+  vmspace_copy_to(dst_vm->arch, user_sp, (vaddr_t)&argv_array_base,
+                  sizeof(uintptr_t));
 
   user_sp -= sizeof(int); // argc
-  hal_vm_copy_to_vmspace(dst_vm->arch, user_sp, (vaddr_t)&argc, sizeof(int));
+  vmspace_copy_to(dst_vm->arch, user_sp, (vaddr_t)&argc, sizeof(int));
 
   return user_sp;
 }

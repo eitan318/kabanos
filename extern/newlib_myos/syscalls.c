@@ -406,10 +406,10 @@ int mkdir(const char *path, mode_t mode) {
 
 #include "termios.h"
 
-int ioctl(int fd, uint64_t request, ...) {
+int ioctl(int fd, unsigned long request, ...) {
   va_list ap;
   va_start(ap, request);
-  void *arg = va_arg(ap, void *);
+  unsigned long arg = va_arg(ap, unsigned long);
   va_end(ap);
 
   return _syscall6(SYSCALL_NUMBER_SYS_IOCTL, (long)fd, (long)request, (long)arg,

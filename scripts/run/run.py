@@ -16,25 +16,33 @@ OS_IMG = args.image
 is_debug = args.is_debug  # True if --is_debug was passed
 
 # Setup TAP interface
-script_dir   = os.path.dirname(os.path.abspath(__file__))
+script_dir = os.path.dirname(os.path.abspath(__file__))
 setup_script = os.path.join(script_dir, "setup-tap.sh")
-subprocess.run(["sudo", "bash", setup_script], check=True)
+# subprocess.run(["sudo", "bash", setup_script], check=True)
 
 # QEMU command
 qemu_run_cmd = [
     "qemu-system-i386",
-    "-serial", "stdio",
-    "-drive", f"format=raw,file={OS_IMG}",
-    "-netdev", "tap,id=net0,ifname=tap0,script=no,downscript=no",
-    "-device", "rtl8139,netdev=net0,mac=52:54:00:12:34:56",
+    "-serial",
+    "stdio",
+    "-drive",
+    f"format=raw,file={OS_IMG}",
+    "-netdev",
+    "tap,id=net0,ifname=tap0,script=no,downscript=no",
+    "-device",
+    "rtl8139,netdev=net0,mac=52:54:00:12:34:56",
 ]
 
 qemu_debug_cmd = [
     "qemu-system-i386",
-    "-serial", "stdio",
-    "-drive", f"format=raw,file={OS_IMG}",
-    "-netdev", "tap,id=net0,ifname=tap0,script=no,downscript=no",
-    "-device", "rtl8139,netdev=net0,mac=52:54:00:12:34:56",
+    "-serial",
+    "stdio",
+    "-drive",
+    f"format=raw,file={OS_IMG}",
+    "-netdev",
+    "tap,id=net0,ifname=tap0,script=no,downscript=no",
+    "-device",
+    "rtl8139,netdev=net0,mac=52:54:00:12:34:56",
     "-s",
     "-S",
 ]

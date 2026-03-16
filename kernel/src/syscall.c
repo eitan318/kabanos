@@ -10,6 +10,7 @@
 #include "sched/sched.h"
 #include "sched/sleep.h"
 #include "sched/sys_yield.h"
+#include "sys_ioctl.h"
 #include "sys_time.h"
 #include <fs/vfs.h>
 #include <stdint.h>
@@ -178,7 +179,8 @@ long syscall_dispatch(syscall_info_t f) {
                         (int)f.args[3], (struct sockaddr *)f.args[4],
                         (uint32_t *)f.args[5]);
   case SYSCALL_NUMBER_SYS_IOCTL:
-    return sys_ioctl((int)f.args[0], (uint64_t)f.args[1], (void *)f.args[2]);
+    return sys_ioctl((int)f.args[0], (unsigned long)f.args[1],
+                     (void *)f.args[2]);
 
   default:
     return -EINVAL;
