@@ -196,7 +196,7 @@ void con_clear(void) {
 void con_newline(void) { con_putc('\n'); }
 
 static int con_module_init(module_t *self) {
-  g_con_mode = CON_MODE_LIGHT;
+  g_con_mode = CON_MODE_DARK;
   g_con_default_color = g_con_mode == CON_MODE_LIGHT ? LIGHT_MODE : DARK_MODE;
   g_con_color = g_con_default_color;
   con_clear();

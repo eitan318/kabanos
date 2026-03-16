@@ -19,7 +19,7 @@ int proc_spawn(char *name, char **argv, char **envp) {
 }
 
 int main(int argc, char **argv, char **envp) {
-  char *shell_args[] = {"/bin/shell.elf", "/bin/cat.elf", "header.txt", NULL};
+  char *shell_args[] = {"/bin/shell.elf", "/bin/neofetch.elf", NULL};
 
   // Spawn the shell
   if (proc_spawn("/bin/shell.elf", shell_args, envp) < 0) {
