@@ -20,6 +20,16 @@
 #include "ut/fs/fs_ut_main.h"
 #include <cmdline.h>
 
+/**
+ * @mainpage MyOS Kernel Documentation
+ * * @section subsystems Kernel Subsystems
+ * - @ref scheduler : Manages CPU time and thread states.
+ * - @ref vfs : Virtual File System abstraction.
+ * - @ref process_mgr : Process lifecycle and address space management.
+ * * @section arch Hardware Abstraction Layer
+ * - @ref hal_interface : The mandatory interface for porting to new CPUs.
+ */
+
 vmspace_t g_kernel_vmspace_obj;
 vmspace_t *g_kernel_vmspace = &g_kernel_vmspace_obj;
 range_t g_kernel_virt_range;

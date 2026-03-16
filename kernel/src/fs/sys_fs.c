@@ -61,11 +61,11 @@ long sys_umount(const char *target) {
   return vfs_umount(target, get_cwd());
 }
 
-long sys_open(const char *pathname, int flags) {
+long sys_open(const char *pathname, int flags, mode_t mode) {
   if (!pathname)
     return -EINVAL;
 
-  int fd = vfs_open(pathname, get_cwd(), flags);
+  int fd = vfs_open(pathname, get_cwd(), flags, mode);
   if (fd < 0)
     return -ENOENT;
 

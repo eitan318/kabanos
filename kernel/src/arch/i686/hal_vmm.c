@@ -407,9 +407,8 @@ static void hal_vmm_set_cow(arch_vm_t *arch_vm) {
   tlb_flush_all();
 }
 
-void hal_vm_copy_to_vmspace(arch_vm_t *dst_vmspace, vaddr_t dst_vaddr,
-                            vaddr_t src_vaddr, size_t size) {
-
+int hal_vm_copy_to_vmspace(arch_vm_t *dst_vmspace, vaddr_t dst_vaddr,
+                           vaddr_t src_vaddr, size_t size) {
   arch_vm_t *curr_vmspace = dispatch_get_current()->process->vmspace->arch;
   size_t remaining = size;
   vaddr_t curr_dst = dst_vaddr;
@@ -432,6 +431,23 @@ void hal_vm_copy_to_vmspace(arch_vm_t *dst_vmspace, vaddr_t dst_vaddr,
     curr_dst += to_copy;
     curr_src += to_copy;
   }
+
+  return 0;
+}
+
+int hal_vm_copy_from_vmspace(arch_vm_t *src_vmspace, vaddr_t dst_vaddr,
+                             vaddr_t src_vaddr, size_t size) {
+  arch_vm_t *curr_vmspace = dispatch_get_current()->process->vmspace->arch;
+  size_t remaining = size;
+  vaddr_t curr_dst = dst_vaddr;
+  vaddr_t curr_src = src_vaddr;
+
+  while (remaining > 0) {
+    uint32_t offset = dst_vaddr % PAGE_SIZE;
+  }
+
+  // TODO: continue
+  return -1;
 }
 
 void hal_vm_arch_clone_mapping(arch_vm_t *dst, arch_vm_t *src) {

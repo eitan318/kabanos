@@ -2,8 +2,6 @@
 #include "klib/stdbool.h"
 #include "klib/stddef.h"
 #include "mm/kmalloc.h"
-#include "sched/dispatcher.h"
-#include "sched/thread.h"
 #include "spinlock.h"
 
 #define MAX_DEVICES 32
@@ -19,10 +17,10 @@ device_t *device_init(int id) {
   dev->device_id = id;
   dev->data_ready = false;
 
-  dev->wait_queue.head = NULL;
-  dev->wait_queue.tail = NULL;
+  dev->waitq.head = NULL;
+  dev->waitq.tail = NULL;
 
-  dev->wait_queue.lock = (spinlock_t)SPINLOCK_RELEASED;
+  dev->waitq.lock = (spinlock_t)SPINLOCK_RELEASED;
 
   g_device_table[id] = dev;
 
@@ -34,7 +32,7 @@ void device_destroy(device_t *dev) {
     return;
 
   // Safety check: ensure no threads are still sleeping here!
-  if (dev->wait_queue.head != NULL) {
+  if (dev->waitq.head != NULL) {
     // Handle error: You can't delete a device people are waiting on!
     return;
   }

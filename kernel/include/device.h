@@ -7,7 +7,7 @@ typedef struct device device_t;
 typedef struct device {
   int device_id;
   bool data_ready;
-  wait_queue_t wait_queue;
+  wait_queue_t waitq;
 
   struct device_ops *ops;
   void *priv;
@@ -16,6 +16,7 @@ typedef struct device {
 struct device_ops {
   ssize_t (*read)(device_t *dev, void *buf, size_t size);
   ssize_t (*write)(device_t *dev, const void *buf, size_t size);
+  int (*ioctl)(device_t *dev, uint32_t request, void *arg);
 };
 
 typedef enum {

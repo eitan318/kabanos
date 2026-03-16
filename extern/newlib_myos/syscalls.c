@@ -1,3 +1,4 @@
+#include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -99,6 +100,9 @@ typedef enum {
   SYSCALL_NUMBER_SYS_BIND,
   SYSCALL_NUMBER_SYS_SENDTO,
   SYSCALL_NUMBER_SYS_RECVFROM,
+
+  // --- IO ---
+  SYSCALL_NUMBER_SYS_IOCTL,
 
 } SYSCALL_NUMBER;
 
@@ -243,7 +247,15 @@ void *sbrk(ptrdiff_t __incr) {
 }
 
 int open(const char *name, int flags, ...) {
-  return (int)_syscall6(SYSCALL_NUMBER_SYS_OPEN, (long)name, flags, 0, 0, 0, 0);
+  mode_t mode = 0;
+  if (flags & O_CREAT) {
+    va_list args;
+    va_start(args, flags);
+    mode = va_arg(args, mode_t);
+    va_end(args);
+  }
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_OPEN, (long)name, flags, mode, 0, 0,
+                        0);
 }
 
 int close(int __fildes) {
@@ -390,4 +402,22 @@ struct dirent *readdir(DIR *dir) {
 int mkdir(const char *path, mode_t mode) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_MKDIR, (uintptr_t)path,
                         (unsigned int)mode, 0, 0, 0, 0);
+}
+
+#include "termios.h"
+
+int ioctl(int fd, uint64_t request, ...) {
+  va_list ap;
+  va_start(ap, request);
+  void *arg = va_arg(ap, void *);
+  va_end(ap);
+
+  return _syscall6(SYSCALL_NUMBER_SYS_IOCTL, (long)fd, (long)request, (long)arg,
+                   0, 0, 0);
+}
+
+int tcgetattr(int fd, struct termios *t) { return ioctl(fd, TCGETS, t); }
+
+int tcsetattr(int fd, int optional_actions, const struct termios *t) {
+  return ioctl(fd, TCSETS, (void *)t);
 }

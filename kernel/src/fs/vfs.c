@@ -565,10 +565,33 @@ int vfs_bind_vnode_to_fd(vnode_t *vnode, int flags) {
   return alloc_fd(file);
 }
 
-int vfs_open(const char *path, vnode_t *base_node, int flags) {
+int vfs_open(const char *path, vnode_t *base_node, int flags, int mode) {
   vnode_t *vnode = vfs_lookup_path(path, base_node, true);
-  if (!vnode)
-    return -1;
+
+  if (!vnode) {
+    if (!(flags & O_CREAT)) {
+      return -ENOENT;
+    }
+
+    // Create the file
+    int res = vfs_create(path, base_node, mode);
+    if (res != 0)
+      return res;
+
+    // Look it up again to get the new vnode
+    vnode = vfs_lookup_path(path, base_node, true);
+    if (!vnode)
+      return -EIO; // Should not happen if create worked
+  } else {
+    // If it exists and O_EXCL is set with O_CREAT, open should fail
+    if ((flags & O_CREAT) && (flags & O_EXCL)) {
+      return -EEXIST;
+    }
+  }
+
+  if (flags & O_TRUNC) {
+    // TODO implement
+  }
 
   return vfs_bind_vnode_to_fd(vnode, flags);
 }

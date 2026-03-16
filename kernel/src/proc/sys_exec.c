@@ -36,7 +36,7 @@ static int exec_load_elf(vmspace_t *vm, const char *path, vnode_t *cwd,
                          uintptr_t *entry) {
   paddr_t path_phys = hal_vm_virt_to_phys(vm->arch, (vaddr_t)path);
 
-  int fd = vfs_open(path, cwd, O_RDONLY);
+  int fd = vfs_open(path, cwd, O_RDONLY, -1);
   if (fd < 0)
     return fd;
 
