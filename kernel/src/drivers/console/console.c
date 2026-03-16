@@ -139,7 +139,7 @@ void con_putc(char c) {
   }
 
   if (g_con_y >= (int)SCREEN_HEIGHT) {
-    vga_scroll(1);
+    vga_scroll(1, g_con_color);
     g_con_y = SCREEN_HEIGHT - 1;
   }
 
@@ -172,7 +172,7 @@ void con_putsn(const char *str, int n) {
 }
 
 void con_clear(void) {
-  vga_clear();
+  vga_clear(g_con_color);
   g_con_x = 0;
   g_con_y = 0;
   vga_cursor_set(0, 0);
@@ -181,6 +181,7 @@ void con_clear(void) {
 void con_newline(void) { con_putc('\n'); }
 
 static int con_module_init(module_t *self) {
+  // g_con_color = VGA_COLOR_BLUE;
   con_clear();
   return 0;
 }

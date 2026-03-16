@@ -123,13 +123,13 @@ int main(int argc, char **argv) {
   char line[MAX_LINE];
   char *args[MAX_ARGS];
 
-  printf("\n");
+  printf(ANSI_COLOR_GREEN "\n");
 
   if (argc > 1) {
     execute_command(&argv[1]);
   }
 
-  printf("\n");
+  printf(ANSI_COLOR_RESET "\n");
 
   while (1) {
     char cwd[PATH_MAX];

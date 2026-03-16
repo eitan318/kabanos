@@ -30,9 +30,8 @@ void vga_write_color(int x, int y, uint8_t color);
 char vga_read_char(int x, int y);
 uint8_t vga_read_color(int x, int y);
 
+void vga_scroll(int lines, uint8_t back_color);
+void vga_clear(uint8_t back_color);
+
 /* hardware cursor */
 void vga_cursor_set(int x, int y);
-
-/* screen ops */
-void vga_scroll(int lines);
-void vga_clear(void);

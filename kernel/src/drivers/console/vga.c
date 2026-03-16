@@ -4,9 +4,6 @@
 #include "modules.h"
 
 static uint8_t *g_vga_buf = (uint8_t *)VGA_SCREEN_BUF;
-static int g_cursor_x = 0;
-static int g_cursor_y = 0;
-static uint8_t g_color = VGA_DEFAULT_COLOR;
 
 void vga_write_char(int x, int y, char c) {
   g_vga_buf[2 * (y * SCREEN_WIDTH + x)] = c;
@@ -32,7 +29,7 @@ void vga_cursor_set(int x, int y) {
   hal_out8(0x3D5, (uint8_t)((pos >> 8) & 0xFF));
 }
 
-void vga_scroll(int lines) {
+void vga_scroll(int lines, uint8_t back_color) {
   for (int y = lines; y < SCREEN_HEIGHT; y++)
     for (int x = 0; x < SCREEN_WIDTH; x++) {
       vga_write_char(x, y - lines, vga_read_char(x, y));
@@ -41,26 +38,20 @@ void vga_scroll(int lines) {
   for (int y = SCREEN_HEIGHT - lines; y < SCREEN_HEIGHT; y++)
     for (int x = 0; x < SCREEN_WIDTH; x++) {
       vga_write_char(x, y, '\0');
-      vga_write_color(x, y, g_color);
+      vga_write_color(x, y, back_color);
     }
-  g_cursor_y -= lines;
 }
 
-void vga_clear(void) {
+void vga_clear(uint8_t back_color) {
   for (int y = 0; y < SCREEN_HEIGHT; y++)
     for (int x = 0; x < SCREEN_WIDTH; x++) {
-      vga_write_char(x, y, '\0');
-      vga_write_color(x, y, g_color);
+      vga_write_char(x, y, ' ');
+      vga_write_color(x, y, back_color);
     }
-  g_cursor_x = 0;
-  g_cursor_y = 0;
   vga_cursor_set(0, 0);
 }
 
-static int vga_module_init(module_t *self) {
-  vga_clear();
-  return 0;
-}
+static int vga_module_init(module_t *self) { return 0; }
 
 static const char *vga_deps[] = {"hal", NULL};
 ITER_MODULE(vga) = {
