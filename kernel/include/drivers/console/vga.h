@@ -22,7 +22,6 @@
 #define SCREEN_HEIGHT 25
 
 #define VGA_MAKE_COLOR(fg, bg) (((bg) << 4) | (fg))
-#define VGA_DEFAULT_COLOR VGA_MAKE_COLOR(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK)
 
 /* raw cell access */
 void vga_write_char(int x, int y, char c);

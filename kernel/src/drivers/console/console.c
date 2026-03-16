@@ -1,10 +1,30 @@
 #include "drivers/console/console.h"
-#include "drivers/console/vga_text.h"
+#include "drivers/console/vga.h"
 #include "modules.h"
 #include <klib/stdarg.h>
+#include <klib/stdbool.h>
 
 // State Machine Definitions for ANSI ESC sequences
 typedef enum { STATE_NORMAL, STATE_BRACKET, STATE_PARAMS } con_state_t;
+
+#define LIGHT_MODE VGA_MAKE_COLOR(VGA_COLOR_BLACK, VGA_COLOR_WHITE)
+#define DARK_MODE VGA_MAKE_COLOR(VGA_COLOR_LIGHT_GREY, VGA_COLOR_BLACK)
+
+typedef enum { CON_MODE_DARK, CON_MODE_LIGHT } con_mode_t;
+static con_mode_t g_con_mode = CON_MODE_DARK;
+
+static uint8_t ansi_to_vga_lookup_dark[] = {
+    VGA_COLOR_BLACK, VGA_COLOR_RED,     VGA_COLOR_GREEN, VGA_COLOR_BROWN,
+    VGA_COLOR_BLUE,  VGA_COLOR_MAGENTA, VGA_COLOR_CYAN,  VGA_COLOR_LIGHT_GREY};
+
+static uint8_t ansi_to_vga_lookup_light[] = {
+    VGA_COLOR_BLACK, VGA_COLOR_RED,     VGA_COLOR_GREEN, VGA_COLOR_BROWN,
+    VGA_COLOR_BLUE,  VGA_COLOR_MAGENTA, VGA_COLOR_CYAN,  VGA_COLOR_LIGHT_GREY};
+
+static uint8_t *ansi_to_vga_lookup(void) {
+  return g_con_mode == CON_MODE_DARK ? ansi_to_vga_lookup_dark
+                                     : ansi_to_vga_lookup_light;
+}
 
 static con_state_t g_state = STATE_NORMAL;
 static int g_params[4];
@@ -12,15 +32,9 @@ static int g_param_idx = 0;
 
 static int g_con_x = 0;
 static int g_con_y = 0;
-static uint8_t g_con_color = VGA_DEFAULT_COLOR;
+static uint8_t g_con_color = 0;
 
-// Mapping ANSI colors (0-7) to VGA hardware colors
-static uint8_t ansi_to_vga_lookup[] = {
-    VGA_COLOR_BLACK, VGA_COLOR_RED,     VGA_COLOR_GREEN, VGA_COLOR_BROWN,
-    VGA_COLOR_BLUE,  VGA_COLOR_MAGENTA, VGA_COLOR_CYAN,  VGA_COLOR_LIGHT_GREY};
-
-void con_set_color(uint8_t color) { g_con_color = color; }
-uint8_t con_get_color(void) { return g_con_color; }
+static uint8_t g_con_default_color;
 
 void con_cursor_get(int *x, int *y) {
   *x = g_con_x;
@@ -67,11 +81,12 @@ static void handle_csi_command(char c) {
     for (int i = 0; i <= g_param_idx; i++) {
       int p = g_params[i];
       if (p == 0) {
-        g_con_color = VGA_DEFAULT_COLOR;
-      } else if (p >= 30 && p <= 37) { // Foreground color
-        g_con_color = (g_con_color & 0xF0) | ansi_to_vga_lookup[p - 30];
-      } else if (p >= 40 && p <= 47) { // Background color
-        g_con_color = (g_con_color & 0x0F) | (ansi_to_vga_lookup[p - 40] << 4);
+        g_con_color = g_con_default_color;
+      } else if (p >= 30 && p <= 37) {
+        g_con_color = (g_con_color & 0xF0) | ansi_to_vga_lookup()[p - 30];
+      } else if (p >= 40 && p <= 47) {
+        g_con_color =
+            (g_con_color & 0x0F) | (ansi_to_vga_lookup()[p - 40] << 4);
       }
     }
     break;
@@ -181,7 +196,9 @@ void con_clear(void) {
 void con_newline(void) { con_putc('\n'); }
 
 static int con_module_init(module_t *self) {
-  // g_con_color = VGA_COLOR_BLUE;
+  g_con_mode = CON_MODE_LIGHT;
+  g_con_default_color = g_con_mode == CON_MODE_LIGHT ? LIGHT_MODE : DARK_MODE;
+  g_con_color = g_con_default_color;
   con_clear();
   return 0;
 }
