@@ -14,6 +14,12 @@ static vnode_t *get_cwd() {
   return curr_thread->process->cwd;
 }
 
+long sys_create(const char *path) {
+  if (!path)
+    return -EINVAL;
+  return vfs_create(path, get_cwd(), 0);
+}
+
 long sys_mkdir(const char *path, mode_t mode) {
   if (!path)
     return -EINVAL;
@@ -97,10 +103,7 @@ long sys_read(int fd, char *buf, size_t count) {
 
   file_t *f = g_fd_table[fd];
   if (f->f_ops && f->f_ops->read) {
-    ssize_t ret = f->f_ops->read(f, buf, count);
-    if (ret > 0)
-      f->pos += ret;
-    return ret;
+    return f->f_ops->read(f, buf, count);  
   }
 
   return -EINVAL;

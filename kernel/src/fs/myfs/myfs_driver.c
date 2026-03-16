@@ -4,6 +4,8 @@
 #include "fs/vfs_internal.h"
 #include "klib/stdio.h"
 #include "klib/string.h"
+#include "klib/errno.h"
+#include "ksys/stat.h"
 #include "ksys/stat.h"
 #include "mm/kmalloc.h"
 #include "modules.h"
@@ -215,6 +217,8 @@ static ssize_t myfsd_f_read(file_t *file, void *buf, size_t size) {
   }
 
   ssize_t bytes_read = myfs_node_read(myfs_sb, inode, file->pos, buf, size);
+  if (bytes_read > 0)
+    file->pos += bytes_read;
 
   myfs_iput(myfs_sb, inode);
   return bytes_read;
@@ -231,6 +235,7 @@ static ssize_t myfsd_f_write(file_t *file, const void *buf, size_t size) {
 
   ssize_t result = myfs_node_write(myfs_sb, inode, file->pos, buf, size);
   if (result > 0) {
+    file->pos += result; 
     vnode->size = inode->size;
   }
 
@@ -256,7 +261,19 @@ static int myfsd_f_close(file_t *file) {
 }
 
 static int myfsd_v_rmdir(vnode_t *parent, const char *dir_name) {
-  return myfsd_v_unlink(parent, dir_name);
+  MyfsSuperBlock *myfs_sb = parent->super_block->fs_private;
+
+  MyfsInode *dir_inode = myfs_iget(myfs_sb, parent->i_ino);
+  if (!dir_inode)
+    return -1;
+
+  int result = myfs_remove_dir(myfs_sb, dir_inode, dir_name);
+
+  if (result == 0)
+    parent->size = dir_inode->size;
+
+  myfs_iput(myfs_sb, dir_inode);
+  return result;
 }
 
 static int myfsd_v_symlink(vnode_t *dir, const char *name, const char *target) {

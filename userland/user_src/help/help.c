@@ -56,6 +56,16 @@ struct CommandHelp help_table[] = {
         "Usage: rm [file]"
     },
     {
+        "mv",
+        "Move a file from source to destination.",
+        "Usage: mv [src] [dst]"
+    },
+    {
+        "cp",
+        "Copy a file from source to destination.",
+        "Usage: mv [src] [dst]"
+    },
+    {
         "rmdir",
         "Remove an empty directory.",
         "Usage: rmdir [directory]"
@@ -64,6 +74,11 @@ struct CommandHelp help_table[] = {
         "clear",
         "Clear the terminal screen.",
         "Usage: clear"
+    },
+    {
+        "ping",
+        "pinging to an ip to check if its up.",
+        "Usage: ping x.x.x.x"
     },
     {
         "exit",

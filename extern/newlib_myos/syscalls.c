@@ -32,10 +32,9 @@ static inline long __syscall6(long num, long a1, long a2, long a3, long a4,
   return ret;
 }
 
-static int __myos_errno;
 static inline long __syscall_ret(unsigned long r) {
   if (r > -4096) {
-    __myos_errno = -r;
+    errno = -r;
     return -1;
   }
   return r;
@@ -100,6 +99,10 @@ typedef enum {
   SYSCALL_NUMBER_SYS_BIND,
   SYSCALL_NUMBER_SYS_SENDTO,
   SYSCALL_NUMBER_SYS_RECVFROM,
+  SYSCALL_NUMBER_SYS_ARP_RESOLVE,
+
+  // --- Console ---
+  SYSCALL_NUMBER_SYS_CLEAR,
 
   // --- IO ---
   SYSCALL_NUMBER_SYS_IOCTL,
@@ -324,6 +327,10 @@ int getdents(int fd, void *buf, unsigned int size) {
                         (long)size, 0, 0, 0);
 }
 
+int clear(void) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_CLEAR, 0, 0, 0, 0, 0, 0);
+}
+
 typedef unsigned int myos_socklen_t;
 
 int socket(int domain, int type, int protocol) {
@@ -346,6 +353,11 @@ ssize_t recvfrom(int fd, void *buf, size_t len, int flags, void *src_addr,
                  myos_socklen_t *addrlen) {
   return (ssize_t)_syscall6(SYSCALL_NUMBER_SYS_RECVFROM, fd, (long)buf,
                             (long)len, flags, (long)src_addr, (long)addrlen);
+}
+
+int arp_resolve(uint8_t *target_ip, uint8_t *out_mac) {
+    return (int)_syscall6(SYSCALL_NUMBER_SYS_ARP_RESOLVE,
+                          (long)target_ip, (long)out_mac, 0, 0, 0, 0);
 }
 
 #include "dirent.h"
@@ -400,8 +412,7 @@ struct dirent *readdir(DIR *dir) {
 }
 
 int mkdir(const char *path, mode_t mode) {
-  return (int)_syscall6(SYSCALL_NUMBER_SYS_MKDIR, (uintptr_t)path,
-                        (unsigned int)mode, 0, 0, 0, 0);
+    return (int)_syscall6(SYSCALL_NUMBER_SYS_MKDIR, path, mode, 0, 0, 0, 0);
 }
 
 #include "termios.h"
@@ -420,4 +431,11 @@ int tcgetattr(int fd, struct termios *t) { return ioctl(fd, TCGETS, t); }
 
 int tcsetattr(int fd, int optional_actions, const struct termios *t) {
   return ioctl(fd, TCSETS, (void *)t);
+}
+int rmdir(const char *path) {
+    return (int)_syscall6(SYSCALL_NUMBER_SYS_RMDIR, path, 0, 0, 0, 0, 0);
+}
+
+int create(const char *path) {
+    return (int)_syscall6(SYSCALL_NUMBER_SYS_CREATE, (long)path, 0, 0, 0, 0, 0);
 }

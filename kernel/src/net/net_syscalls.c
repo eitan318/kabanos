@@ -42,14 +42,17 @@ static socket_t *fd_to_socket(int fd) {
     return &g_sockets[idx];
 }
 
-static int arp_handle(uint8_t *packet, uint32_t len)
-{
+static int arp_handle(uint8_t *packet, uint32_t len) {
     arp_packet_t *arp = (arp_packet_t*)(&packet[ETHER_HEADER_SIZE]);
+
+    // auto-learn any ARP reply into the cache
+    if (ntohs(arp->operation) == ARP_OP_REPLY)
+        arp_cache_insert(arp->src_ip, arp->src_mac);
+
     if (check_arp_is_for_us(arp, rtl8139_get_ip())) {
         arp_send_reply(arp, rtl8139_get_mac(), rtl8139_get_ip());
         return 0;
     }
-
     return 1;
 }
 
@@ -198,6 +201,15 @@ long sys_recvfrom(int fd, void *buf, size_t len, int flags,
     s->rx_count--;
 
     return (long)copy;
+}
+
+long sys_arp_resolve(uint8_t *target_ip, uint8_t *out_mac) {
+    if (!target_ip || !out_mac)
+        return -EINVAL;
+    return arp_resolve(target_ip,
+                       rtl8139_get_mac(),
+                       rtl8139_get_ip(),
+                       out_mac) ? 0 : -1;
 }
 
 //  sys_net_close  –  called by sys_close when

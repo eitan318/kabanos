@@ -763,7 +763,7 @@ int vfs_mkdir(const char *path, vnode_t *base_node, mode_t mode) {
 int vfs_rmdir(const char *path, vnode_t *base_node) {
   mount_point_t *mp = vfs_find_mount_point(path);
   struct vnode_ops *vnode_ops = mp->super_block->v_ops;
-  if (!mp || !vnode_ops || !vnode_ops->mkdir) {
+  if (!mp || !vnode_ops || !vnode_ops->rmdir) {
     return -1;
   }
   return vfs_parent_operation(

@@ -33,5 +33,6 @@ long sys_sendto(int fd, void *buf, size_t len, int flags,
                 struct sockaddr *dest_addr, uint32_t addrlen);
 long sys_recvfrom(int fd, void *buf, size_t len, int flags,
                   struct sockaddr *src_addr, uint32_t *addrlen);
+long sys_arp_resolve(uint8_t *target_ip, uint8_t *out_mac);                  
 long sys_net_close(int fd);
 void sys_net_close_all(void);                 

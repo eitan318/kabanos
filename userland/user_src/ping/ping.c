@@ -83,64 +83,7 @@ static int parse_ip(const char *str, uint8_t *out) {
   return (count == 4) ? 0 : -1;
 }
 
-// ARP resolution
-static int arp_resolve(int sock_raw, uint8_t *target_ip, uint8_t *our_mac,
-                       uint8_t *our_ip, uint8_t *out_mac) {
-  uint8_t pkt[ARP_PACKET_SIZE];
-  memset(pkt, 0, sizeof(pkt));
-
-  // ===== Ethernet Header =====
-  ether_header_t *eth = (ether_header_t *)pkt;
-  memset(eth->ether_dst_mac, 0xFF, 6);
-  memcpy(eth->ether_src_mac, our_mac, 6);
-  eth->ether_type[0] = 0x08;
-  eth->ether_type[1] = 0x06;
-
-  // ===== ARP Body =====
-  arp_packet_t *arp = (arp_packet_t *)(&pkt[ETHER_HEADER_SIZE]);
-  arp->hardware_type = htons(1);
-  arp->protocol_type = htons(ETHER_TYPE_IPV4);
-  arp->hardware_addr_len = 6;
-  arp->protocol_addr_len = 4;
-  arp->operation = htons(ARP_OP_REQUEST);
-  memcpy(arp->src_mac, our_mac, 6);
-  memcpy(arp->src_ip, our_ip, 4);
-  memset(arp->dst_mac, 0xFF, 6);
-  memcpy(arp->dst_ip, target_ip, 4);
-
-  sockaddr_ll_t dst = {AF_RAW, PROTO_ARP, {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}};
-  sendto(sock_raw, pkt, ARP_PACKET_SIZE, 0, &dst, sizeof(dst));
-
-  uint8_t rx[MAX_PACKET_SIZE];
-  for (int tries = 0; tries < 500; tries++) {
-    sockaddr_ll_t from;
-    myos_socklen_t flen = sizeof(from);
-    ssize_t recv_len = recvfrom(sock_raw, rx, sizeof(rx), 0, &from, &flen);
-    if (recv_len <= 0)
-      continue;
-
-    if (recv_len < ARP_PACKET_SIZE)
-      continue;
-
-    uint16_t ether_type = ((uint16_t)rx[12] << 8) | rx[13];
-    if (ether_type != PROTO_ARP)
-      continue;
-
-    arp_packet_t *arp = (arp_packet_t *)(&rx[ETHER_HEADER_SIZE]);
-    if (ntohs(arp->operation) != ARP_OP_REPLY)
-      continue;
-
-    if (memcmp(arp->src_ip, target_ip, 4) != 0)
-      continue;
-
-    memcpy(out_mac, arp->src_mac, 6);
-    return 0;
-  }
-
-  return -1;
-}
-
-// Build + send one ICMP echo request
+// Build + send one ICMP echo request 
 static void send_ping(int sock, uint8_t *dst_mac, uint8_t *our_mac,
                       uint8_t *our_ip, uint8_t *dst_ip, uint16_t seq) {
   uint8_t pkt[ETHER_HEADER_SIZE + IPV4_HEADER_SIZE + ICMP_HEADER_SIZE +
@@ -194,10 +137,10 @@ static long wait_reply(int sock, uint8_t *src_ip, uint16_t seq,
                        uint32_t t_send) {
   uint8_t rx[MAX_PACKET_SIZE];
 
-  for (int retries = 0; retries < 4; retries++) {
-    sockaddr_ll_t from;
-    myos_socklen_t flen = sizeof(from);
-    ssize_t n = recvfrom(sock, rx, sizeof(rx), 0, &from, &flen);
+    for (int retries = 0; retries < 64; retries++) {
+        sockaddr_ll_t from;
+        myos_socklen_t flen = sizeof(from);
+        ssize_t n = recvfrom(sock, rx, sizeof(rx), 0, &from, &flen);
 
     if (n <= 0) {
       printf("Request timed out.\n");
@@ -321,6 +264,69 @@ int main(int argc, char *argv[]) {
   }
   printf("\n");
 
-  close(sock);
-  return (received == sent) ? 0 : 1;
+    uint8_t our_ip[4] = {10, 0, 0, 100};
+    uint8_t gw_ip[4] = {10, 0, 0, 1};
+    uint8_t our_mac[6] = {0x52, 0x54, 0x00, 0x12, 0x34, 0x56};
+
+    printf("\nPinging %d.%d.%d.%d with %d bytes of data:\n",
+           target_ip[0], target_ip[1], target_ip[2], target_ip[3], PING_DATA_LEN);
+
+    int sock = socket(AF_RAW, SOCK_RAW, PROTO_RAW);
+    if (sock < 0) {
+        printf("ping: socket() failed\n");
+        return 1;
+    }
+
+    uint8_t arp_target[4];
+    int same_subnet = (target_ip[0] == our_ip[0] &&
+                       target_ip[1] == our_ip[1] &&
+                       target_ip[2] == our_ip[2]);
+    memcpy(arp_target, same_subnet ? target_ip : gw_ip, 4);
+
+    uint8_t dst_mac[6];
+    if (arp_resolve(arp_target, dst_mac) < 0) {
+        printf("ping: ARP resolution failed\n");
+        return 1;
+    }
+    
+    int sent = 0;
+    int received = 0;
+    uint32_t rtt_min = 0xFFFFFFFF;
+    uint32_t rtt_max = 0;
+    uint32_t rtt_sum = 0;
+    
+    for (uint16_t seq = 1; seq <= PING_COUNT; seq++) {
+        uint32_t t_send = get_ticks();
+        send_ping(sock, dst_mac, our_mac, our_ip, target_ip, seq);
+        sent++;
+
+        long rtt = wait_reply(sock, target_ip, seq, t_send);
+        if (rtt >= 0) {
+            received++;
+            uint32_t r = (uint32_t)rtt;
+            if (r < rtt_min) 
+                rtt_min = r;
+            if (r > rtt_max) 
+                rtt_max = r;
+
+            rtt_sum += r;
+        }
+        if (seq < PING_COUNT)
+            sleep(1);
+    }
+
+    printf("\nPing statistics for %d.%d.%d.%d:\n",
+           target_ip[0], target_ip[1], target_ip[2], target_ip[3]);
+    printf("    Packets: Sent = %d, Received = %d, Lost = %d (%d%% loss),\n",
+           sent, received, sent - received,
+           sent ? (sent - received) * 100 / sent : 0);
+    if (received > 0) {
+        printf("Approximate round trip times in milli-seconds:\n");
+        printf("    Minimum = %dms, Maximum = %dms, Average = %dms\n",
+               rtt_min, rtt_max, rtt_sum / received);
+    }
+    printf("\n");
+
+    _close(sock);
+    return (received == sent) ? 0 : 1;
 }

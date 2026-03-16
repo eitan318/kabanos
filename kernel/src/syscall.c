@@ -9,6 +9,8 @@
 #include "proc/sys_wait.h"
 #include "sched/sched.h"
 #include "sched/sleep.h"
+#include "net/net_syscalls.h"
+#include "drivers/console/sys_console.h"
 #include "sched/sys_yield.h"
 #include "sys_ioctl.h"
 #include "sys_time.h"
@@ -70,6 +72,10 @@ typedef enum {
   SYSCALL_NUMBER_SYS_BIND,
   SYSCALL_NUMBER_SYS_SENDTO,
   SYSCALL_NUMBER_SYS_RECVFROM,
+  SYSCALL_NUMBER_SYS_ARP_RESOLVE,
+
+  // --- Console ---
+  SYSCALL_NUMBER_SYS_CLEAR,
 
   // --- IO ---
   SYSCALL_NUMBER_SYS_IOCTL,
@@ -96,6 +102,8 @@ long syscall_dispatch(syscall_info_t f) {
     return sys_stat((int)f.args[0], (fstat_t *)f.args[1]);
   case SYSCALL_NUMBER_SYS_GETDENTS:
     return sys_getdents(f.args[0], (vdir_entry_t *)f.args[1], f.args[2]);
+  case SYSCALL_NUMBER_SYS_CREATE:
+    return sys_create((const char *)f.args[0]);
 
   /* --- Directory & Path Ops --- */
   case SYSCALL_NUMBER_SYS_MKDIR:
@@ -178,9 +186,17 @@ long syscall_dispatch(syscall_info_t f) {
     return sys_recvfrom((int)f.args[0], (void *)f.args[1], (size_t)f.args[2],
                         (int)f.args[3], (struct sockaddr *)f.args[4],
                         (uint32_t *)f.args[5]);
+
+    return sys_recvfrom((int)f.args[0], (void*)f.args[1], (size_t)f.args[2],
+                        (int)f.args[3], (struct sockaddr*)f.args[4], (uint32_t*)f.args[5]);
+  case SYSCALL_NUMBER_SYS_ARP_RESOLVE:
+    return sys_arp_resolve((uint8_t *)f.args[0], (uint8_t *)f.args[1]);
+  
+  case SYSCALL_NUMBER_SYS_CLEAR:
+    return sys_clear();              
   case SYSCALL_NUMBER_SYS_IOCTL:
     return sys_ioctl((int)f.args[0], (unsigned long)f.args[1],
-                     (void *)f.args[2]);
+                     (void *)f.args[2]);       
 
   default:
     return -EINVAL;
