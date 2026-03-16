@@ -32,7 +32,14 @@ void *circular_buff_dequeue(circular_buff_t *cb) {
 bool circular_buff_dequeue_last(circular_buff_t *cb) {
   if (cb->count == 0)
     return false;
-  cb->tail = (cb->tail == 0) ? cb->count - 1 : cb->tail - 1;
+
+  // Move the HEAD back, because that's where the last inserted char is
+  if (cb->head == 0) {
+    cb->head = QUEUE_SIZE - 1;
+  } else {
+    cb->head = cb->head - 1;
+  }
+
   cb->count--;
   return true;
 }
