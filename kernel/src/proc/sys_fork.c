@@ -1,3 +1,4 @@
+#include "fs/vfs.h"
 #include "hal.h"
 #include "proc/proc.h"
 #include "sched/dispatcher.h"
@@ -13,6 +14,9 @@ long sys_fork() {
   // Enqueue child to parent list
   child_proc->next_sibling = parent_proc->first_child;
   parent_proc->first_child = child_proc;
+
+  child_proc->cwd = parent_proc->cwd;
+  vfs_vnode_get_ref(child_proc->cwd);
 
   child_proc->vmspace = vmspace_clone(parent_proc->vmspace);
 

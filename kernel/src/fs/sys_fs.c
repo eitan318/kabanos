@@ -11,6 +11,7 @@
 static vnode_t *get_cwd() {
   thread_t *curr_thread = dispatch_get_current();
   ASSERT(curr_thread);
+  ASSERT(curr_thread->process);
   return curr_thread->process->cwd;
 }
 
@@ -103,7 +104,7 @@ long sys_read(int fd, char *buf, size_t count) {
 
   file_t *f = g_fd_table[fd];
   if (f->f_ops && f->f_ops->read) {
-    return f->f_ops->read(f, buf, count);  
+    return f->f_ops->read(f, buf, count);
   }
 
   return -EINVAL;
@@ -123,6 +124,7 @@ long sys_write(int fd, const char *buf, size_t len) {
 }
 
 long sys_getdents(fd_t fd, vdir_entry_t *dentry, uint32_t count) {
+  process_t *p = dispatch_get_current()->process;
   if (!dentry || count <= 0)
     return -EINVAL;
 

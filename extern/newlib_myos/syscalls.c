@@ -1,8 +1,9 @@
+#include <limits.h>
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
-#include <string.h> // Fixes the memcpy warning
+#include <string.h>
 #include <sys/errno.h>
 #include <sys/fcntl.h>
 #include <sys/mman.h>
@@ -54,7 +55,7 @@ typedef enum {
   SYSCALL_NUMBER_SYS_CLOSE,
   SYSCALL_NUMBER_SYS_LSEEK,
   SYSCALL_NUMBER_SYS_FSTAT,
-  SYSCALL_NUMBER_SYS_STAT, // Added: Used by stat()
+  SYSCALL_NUMBER_SYS_STAT,
   SYSCALL_NUMBER_SYS_GETDENTS,
   SYSCALL_NUMBER_SYS_CREATE,
   SYSCALL_NUMBER_SYS_UNLINK,
@@ -63,10 +64,11 @@ typedef enum {
   SYSCALL_NUMBER_SYS_RMDIR,
   SYSCALL_NUMBER_SYS_SYMLINK,
   SYSCALL_NUMBER_SYS_READLINK,
-  SYSCALL_NUMBER_SYS_LINK, // Added: Used by link()
+  SYSCALL_NUMBER_SYS_LINK,
   SYSCALL_NUMBER_SYS_MOUNT,
   SYSCALL_NUMBER_SYS_UMOUNT,
-  SYSCALL_NUMBER_SYS_GETCWD, // Added: Used by getcwd()
+  SYSCALL_NUMBER_SYS_GETCWD,
+  SYSCALL_NUMBER_SYS_CHDIR,
 
   // --- Process & Lifecycle ---
   SYSCALL_NUMBER_SYS_FORK,
@@ -106,10 +108,7 @@ typedef enum {
 
   // --- IO ---
   SYSCALL_NUMBER_SYS_IOCTL,
-
 } SYSCALL_NUMBER;
-
-/* getcwd */
 
 char *getcwd(char *__buf, size_t __size) {
   long ret = _syscall6(SYSCALL_NUMBER_SYS_GETCWD, (long)__buf, (long)__size, 0,
@@ -119,7 +118,6 @@ char *getcwd(char *__buf, size_t __size) {
   return __buf;
 }
 
-/* realpath - simple implementation using getcwd */
 char *realpath(const char *path, char *resolved) {
   static char buf[4096];
   if (!resolved)
@@ -242,6 +240,10 @@ int waitpid(pid_t pid, int *status, int options) {
                         (long)options, 0, 0, 0);
 }
 
+int chdir(const char *__path) {
+  return _syscall6(SYSCALL_NUMBER_SYS_CHDIR, (long)__path, 0, 0, 0, 0, 0);
+}
+
 // You can now keep wait() as a helper function that calls waitpid
 int wait(int *status) { return waitpid(-1, status, 0); }
 
@@ -356,8 +358,8 @@ ssize_t recvfrom(int fd, void *buf, size_t len, int flags, void *src_addr,
 }
 
 int arp_resolve(uint8_t *target_ip, uint8_t *out_mac) {
-    return (int)_syscall6(SYSCALL_NUMBER_SYS_ARP_RESOLVE,
-                          (long)target_ip, (long)out_mac, 0, 0, 0, 0);
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_ARP_RESOLVE, (long)target_ip,
+                        (long)out_mac, 0, 0, 0, 0);
 }
 
 #include "dirent.h"
@@ -412,7 +414,7 @@ struct dirent *readdir(DIR *dir) {
 }
 
 int mkdir(const char *path, mode_t mode) {
-    return (int)_syscall6(SYSCALL_NUMBER_SYS_MKDIR, path, mode, 0, 0, 0, 0);
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_MKDIR, path, mode, 0, 0, 0, 0);
 }
 
 #include "termios.h"
@@ -432,10 +434,11 @@ int tcgetattr(int fd, struct termios *t) { return ioctl(fd, TCGETS, t); }
 int tcsetattr(int fd, int optional_actions, const struct termios *t) {
   return ioctl(fd, TCSETS, (void *)t);
 }
+
 int rmdir(const char *path) {
-    return (int)_syscall6(SYSCALL_NUMBER_SYS_RMDIR, path, 0, 0, 0, 0, 0);
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_RMDIR, path, 0, 0, 0, 0, 0);
 }
 
 int create(const char *path) {
-    return (int)_syscall6(SYSCALL_NUMBER_SYS_CREATE, (long)path, 0, 0, 0, 0, 0);
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_CREATE, (long)path, 0, 0, 0, 0, 0);
 }

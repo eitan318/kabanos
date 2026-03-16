@@ -97,11 +97,18 @@ ssize_t vfs_readlink(const char *path, vnode_t *cwd, char *buf, size_t bufsize);
 /* --- MOUNT OPERATIONS --- */
 
 /** @brief Mounts a filesystem from source_dev onto target_path. */
-int vfs_mount(const char *source_dev, const char *target_path, vnode_t *cwd,
-              const char *fs_name, unsigned long mountflags, void *fs_data);
+int vfs_mount(const char *source_dev, const char *target_path,
+              vnode_t *const cwd, const char *fs_name, unsigned long mountflags,
+              void *fs_data);
 
 /** @brief Unmounts the filesystem at the given target path. */
-int vfs_umount(const char *target, vnode_t *cwd);
+int vfs_umount(const char *target, vnode_t *const base_node);
+
+/** @brief increments refcount */
+void vfs_vnode_get_ref(vnode_t *vnode);
+
+/** @brief decrements refcount and destroy if no refs left */
+void vfs_vnode_put(vnode_t *vnode);
 
 /** @brief Internal helper to bind a vnode to a new file descriptor. */
 int vfs_bind_vnode_to_fd(vnode_t *vnode, int flags);

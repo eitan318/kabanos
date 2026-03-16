@@ -2,6 +2,7 @@
 #include "device.h"
 #include "drivers/console/console.h"
 #include "klib/errno.h"
+#include "klib/stdio.h"
 #include "ksys/types.h"
 #include "mm/uaccess.h"
 #include <stdint.h>
@@ -51,6 +52,7 @@ void tty_input(device_t *dev, char key_ascii) {
       }
     } else {
       con_putc(key_ascii);
+      kdebugf("%c", key_ascii);
       circular_buff_enqueue(&tty->queue, (void *)(uintptr_t)key_ascii);
 
       if (key_ascii == '\n') {
@@ -73,18 +75,15 @@ ssize_t tty_read(device_t *dev, void *buf, size_t size) {
   while (bytes_read < size) {
     spinlock_acquire(&tty->lock);
 
-    // Sleep if empty
     while (circular_buff_is_empty(&tty->queue)) {
       wait_on_queue(&dev->waitq, &tty->lock);
     }
 
-    // Get the character
     char c = (char)(uintptr_t)circular_buff_dequeue(&tty->queue);
     spinlock_release(&tty->lock);
 
     out[bytes_read++] = c;
 
-    // In ICANON mode, we return after a newline
     if ((tty->conf.c_lflag & TTY_ICANON) && c == '\n') {
       break;
     }

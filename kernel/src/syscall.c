@@ -1,4 +1,5 @@
 #include "syscall.h"
+#include "drivers/console/sys_console.h"
 #include "fs/sys_fs.h"
 #include "klib/time.h"
 #include "mm/sys_sbrk.h"
@@ -7,11 +8,9 @@
 #include "proc/sys_exec.h"
 #include "proc/sys_proc.h"
 #include "proc/sys_wait.h"
-#include "sched/sched.h"
 #include "sched/sleep.h"
-#include "net/net_syscalls.h"
-#include "drivers/console/sys_console.h"
 #include "sched/sys_yield.h"
+#include "sys_cwd.h"
 #include "sys_ioctl.h"
 #include "sys_time.h"
 #include <fs/vfs.h>
@@ -27,7 +26,7 @@ typedef enum {
   SYSCALL_NUMBER_SYS_CLOSE,
   SYSCALL_NUMBER_SYS_LSEEK,
   SYSCALL_NUMBER_SYS_FSTAT,
-  SYSCALL_NUMBER_SYS_STAT, // Added: Used by stat()
+  SYSCALL_NUMBER_SYS_STAT,
   SYSCALL_NUMBER_SYS_GETDENTS,
   SYSCALL_NUMBER_SYS_CREATE,
   SYSCALL_NUMBER_SYS_UNLINK,
@@ -36,36 +35,37 @@ typedef enum {
   SYSCALL_NUMBER_SYS_RMDIR,
   SYSCALL_NUMBER_SYS_SYMLINK,
   SYSCALL_NUMBER_SYS_READLINK,
-  SYSCALL_NUMBER_SYS_LINK, // Added: Used by link()
+  SYSCALL_NUMBER_SYS_LINK,
   SYSCALL_NUMBER_SYS_MOUNT,
   SYSCALL_NUMBER_SYS_UMOUNT,
-  SYSCALL_NUMBER_SYS_GETCWD, // Added: Used by getcwd()
+  SYSCALL_NUMBER_SYS_GETCWD,
+  SYSCALL_NUMBER_SYS_CHDIR,
 
   // --- Process & Lifecycle ---
   SYSCALL_NUMBER_SYS_FORK,
   SYSCALL_NUMBER_SYS_EXECVE,
   SYSCALL_NUMBER_SYS_EXIT,
-  SYSCALL_NUMBER_SYS_WAITPID, // Added: Used by wait()
-  SYSCALL_NUMBER_SYS_GETPID,  // Added: Used by getpid()
+  SYSCALL_NUMBER_SYS_WAITPID,
+  SYSCALL_NUMBER_SYS_GETPID,
 
   // --- Scheduling & Time ---
   SYSCALL_NUMBER_SYS_YIELD,
   SYSCALL_NUMBER_SYS_SLEEP,
   SYSCALL_NUMBER_SYS_NANOSLEEP,
   SYSCALL_NUMBER_SYS_GETTIMEOFDAY,
-  SYSCALL_NUMBER_SYS_TIMES, // Added: Used by times()
+  SYSCALL_NUMBER_SYS_TIMES,
 
   // --- Memory Management ---
   SYSCALL_NUMBER_SYS_SBRK,
   SYSCALL_NUMBER_SYS_MMAP,
   SYSCALL_NUMBER_SYS_MUNMAP,
-  SYSCALL_NUMBER_SYS_MPROTECT, // Added: Used by mprotect()
+  SYSCALL_NUMBER_SYS_MPROTECT,
 
   // --- Signals & IPC ---
   SYSCALL_NUMBER_SYS_PIPE,
   SYSCALL_NUMBER_SYS_SIGACTION,
-  SYSCALL_NUMBER_SYS_SIGPROCMASK, // Added: Used by sigprocmask()
-  SYSCALL_NUMBER_SYS_KILL,        // Added: Used by kill()
+  SYSCALL_NUMBER_SYS_SIGPROCMASK,
+  SYSCALL_NUMBER_SYS_KILL,
 
   // --- Networking (Sockets) ---
   SYSCALL_NUMBER_SYS_SOCKET,
@@ -119,6 +119,10 @@ long syscall_dispatch(syscall_info_t f) {
   case SYSCALL_NUMBER_SYS_READLINK:
     return sys_readlink((const char *)f.args[0], (char *)f.args[1],
                         (size_t)f.args[2]);
+  case SYSCALL_NUMBER_SYS_CHDIR:
+    return sys_chdir((const char *)f.args[0]);
+  case SYSCALL_NUMBER_SYS_GETCWD:
+    return sys_getcwd((char *)f.args[0], (size_t)f.args[1]);
   case SYSCALL_NUMBER_SYS_LINK:
     return -ENOSYS; // Unimplemented
 
@@ -144,7 +148,7 @@ long syscall_dispatch(syscall_info_t f) {
   case SYSCALL_NUMBER_SYS_GETPID:
     return sys_getpid();
 
-  /* --- Scheduling & Time --- */
+    /* --- Scheduling & Time --- */
   case SYSCALL_NUMBER_SYS_YIELD:
     sys_yield();
     return 0;
@@ -187,16 +191,17 @@ long syscall_dispatch(syscall_info_t f) {
                         (int)f.args[3], (struct sockaddr *)f.args[4],
                         (uint32_t *)f.args[5]);
 
-    return sys_recvfrom((int)f.args[0], (void*)f.args[1], (size_t)f.args[2],
-                        (int)f.args[3], (struct sockaddr*)f.args[4], (uint32_t*)f.args[5]);
+    return sys_recvfrom((int)f.args[0], (void *)f.args[1], (size_t)f.args[2],
+                        (int)f.args[3], (struct sockaddr *)f.args[4],
+                        (uint32_t *)f.args[5]);
   case SYSCALL_NUMBER_SYS_ARP_RESOLVE:
     return sys_arp_resolve((uint8_t *)f.args[0], (uint8_t *)f.args[1]);
-  
+
   case SYSCALL_NUMBER_SYS_CLEAR:
-    return sys_clear();              
+    return sys_clear();
   case SYSCALL_NUMBER_SYS_IOCTL:
     return sys_ioctl((int)f.args[0], (unsigned long)f.args[1],
-                     (void *)f.args[2]);       
+                     (void *)f.args[2]);
 
   default:
     return -EINVAL;
