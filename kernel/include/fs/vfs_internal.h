@@ -104,7 +104,7 @@ static inline int dir_emit(dir_ctx_t *ctx, const char *name, int namelen,
   return 0;
 }
 
-mount_point_t *vfs_find_mount_point(const char *path);
+mount_point_t *vfs_find_mount_point(const char *path, vnode_t *const base_node);
 int vfs_fs_type_register(fs_type_t *fs_type);
 int vfs_fs_type_unregister(const char *name);
 

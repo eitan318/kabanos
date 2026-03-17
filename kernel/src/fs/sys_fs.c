@@ -18,6 +18,8 @@ static vnode_t *get_cwd() {
 long sys_create(const char *path) {
   if (!path)
     return -EINVAL;
+
+  vnode_t *cwd = get_cwd();
   return vfs_create(path, get_cwd(), 0);
 }
 
@@ -72,7 +74,8 @@ long sys_open(const char *pathname, int flags, mode_t mode) {
   if (!pathname)
     return -EINVAL;
 
-  int fd = vfs_open(pathname, get_cwd(), flags, mode);
+  vnode_t *cwd = get_cwd();
+  int fd = vfs_open(pathname, cwd, flags, mode);
   if (fd < 0)
     return -ENOENT;
 

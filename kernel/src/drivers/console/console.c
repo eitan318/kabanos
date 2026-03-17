@@ -32,6 +32,8 @@ static int g_param_idx = 0;
 
 static int g_con_x = 0;
 static int g_con_y = 0;
+static int g_saved_x = 0;
+static int g_saved_y = 0;
 static uint8_t g_con_color = 0;
 
 static uint8_t g_con_default_color;
@@ -58,6 +60,14 @@ void con_cursor_set(int x, int y) {
 
 static void handle_csi_command(char c) {
   switch (c) {
+  case 's': // Save Cursor: \e[s
+    g_saved_x = g_con_x;
+    g_saved_y = g_con_y;
+    break;
+
+  case 'u': // Restore Cursor: \e[u
+    con_cursor_set(g_saved_x, g_saved_y);
+    break;
   case 'H': // Cursor Home / Move: \e[row;colH
   case 'f':
     // ANSI is 1-based, VGA is 0-based
@@ -104,13 +114,20 @@ void con_putc(char c) {
       g_state = STATE_PARAMS;
       g_params[0] = g_params[1] = g_params[2] = g_params[3] = 0;
       g_param_idx = 0;
-      return;
-    } else {
-      // Not a CSI sequence.
-      // Better behavior: Print the ESC we skipped, then handle this char.
+      return; // Correct
+    } else if (c == '7') {
+      g_saved_x = g_con_x;
+      g_saved_y = g_con_y;
       g_state = STATE_NORMAL;
-      // Optional: draw a '^[' or just ignore.
-      // Most real terms ignore raw ESC if not followed by bracket.
+      return; // ADD THIS: Prevent printing '7'
+    } else if (c == '8') {
+      con_cursor_set(g_saved_x, g_saved_y);
+      g_state = STATE_NORMAL;
+      return; // ADD THIS: Prevent printing '8'
+    } else {
+      g_state = STATE_NORMAL;
+      // return; // Optional: return here if you want to swallow unknown ESC
+      // sequences
     }
   } else if (g_state == STATE_PARAMS) {
     if (c >= '0' && c <= '9') {
@@ -120,13 +137,15 @@ void con_putc(char c) {
       if (g_param_idx < 3)
         g_param_idx++;
       return;
+    } else if (c == '?') {
+      // Just ignore the '?' for now so it doesn't break the state
+      return;
     } else {
       handle_csi_command(c);
       g_state = STATE_NORMAL;
       return;
     }
   }
-
   // Handle standard character printing
   if (c == '\n') {
     g_con_x = 0;

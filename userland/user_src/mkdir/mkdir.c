@@ -1,48 +1,40 @@
-#include <dirent.h>
 #include <errno.h>
 #include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 
-void handle_error(const char *path)
-{
-  switch(errno) {
-    case EEXIST:
-      printf("mkdir: cannot create directory '%s': File exists\n", path);
-      break;
-    case ENOENT:
-      printf("mkdir: cannot create directory '%s': No such file or directory\n", path);
-      break;
-
-    default:
-      printf("mkdir failed: unknown error\n");
+void handle_error(const char *path) {
+  switch (errno) {
+  case EEXIST:
+    fprintf(stderr, "mkdir: cannot create directory '%s': File exists\n", path);
+    break;
+  case ENOENT:
+    fprintf(stderr,
+            "mkdir: cannot create directory '%s': No such file or directory\n",
+            path);
+    break;
+  case EACCES:
+    fprintf(stderr, "mkdir: cannot create directory '%s': Permission denied\n",
+            path);
+    break;
+  default:
+    fprintf(stderr, "mkdir: cannot create directory '%s': %s\n", path,
+            strerror(errno));
+    break;
   }
 }
 
 int main(int argc, char *argv[]) {
   if (argc != 2) {
-    printf("Usage: mkdir <path>\n");
+    fprintf(stderr, "Usage: %s <path>\n", argv[0]);
     return 1;
   }
 
-  int total_length =
-      strlen(argv[1]) + 2; // +2 - 1 - null terminator, 1 - for '/'
-  char *path =
-      (char *)calloc(total_length, sizeof(char)); // +1 for null terminator
-
-  if (argv[1][0] != '/') {
-    strcat(path, "/");
-  }
-  strcat(path, argv[1]);
-
-  if (mkdir(path, 0) == 0) {
-    free(path);
+  if (mkdir(argv[1], 0755) == 0) {
     return 0;
   }
 
-  if (errno)
-    handle_error(argv[1]);
-
-  free(path);
+  handle_error(argv[1]);
   return 1;
 }

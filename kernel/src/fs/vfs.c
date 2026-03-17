@@ -291,7 +291,8 @@ ssize_t vfs_readlink(const char *path, vnode_t *cwd, char *buf,
   return result;
 }
 
-static int vfs_remove_mount_point(const char *path) {
+static int vfs_remove_mount_point(const char *path, vnode_t *const base_node) {
+  ASSERT(!base_node);
   mount_point_t *prev = NULL;
   mount_point_t *curr = mount_p_table;
 
@@ -378,16 +379,25 @@ int vfs_rename(const char *oldpath, vnode_t *cwd, const char *newpath) {
 }
 
 int vfs_umount(const char *target, vnode_t *const base_node) {
+  super_block_t *sb;
+  if (base_node) {
+    sb = base_node->super_block;
+  } else {
+    mount_point_t *mp = vfs_find_mount_point(target, NULL);
+    sb = mp->super_block;
+  }
 
-  mount_point_t *mp = vfs_find_mount_point(target);
-  super_block_t *sb = mp->super_block;
   sb->fs_type->kill_sb(sb);
-  vfs_remove_mount_point(target);
+
+  vfs_remove_mount_point(target, NULL);
   return 0;
 }
 
 // Find the best matching mount point for a path
-mount_point_t *vfs_find_mount_point(const char *path) {
+mount_point_t *vfs_find_mount_point(const char *path,
+                                    vnode_t *const base_node) {
+  ASSERT(!base_node); // Rel unimplemented
+
   mount_point_t *best_match = NULL;
   int best_match_len = 0;
 
@@ -519,7 +529,7 @@ static vnode_t *vfs_walk(vnode_t *const base_node, const char *relative_path,
   return current;
 }
 
-vnode_t *vfs_lookup_path(const char *path, vnode_t *const cwd,
+vnode_t *vfs_lookup_path(const char *path, vnode_t *const base_node,
                          bool follow_final_symlink) {
   ASSERT(path);
 
@@ -527,7 +537,7 @@ vnode_t *vfs_lookup_path(const char *path, vnode_t *const cwd,
   const char *relative_path = path;
 
   if (path[0] == '/') {
-    mount_point_t *mount = vfs_find_mount_point(path);
+    mount_point_t *mount = vfs_find_mount_point(path, NULL);
     if (!mount)
       return NULL;
     start_node = mount->super_block->fs_root;
@@ -536,9 +546,9 @@ vnode_t *vfs_lookup_path(const char *path, vnode_t *const cwd,
     while (*relative_path == '/')
       relative_path++;
   } else {
-    if (!cwd)
+    if (!base_node)
       return NULL;
-    start_node = cwd;
+    start_node = base_node;
   }
   return vfs_walk(start_node, relative_path, follow_final_symlink);
 }
@@ -735,50 +745,49 @@ static int vfs_parent_operation(const char *path, vnode_t *base_node,
   kfree(path_copy);
   return result;
 }
+// Helper to dry up the boilerplate
+static struct vnode_ops *get_vops(const char *path, vnode_t *const base_node) {
+  if (base_node) {
+    return base_node->super_block->v_ops;
+  }
+  mount_point_t *mp = vfs_find_mount_point(path, NULL);
+  if (!mp || !mp->super_block)
+    return NULL;
+  return mp->super_block->v_ops;
+}
 
 int vfs_create(const char *path, vnode_t *const base_node, mode_t mode) {
-  struct vnode_ops *vnode_ops;
-  if (base_node) {
-    vnode_ops = base_node->super_block->v_ops;
-  } else {
-    mount_point_t *mp = vfs_find_mount_point(path);
-    vnode_ops = mp->super_block->v_ops;
-  }
-  if (!vnode_ops || !vnode_ops->create) {
-    kdebugf("No vnode ops");
+  struct vnode_ops *vops = get_vops(path, base_node);
+  if (!vops || !vops->mkdir)
     return -1;
-  }
-  return vfs_parent_operation(path, base_node, vnode_ops->create, mode);
+  return vfs_parent_operation(path, base_node, vops->create, mode);
 }
 
 int vfs_mkdir(const char *path, vnode_t *const base_node, mode_t mode) {
-  mount_point_t *mp = vfs_find_mount_point(path);
-  struct vnode_ops *vnode_ops = mp->super_block->v_ops;
-  if (!mp || !vnode_ops || !vnode_ops->mkdir) {
+  struct vnode_ops *vops = get_vops(path, base_node);
+  if (!vops || !vops->mkdir)
     return -1;
-  }
-  return vfs_parent_operation(path, base_node, vnode_ops->mkdir, mode);
+
+  return vfs_parent_operation(path, base_node, vops->mkdir, mode);
 }
 
 int vfs_rmdir(const char *path, vnode_t *const base_node) {
-  mount_point_t *mp = vfs_find_mount_point(path);
-  struct vnode_ops *vnode_ops = mp->super_block->v_ops;
-  if (!mp || !vnode_ops || !vnode_ops->rmdir) {
+  struct vnode_ops *vops = get_vops(path, base_node);
+  if (!vops || !vops->rmdir)
     return -1;
-  }
+
+  // Casting to match the expected signature in vfs_parent_operation
   return vfs_parent_operation(
-      path, base_node,
-      (int (*)(vnode_t *, const char *, mode_t))vnode_ops->rmdir, 0);
+      path, base_node, (int (*)(vnode_t *, const char *, mode_t))vops->rmdir,
+      0);
 }
 
 int vfs_unlink(const char *path, vnode_t *const base_node) {
-  mount_point_t *mp = vfs_find_mount_point(path);
-  struct vnode_ops *vnode_ops = mp->super_block->v_ops;
-  if (!mp || !vnode_ops || !vnode_ops->unlink) {
+  struct vnode_ops *vops = get_vops(path, base_node);
+  if (!vops || !vops->unlink)
     return -1;
-  }
-  // unlink doesn't use mode, just pass 0
+
   return vfs_parent_operation(
-      path, base_node,
-      (int (*)(vnode_t *, const char *, mode_t))vnode_ops->unlink, 0);
+      path, base_node, (int (*)(vnode_t *, const char *, mode_t))vops->unlink,
+      0);
 }

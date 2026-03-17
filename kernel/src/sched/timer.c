@@ -22,7 +22,7 @@ void timer_on_tick(void *context) {
   sched_on_timer_tick(context);
 }
 
-static timespec_t boot_time_offset = {0, 0};
+static timespec_t boot_time_offset = {1771149600, 0};
 
 void timekeeping_get_walltime(timespec_t *tv) {
   ASSERT(tv);

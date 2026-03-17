@@ -55,6 +55,7 @@ typedef enum {
   SYSCALL_NUMBER_SYS_CLOSE,
   SYSCALL_NUMBER_SYS_LSEEK,
   SYSCALL_NUMBER_SYS_FSTAT,
+  SYSCALL_NUMBER_SYS_LSTAT,
   SYSCALL_NUMBER_SYS_STAT,
   SYSCALL_NUMBER_SYS_GETDENTS,
   SYSCALL_NUMBER_SYS_CREATE,
@@ -286,6 +287,10 @@ int fstat(int file, struct stat *st) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_FSTAT, file, (long)st, 0, 0, 0, 0);
 }
 
+int lstat(int file, struct stat *st) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_LSTAT, file, (long)st, 0, 0, 0, 0);
+}
+
 int stat(const char *file, struct stat *st) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_STAT, (long)file, (long)st, 0, 0, 0,
                         0);
@@ -441,4 +446,18 @@ int rmdir(const char *path) {
 
 int create(const char *path) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_CREATE, (long)path, 0, 0, 0, 0, 0);
+}
+
+int gettimeofday(timespec_t *tv, void *tz) {
+  return (int)_syscall6(SYSCALL_NUMBER_SYS_GETTIMEOFDAY, (long)tv, (long)tz, 0,
+                        0, 0, 0);
+}
+
+time_t time(time_t *t) {
+  timespec_t tv;
+  if (gettimeofday(&tv, NULL) < 0)
+    return (time_t)-1;
+  if (t)
+    *t = tv.tv_sec;
+  return tv.tv_sec;
 }

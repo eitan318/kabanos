@@ -1,51 +1,83 @@
 #include <dirent.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
 #include <errno.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-void handle_error(const char *path)
-{
-  switch(errno) {
-    case ENOENT:
-      printf("rmdir: failed to remove '%s': No such file or directory\n", path);
-      break;
-    case ENOTEMPTY:
-      printf("rmdir: failed to remove '%s': Directory not empty\n", path);
-      break;
-    case ENOTDIR:
-      printf("rmdir: failed to remove '%s': Not a directory\n", path);
-      break;
-    
-    default:
-      printf("errno: %d\n", errno);
-      printf("ENOTEMPTY: %d\n", ENOTEMPTY);
-      printf("rmdir failed: unknown error\n");
+// Recursive function to delete files and directories
+int remove_recursive(const char *path) {
+  struct stat path_stat;
+
+  // Get stats to see if it's a file or directory
+  if (lstat(path, &path_stat) < 0)
+    return -1;
+
+  // If it's not a directory, just unlink it (delete file)
+  if (!S_ISDIR(path_stat.st_mode)) {
+    return unlink(path);
   }
+
+  // It's a directory: Open it and iterate through contents
+  DIR *d = opendir(path);
+  if (!d)
+    return -1;
+
+  struct dirent *p;
+  int r = 0;
+
+  while (!r && (p = readdir(d))) {
+    // Skip the special "." and ".." directories to avoid infinite loops
+    if (!strcmp(p->d_name, ".") || !strcmp(p->d_name, "..")) {
+      continue;
+    }
+
+    // Build the full path for the child item
+    char *buf = malloc(strlen(path) + strlen(p->d_name) + 2);
+    if (buf) {
+      sprintf(buf, "%s/%s", path, p->d_name);
+      r = remove_recursive(buf); // RECURSION
+      free(buf);
+    }
+  }
+
+  closedir(d);
+
+  // After children are deleted, delete the now-empty directory
+  if (!r) {
+    r = rmdir(path);
+  }
+
+  return r;
 }
 
 int main(int argc, char *argv[]) {
-  if (argc != 2) {
-    printf("Usage: rmdir <path>\n");
+  int recursive = 0;
+  char *target_path = NULL;
+
+  if (argc == 3 && strcmp(argv[1], "-r") == 0) {
+    recursive = 1;
+    target_path = argv[2];
+  } else if (argc == 2) {
+    target_path = argv[1];
+  } else {
+    fprintf(stderr, "Usage: %s [-r] <path>\n", argv[0]);
     return 1;
   }
 
-  int total_length = strlen(argv[1]) + 2; // +2 - 1 - null terminator, 1 - for '/'
-  char *path = (char*)calloc(total_length, sizeof(char)); // +1 for null terminator
-
-  if (argv[1][0] != '/') {
-    strcat(path, "/");
-  }
-  strcat(path, argv[1]);
-
-  if (rmdir(path) == 0) {
-    free(path);
-    return 0;
+  int result;
+  if (recursive) {
+    result = remove_recursive(target_path);
+  } else {
+    result = rmdir(target_path);
   }
 
-  if (errno)
-    handle_error(argv[1]);
+  if (result != 0) {
+    fprintf(stderr, "rmdir: failed to remove '%s': %s\n", target_path,
+            strerror(errno));
+    return 1;
+  }
 
-  free(path);
-  return 1;
+  return 0;
 }
