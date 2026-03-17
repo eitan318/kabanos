@@ -104,9 +104,6 @@ typedef enum {
   SYSCALL_NUMBER_SYS_RECVFROM,
   SYSCALL_NUMBER_SYS_ARP_RESOLVE,
 
-  // --- Console ---
-  SYSCALL_NUMBER_SYS_CLEAR,
-
   // --- IO ---
   SYSCALL_NUMBER_SYS_IOCTL,
 } SYSCALL_NUMBER;
@@ -332,10 +329,6 @@ int sigaction(int signum, const struct sigaction *act, struct sigaction *oact) {
 int getdents(int fd, void *buf, unsigned int size) {
   return (int)_syscall6(SYSCALL_NUMBER_SYS_GETDENTS, (long)fd, (long)buf,
                         (long)size, 0, 0, 0);
-}
-
-int clear(void) {
-  return (int)_syscall6(SYSCALL_NUMBER_SYS_CLEAR, 0, 0, 0, 0, 0, 0);
 }
 
 typedef unsigned int myos_socklen_t;

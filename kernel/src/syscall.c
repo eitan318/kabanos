@@ -75,9 +75,6 @@ typedef enum {
   SYSCALL_NUMBER_SYS_RECVFROM,
   SYSCALL_NUMBER_SYS_ARP_RESOLVE,
 
-  // --- Console ---
-  SYSCALL_NUMBER_SYS_CLEAR,
-
   // --- IO ---
   SYSCALL_NUMBER_SYS_IOCTL,
 } SYSCALL_NUMBER;
@@ -198,8 +195,6 @@ long syscall_dispatch(syscall_info_t f) {
   case SYSCALL_NUMBER_SYS_ARP_RESOLVE:
     return sys_arp_resolve((uint8_t *)f.args[0], (uint8_t *)f.args[1]);
 
-  case SYSCALL_NUMBER_SYS_CLEAR:
-    return sys_clear();
   case SYSCALL_NUMBER_SYS_IOCTL:
     return sys_ioctl((int)f.args[0], (unsigned long)f.args[1],
                      (void *)f.args[2]);

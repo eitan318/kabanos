@@ -2,9 +2,23 @@
 #include <time.h>
 #include <unistd.h>
 
+// --- ANSI Escape Defines ---
+#define TERM_SAVE_CURSOR "\0337"
+#define TERM_RESTORE_CURSOR "\0338"
+#define TERM_HIDE_CURSOR "\033[?25l"
+#define TERM_SHOW_CURSOR "\033[?25h"
+#define TERM_GOTO_CLOCK_POS "\033[1;71H"
+
+#define ANSI_COLOR_RED "\x1b[31m"
+#define ANSI_COLOR_GREEN "\x1b[32m"
+#define ANSI_COLOR_YELLOW "\x1b[33m"
+#define ANSI_COLOR_BLUE "\x1b[34m"
+#define ANSI_COLOR_CYAN "\x1b[36m"
+#define ANSI_COLOR_RESET "\x1b[0m"
+
 int main() {
-  // Hide cursor
-  printf("\033[?25l");
+  // Disable cursor to prevent flickering in the corner
+  printf(TERM_HIDE_CURSOR);
   fflush(stdout);
 
   while (1) {
@@ -15,21 +29,26 @@ int main() {
     if (time(&rawtime) == (time_t)-1) {
       break;
     }
+
     timeinfo = localtime(&rawtime);
+    if (!timeinfo)
+      continue;
+
+    // Format: HH:MM:SS
     strftime(buffer, sizeof(buffer), "%H:%M:%S", timeinfo);
 
-    /* \0337     : DEC Save Cursor (More reliable than \033[s)
-       \033[1;72H : Move to Row 1, Col 72
-       \033[1;33m : Yellow text
-       \033[0m    : Reset colors
-       \0338     : DEC Restore Cursor (More reliable than \033[u)
-    */
-    printf("\0337\033[1;72H\033[1;33m[%s]\033[0m\0338", buffer);
+    // Sequence: Save -> Move -> Style -> Print -> Reset -> Restore
+    printf(TERM_SAVE_CURSOR TERM_GOTO_CLOCK_POS ANSI_COLOR_GREEN
+           "[%s]" ANSI_COLOR_RESET TERM_RESTORE_CURSOR,
+           buffer);
 
     fflush(stdout);
     sleep(1);
   }
 
-  printf("\033[?25h");
+  // Restore cursor before exit
+  printf(TERM_SHOW_CURSOR);
+  fflush(stdout);
+
   return 0;
 }
