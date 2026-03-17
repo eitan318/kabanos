@@ -1,5 +1,5 @@
-#include "stdio.h"
 int main() {
-  printf("Hello, World!");
+  const char *msg = "Hello from MyOS!\n";
+  write(1, msg, 18);
   return 0;
 }
