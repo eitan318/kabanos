@@ -23,4 +23,4 @@ add_custom_target(os_image ALL
     DEPENDS "${OS_IMAGE_OUT}"
 )
 
-add_dependencies(os_image host_tools_project userland_stamp_target)  # <-- ADD userland_stamp_target here
+add_dependencies(os_image host_tools_project userland_stamp_target)  

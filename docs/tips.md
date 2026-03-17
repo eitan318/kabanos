@@ -1,41 +1,116 @@
-│    0x400721        mov    ebp,esp                                                       │
-│    0x400723        sub    esp,0x4                                                       │
-│    0x400729        mov    eax,0x0                                                       │
-│    0x40072e        mov    DWORD PTR [ebp-0x4],eax                                       │
-│  > 0x400731        nop                                                                  │
-│    0x400732        nop                                                                  │
-│    0x400733        nop                                                                  │
-│    0x400734        nop                                                                  │
-│    0x400735        nop                                                                  │
-│    0x400736        nop                                                                  │
-│    0x400737        nop                                                                  │
-│    0x400738        nop                                                                  │
-│    0x400739        mov    eax,0x4134ea                                                  │
-│    0x40073e        push   eax                                                           │
-│    0x40073f        call   0x40084c                                                      │
+int myfs_lookup(MyfsSuperBlock *sb, MyfsInode *dir_inode, const char *name,
+                uint32_t *found_ino) {
+  if (!dir_inode || !S_ISDIR(dir_inode->mode))
+    return -1;
+  if (dir_inode->size == 0)
+    return -1;
+
+  int entries_count = dir_inode->size / sizeof(MyfsDirEntry);
+  MyfsDirEntry *entries = kmalloc(dir_inode->size);
+  if (!entries)
+    return -1;
+
+  if (myfs_node_read(sb, dir_inode, 0, entries, dir_inode->size) < 0) {
+    kfree(entries);
+    return -1;
+  }
+
+  int idx = myfs_entry_idx_find(entries, entries_count, name);
+  if (idx == -1) {
+    kfree(entries);
+    return -1;
+  }
+
+  *found_ino = entries[idx].inode_num;
+  kfree(entries);
+  return 0;
+}
 
 
-when my mkfs script:
 
-(gdb) p* sb
-$2 = {on_disk = {magic = 268549871, total_inodes = 1220, total_blocks = 4882, free_inodes = 0, 
-free_blocks = 0, block_sectors = 4, file_initial_blocks = 1,
-    inode_bitmap_start = 4, block_bitmap_start = 1, inode_table_start = 5, data_blocks_start = 77,
-    root_inode = 1}, dev = 0x7fffffffdbd0, block_bytes = 2048,
-  block_bitmap = 0x55555555dde0 "\377\377\377\377\377\377\377\377\377?", 
-  inode_bitmap = 0x55555555dd30 "\002", inode_hash_table = {0x0, 0x55555555e0d0,
-    0x0 <repeats 254 times>}, mounted = 1, plt = 0x55555555c480}
-(gdb)
 
-after when opened from disk inside os:
+void kfree(void *ptr) {
+  if (!ptr) {
+    return;
+  }
 
-(gdb) p sb->on_disk
-$1 = {magic = 268549871, total_inodes = 8189, total_blocks = 32759, free_inodes = 0,
-  free_blocks = 0, block_sectors = 4, file_initial_blocks = 1,
-  inode_bitmap_start = 17, block_bitmap_start = 1, inode_table_start = 21,
-  data_blocks_start = 501, root_inode = 1}
-(gdb)
+  // Find the slab this belongs to
+  slab_t *slab = slab_find(ptr);
+  size_t obj_size = slab->object_size;
 
-in driver
-static vnode_t *myfsd_v_lookup(vnode_t *dir, const char *name) {
-  MyfsInode *child_inode = myfs_iget(myfs_sb, child_ino);
+  // Find the cache
+  kmem_cache_t *cache = cache_for_size(obj_size);
+  if (!cache) {
+    // Large allocation - free pages directly
+    heap_page_free(ptr);
+    stats.total_freed += PAGE_SIZE;
+    stats.current_usage -= PAGE_SIZE;
+    return;
+  }
+
+  // Was this slab full?
+  bool was_full = (slab->free_count == 0);
+
+  // Free the object
+  slab_free(slab, ptr);
+  stats.total_freed += obj_size;
+  stats.current_usage -= obj_size;
+
+  // If slab was full, move to partial list
+  if (was_full) {
+    // Remove from full list
+    slab_t **prev = &cache->full_slabs;
+    while (*prev && *prev != slab) { // here err
+      prev = &(*prev)->next;
+    }
+    if (*prev == slab) {
+      *prev = slab->next;
+    }
+
+    // Add to partial list
+    slab->next = cache->partial_slabs;
+    cache->partial_slabs = slab;
+  }
+
+  // If slab is now empty, consider moving to empty list
+  if (slab->free_count == slab->total_count) {
+    // Remove from partial list
+    slab_t **prev = &cache->partial_slabs;
+    while (*prev && *prev != slab) {
+      prev = &(*prev)->next;
+    }
+    if (*prev == slab) {
+      *prev = slab->next;
+    }
+
+    // Add to empty list
+    slab->next = cache->empty_slabs;
+    cache->empty_slabs = slab;
+
+    // Optional: Destroy empty slabs to reclaim memory
+    // slab_destroy(slab);
+  }
+}
+
+
+
+
+
+
+
+/ $ tcc -nostdlib /usr/lib/crt0.o no.c -lc -lnosys -o no.ohello.c -lc -lnocsys -o no.ohello.o
+Segmentation Fault: No VMA at 0x21
+gs: 0x23, gs: 0x23, fs: 0x23, fs: 0x23, es: 0x23, es: 0x23, ds: 0x23, ds: 0x23, edi: 0x0, edi: 0x0, esi: 0x0, esi: 0x0, ebp: 0xf1091bc8, ebp: 0xf1091bc8, esp_dummy: 0xf1091b8c, esp_dummy: 0xf1091b8c, ebx: 0xbfffe0b4, ebx: 0xbfffe0b4, edx: 0xe9a0, edx: 0xe9a0, ecx: 0xe0346800, ecx: 0xe0346800, eax: 0x21, eax: 0x21, int_no: 0xe, int_no: 0xe, err_code: 0x0, err_code: 0x0, eip: 0xc010adf0, eip: 0xc010adf0, cs: 0x8, cs: 0x8, eflags: 0x92, eflags: 0x92, esp_user: 0xe03466a3, esp_user: 0xe03466a3, ss_user: 0xe0000b47, ss_user: 0xe0000b47, cr2: 0x21, cr2: 0x21, cr3: 0x65a000, cr3: 0x65a000,
+
+FAULTING_INSTRUCTION_OF_PANIC: 0xc010adf0
+STACK_OF_PANIC: 0xc0106139
+
+--- Panic detected! Resolving addresses ---
+
+FAULT @ 0xc010adf0:
+/project/kernel/src/mm/kmalloc.c:338
+
+STACK BACKTRACE:
+/project/kernel/src/fs/myfs/myfs.c:869
+
+--- End of panic resolution ---

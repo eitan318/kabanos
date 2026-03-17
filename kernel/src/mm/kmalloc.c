@@ -333,18 +333,16 @@ void kfree(void *ptr) {
 
   // If slab was full, move to partial list
   if (was_full) {
-    // Remove from full list
     slab_t **prev = &cache->full_slabs;
     while (*prev && *prev != slab) {
       prev = &(*prev)->next;
     }
-    if (*prev == slab) {
+    if (*prev) { // Only unlink if we actually found it!
       *prev = slab->next;
+      // Add to partial list
+      slab->next = cache->partial_slabs;
+      cache->partial_slabs = slab;
     }
-
-    // Add to partial list
-    slab->next = cache->partial_slabs;
-    cache->partial_slabs = slab;
   }
 
   // If slab is now empty, consider moving to empty list

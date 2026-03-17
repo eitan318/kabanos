@@ -65,6 +65,20 @@ add_custom_command(
 
 add_custom_target(tcc_target ALL DEPENDS "${TCC_ELF}")
 
+add_custom_command(
+    TARGET tcc_target
+    POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory "${NEWLIB_SYSROOT}/usr/lib/tcc/include"
+    COMMAND ${CMAKE_COMMAND} -E copy
+        /opt/tcc-src/include/stddef.h
+        /opt/tcc-src/include/stdarg.h
+        /opt/tcc-src/include/stdbool.h
+        /opt/tcc-src/include/float.h
+        "${NEWLIB_SYSROOT}/usr/lib/tcc/include/"
+    COMMENT "Installing TCC internal headers to sysroot"
+)
+
+
 # --- 4. Discovery & Build Apps ---
 set(ALL_ELF_FILES "${TCC_ELF}") # Start the list with TCC
 
@@ -79,7 +93,7 @@ add_custom_command(
     OUTPUT "${USERLAND_STAMP}"
     COMMAND ${CMAKE_COMMAND} -E copy_directory "${CMAKE_CURRENT_SOURCE_DIR}/pre_inserted" "${NEWLIB_SYSROOT}"
     COMMAND ${CMAKE_COMMAND} -E touch "${USERLAND_STAMP}"
-    DEPENDS ${ALL_ELF_FILES}
+    DEPENDS ${ALL_ELF_FILES} tcc_target
     VERBATIM
 )
 
