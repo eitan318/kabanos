@@ -24,13 +24,15 @@ int shell_exit(char **args);
 
 /* --- Builtin dispatch table --- */
 char *builtin_str[] = {"cd", "help", "exit"};
-
 int (*builtin_func[])(char **) = {&shell_cd, &shell_help, &shell_exit};
 
 static int num_builtins(void) { return sizeof(builtin_str) / sizeof(char *); }
 
 /* --- Line parsing --- */
-static int parse_line(char *line, char **argv) {
+/* Returns 1 if the command should run in the background, 0 otherwise.
+   A trailing "&" token is consumed (removed from argv) and argc is decremented.
+ */
+static int parse_line(char *line, char **argv, int *argc_out) {
   int argc = 0;
   char *p = line;
   while (*p) {
@@ -47,7 +49,17 @@ static int parse_line(char *line, char **argv) {
       *p++ = '\0';
   }
   argv[argc] = NULL;
-  return argc;
+
+  /* Check for trailing "&" and strip it */
+  int background = 0;
+  if (argc > 0 && strcmp(argv[argc - 1], "&") == 0) {
+    background = 1;
+    argv[--argc] = NULL;
+  }
+
+  if (argc_out)
+    *argc_out = argc;
+  return background;
 }
 
 /* --- Builtin: cd --- */
@@ -77,16 +89,14 @@ int shell_exit(char **args) {
 }
 
 /* --- External program launcher --- */
-static int launch_external_program(char **argv) {
+static int launch_external_program(char **argv, int background) {
   char path[128];
   if (argv[0][0] == '/')
     snprintf(path, sizeof(path), "%s", argv[0]);
   else
     snprintf(path, sizeof(path), "/bin/%s.elf", argv[0]);
-
   fflush(stdout);
   fflush(stderr);
-
   int pid = fork();
   if (pid < 0) {
     fprintf(stderr, "shell: fork failed\n");
@@ -99,34 +109,32 @@ static int launch_external_program(char **argv) {
     fflush(stderr);
     exit(1);
   }
-
+  if (background) {
+    return 0;
+  }
   int status = 0;
   wait(&status);
   return status;
 }
 
 /* --- Command dispatcher --- */
-int execute_command(char **args) {
+int execute_command(char **args, int background) {
   if (args[0] == NULL)
     return 1;
-
   for (int i = 0; i < num_builtins(); i++) {
     if (strcmp(args[0], builtin_str[i]) == 0)
       return (*builtin_func[i])(args);
   }
-
-  return launch_external_program(args);
+  return launch_external_program(args, background);
 }
 
 /* --- Main loop --- */
 int main(int argc, char **argv) {
   char line[MAX_LINE];
   char *args[MAX_ARGS];
-
   if (argc > 1) {
-    execute_command(&argv[1]);
+    execute_command(&argv[1], 0);
   }
-
   while (1) {
     char cwd[PATH_MAX];
     if (getcwd(cwd, sizeof(cwd)) != NULL) {
@@ -134,17 +142,13 @@ int main(int argc, char **argv) {
     }
     printf(" $ ");
     fflush(stdout);
-
     if (fgets(line, sizeof(line), stdin) == NULL)
       break;
-
     line[strcspn(line, "\n")] = '\0';
     if (line[0] == '\0')
       continue;
-
-    parse_line(line, args);
-    execute_command(args);
+    int background = parse_line(line, args, NULL);
+    execute_command(args, background);
   }
-
   return 0;
 }
