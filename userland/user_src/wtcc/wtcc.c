@@ -5,7 +5,7 @@
 
 int main(int argc, char **argv) {
   if (argc < 2) {
-    printf("Usage: tccw <file.c> [-o output]\n");
+    printf("Usage: wtcc [file.c] -o [outputfile.elf]\n");
     return 1;
   }
 

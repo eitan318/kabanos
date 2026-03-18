@@ -71,6 +71,11 @@ struct CommandHelp help_table[] = {
         "Usage: ping x.x.x.x"
     },
     {
+        "wtcc",
+        "Compile c programs to elf files.",
+        "Usage: wtcc [file.c] -o [outputfile.elf]"
+    },
+    {
         "exit",
         "Exit the shell.",
         "Usage: exit"
