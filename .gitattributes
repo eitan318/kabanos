@@ -1,0 +1,13 @@
+# Handle line endings automatically for text files
+* text=auto
+
+# Explicitly declare that C/H files must use LF
+*.c text eol=lf
+*.h text eol=lf
+*.py text eol=lf
+Makefile text eol=lf
+
+# Denote all binary files (so Git doesn't try to "fix" them)
+*.iso binary
+*.bin binary
+*.tar binary

@@ -1,100 +1,116 @@
-debugging: 
-disass page_table_destry
+int myfs_lookup(MyfsSuperBlock *sb, MyfsInode *dir_inode, const char *name,
+                uint32_t *found_ino) {
+  if (!dir_inode || !S_ISDIR(dir_inode->mode))
+    return -1;
+  if (dir_inode->size == 0)
+    return -1;
 
+  int entries_count = dir_inode->size / sizeof(MyfsDirEntry);
+  MyfsDirEntry *entries = kmalloc(dir_inode->size);
+  if (!entries)
+    return -1;
 
-max(CPL, RPL) ≤ DPL
-CPL - Current privlag level of CPU
-RPL - Requested Privlladge Level
-DPL - Descriptor Privlladge Level
+  if (myfs_node_read(sb, dir_inode, 0, entries, dir_inode->size) < 0) {
+    kfree(entries);
+    return -1;
+  }
 
-errcode selector - 0x18
-0000 0000 0001 1000
+  int idx = myfs_entry_idx_find(entries, entries_count, name);
+  if (idx == -1) {
+    kfree(entries);
+    return -1;
+  }
 
-GDTD = 0
-TI = GDT
-RPL = 0
-index = b11 = 3
-
-
-    0x0010791d
-    0x0000001b
-    0x00000202
-    0xbffff000
-    0x00000023
-
-
-taskB () at /home/magshimim/repos/1001_myos/src/kernel/process/schedualer.c:64
-(gdb) lay asm
-(gdb) x/16wx $esp
-0xc0001000:     Cannot access memory at address 0xc0001000
-(gdb)
-
-
-before esp change:
-
-(gdb) n
-(gdb) x/16wx $esp
-0x7a4c: 0x001083a4      0x00007b20      0x0007b000      0x00007a78
-0x7a5c: 0x00108373      0x0007b000      0x00114220      0x00000000
-0x7a6c: 0x00007b20      0x0007a003      0x00007aa4      0x00007ab8
-0x7a7c: 0x00102490      0x00007ac4      0x0007a000      0x00000003
-(gdb)
-
-after esp change to process kernel stack:
-
-(gdb) x/16wx $esp
-0xc0103fc0:     0x00000000      0x00000000      0x00000000      0x00000000
-0xc0103fd0:     0x00000000      0x00000000      0x00000000      0x00000000
-0xc0103fe0:     0x00000010      0x0000002d      0x00000000      0x001083aa
-0xc0103ff0:     0x0000001b      0x00000202      0xc0001000      0x00000023
-(gdb)
-
-
-after popa and pop ds and skip err and int:
-
-(gdb) x/16wx $esp
-0xc0103fec:     0x001083aa      0x0000001b      0x00000202      0xc0001000
-0xc0103ffc:     0x00000023      Cannot access memory at address 0xc0104000
-(gdb)
-
-PROB:
-  vmspace->pd = physical_access(pd_phys);
-  vmspace->pd_phys = pd_phys;
-  memset(vmspace->pd, 0, PAGE_SIZE);
-
-
-│    0xc0107d5a <kernel_vmspace_creat+30>    call   0xc010796f <physical_access>          │
-│    0xc0107d5f <kernel_vmspace_creat+35>    add    esp,0x10                              │
-│    0xc0107d62 <kernel_vmspace_creat+38>    mov    edx,DWORD PTR [ebp+0x8]               │
-│  > 0xc0107d65 <kernel_vmspace_creat+41>    mov    DWORD PTR [edx],eax                   │
-│    0xc0107d67 <kernel_vmspace_creat+43>    mov    eax,DWORD PTR [ebp+0x8]               │
-│    0xc0107d6a <kernel_vmspace_creat+46>    mov    edx,DWORD PTR [ebp-0xc]               │
-│    0xc0107d6d <kernel_vmspace_creat+49>    mov    DWORD PTR [eax+0x4],edx               │
-│    0xc0107d70 <kernel_vmspace_creat+52>    mov    eax,DWORD PTR [ebp+0x8]               │
-│    0xc0107d73 <kernel_vmspace_creat+55>    mov    eax,DWORD PTR [eax]                   │
+  *found_ino = entries[idx].inode_num;
+  kfree(entries);
+  return 0;
+}
 
 
 
-(gdb) p/x $edx
-$2 = 0xc0149000
-(gdb)
 
-TO THINK ABOUT:
-kmain(kernel_boot_info);     ■ Passing 'KernelBootInfo' to parameter of incompatible type 'void *'
+void kfree(void *ptr) {
+  if (!ptr) {
+    return;
+  }
 
-also, what is better? wraping in vspace struct? or allocating new page dir for vmspace? also how to alloc vmspace itself?
+  // Find the slab this belongs to
+  slab_t *slab = slab_find(ptr);
+  size_t obj_size = slab->object_size;
 
-also, should I copy the kernel params and free early pmm? 
+  // Find the cache
+  kmem_cache_t *cache = cache_for_size(obj_size);
+  if (!cache) {
+    // Large allocation - free pages directly
+    heap_page_free(ptr);
+    stats.total_freed += PAGE_SIZE;
+    stats.current_usage -= PAGE_SIZE;
+    return;
+  }
+
+  // Was this slab full?
+  bool was_full = (slab->free_count == 0);
+
+  // Free the object
+  slab_free(slab, ptr);
+  stats.total_freed += obj_size;
+  stats.current_usage -= obj_size;
+
+  // If slab was full, move to partial list
+  if (was_full) {
+    // Remove from full list
+    slab_t **prev = &cache->full_slabs;
+    while (*prev && *prev != slab) { // here err
+      prev = &(*prev)->next;
+    }
+    if (*prev == slab) {
+      *prev = slab->next;
+    }
+
+    // Add to partial list
+    slab->next = cache->partial_slabs;
+    cache->partial_slabs = slab;
+  }
+
+  // If slab is now empty, consider moving to empty list
+  if (slab->free_count == slab->total_count) {
+    // Remove from partial list
+    slab_t **prev = &cache->partial_slabs;
+    while (*prev && *prev != slab) {
+      prev = &(*prev)->next;
+    }
+    if (*prev == slab) {
+      *prev = slab->next;
+    }
+
+    // Add to empty list
+    slab->next = cache->empty_slabs;
+    cache->empty_slabs = slab;
+
+    // Optional: Destroy empty slabs to reclaim memory
+    // slab_destroy(slab);
+  }
+}
 
 
-TODO:
-Check if stack created below kernel in entry is not overriden by pmm alocations
 
 
-b vmspace.c:53
 
-B+> 0xc0101000 <e9_putc>    add    eax,DWORD PTR [eax]       │
-│    0xc0101002 <e9_putc+2>  and    BYTE PTR [eax],al         │
-│    0xc0101004 <e9_putc+4>  add    edx,DWORD PTR [eax]       │
-│    0xc0101006 <e9_putc+6>  and    BYTE PTR [eax],al         │
-│ 
+
+
+/ $ tcc -nostdlib /usr/lib/crt0.o no.c -lc -lnosys -o no.ohello.c -lc -lnocsys -o no.ohello.o
+Segmentation Fault: No VMA at 0x21
+gs: 0x23, gs: 0x23, fs: 0x23, fs: 0x23, es: 0x23, es: 0x23, ds: 0x23, ds: 0x23, edi: 0x0, edi: 0x0, esi: 0x0, esi: 0x0, ebp: 0xf1091bc8, ebp: 0xf1091bc8, esp_dummy: 0xf1091b8c, esp_dummy: 0xf1091b8c, ebx: 0xbfffe0b4, ebx: 0xbfffe0b4, edx: 0xe9a0, edx: 0xe9a0, ecx: 0xe0346800, ecx: 0xe0346800, eax: 0x21, eax: 0x21, int_no: 0xe, int_no: 0xe, err_code: 0x0, err_code: 0x0, eip: 0xc010adf0, eip: 0xc010adf0, cs: 0x8, cs: 0x8, eflags: 0x92, eflags: 0x92, esp_user: 0xe03466a3, esp_user: 0xe03466a3, ss_user: 0xe0000b47, ss_user: 0xe0000b47, cr2: 0x21, cr2: 0x21, cr3: 0x65a000, cr3: 0x65a000,
+
+FAULTING_INSTRUCTION_OF_PANIC: 0xc010adf0
+STACK_OF_PANIC: 0xc0106139
+
+--- Panic detected! Resolving addresses ---
+
+FAULT @ 0xc010adf0:
+/project/kernel/src/mm/kmalloc.c:338
+
+STACK BACKTRACE:
+/project/kernel/src/fs/myfs/myfs.c:869
+
+--- End of panic resolution ---

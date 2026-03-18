@@ -1,5 +1,9 @@
-.build/
-build/
+/build/
+/extern/src/
+/docs/html
 .cache
 *.bat
-
+GPATH
+GRTAGS
+GTAGS
+NppGTags.cfg

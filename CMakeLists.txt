@@ -1,110 +1,75 @@
-# main cmake lists
 cmake_minimum_required(VERSION 3.16)
+
+include(cmake/toolchain.cmake)
 project(myos C ASM_NASM)
-# Enable languages
+
+set(ARCH i686)
+
 enable_language(C ASM_NASM)
 
-# Force 32-bit build
-set(CMAKE_C_FLAGS "-m32 -ffreestanding -fno-pic")
-set(CMAKE_EXE_LINKER_FLAGS "-m32 -nostdlib -nodefaultlibs -nostartfiles -no-pie")
-
-# CRITICAL: Set NASM to produce 32-bit objects
-set(CMAKE_ASM_NASM_OBJECT_FORMAT elf32)
-set(CMAKE_ASM_NASM_FLAGS "-f elf32")
-
-find_program(CMAKE_OBJCOPY NAMES objcopy REQUIRED)
-find_program(CMAKE_LINKER NAMES ld REQUIRED)
-find_package(Python COMPONENTS Interpreter REQUIRED)
-
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
-
-# Set up symlink of compile_commands.json for clang
-if(NOT "${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
-    execute_process(
-        COMMAND ${CMAKE_COMMAND} -E create_symlink
-            "${CMAKE_BINARY_DIR}/compile_commands.json"
-            "${CMAKE_SOURCE_DIR}/compile_commands.json"
-    )
-endif()
-
-file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated")
-set(SRC_DIR "${CMAKE_SOURCE_DIR}/src")
-set(OUT_DIR "${CMAKE_BINARY_DIR}/out")
-set(BOOTLOADER_OUT_DIR ${OUT_DIR}/bootloader)
-set(BOOTLOADER_OUTPUT ${BOOTLOADER_OUT_DIR}/bootloader.bin)
-set(KERNEL_OUT_DIR ${OUT_DIR}/kernel)
-set(KERNEL_OUTPUT ${KERNEL_OUT_DIR}/kernel.elf)  
-
-set(STAGE1_OUT_DIR ${OUT_DIR}/bootloader/stage1)
-set(STAGE2_OUT_DIR ${OUT_DIR}/bootloader/stage2)
-set(STAGE1_BIN ${STAGE1_OUT_DIR}/stage1.bin)
-set(STAGE2_BIN ${STAGE2_OUT_DIR}/stage2.bin)
+include(cmake/paths.cmake)
 
 add_subdirectory("${SRC_DIR}/bootloader")
 add_subdirectory("${SRC_DIR}/kernel")
+add_subdirectory("${SRC_DIR}/userland")
 
-set(OS_IMAGE_OUT ${OUT_DIR}/os.img)
-set(BOOT_DIR ${CMAKE_SOURCE_DIR}/BOOT)
-set(INITRD_DIR ${CMAKE_SOURCE_DIR}/initrd_files)
-set(INITRD_IMG ${BOOT_DIR}/initrd.tar)
 
-set(CREATE_IMAGE_PY "${CMAKE_SOURCE_DIR}/scripts/create_disk_img.py")
-set(MAKE_INITRD_PY "${CMAKE_SOURCE_DIR}/scripts/create_initrd.py")
 
-# Collect all files in initrd_files directory to use as dependencies
-file(GLOB_RECURSE INITRD_FILES "${INITRD_DIR}/*")
 
-# Custom command to create initrd.img from initrd_files directory
+set(HOST_TOOLS_BINARY_DIR "${CMAKE_BINARY_DIR}/host_tools")
+set(MKFS_MYFS_EXE "${HOST_TOOLS_BINARY_DIR}/mkfs_myfs")
+set(MKFS_MYFS_SRC_DIR "${CMAKE_SOURCE_DIR}/tools/mkfs_myfs")
 
-add_custom_command(
-  OUTPUT ${INITRD_IMG}
-  COMMAND ${Python_EXECUTABLE} ${MAKE_INITRD_PY}
-          --output ${INITRD_IMG}
-          --directory ${INITRD_DIR}
-  DEPENDS ${INITRD_FILES} ${MAKE_INITRD_PY}
-  COMMENT "Creating initrd.img from ${INITRD_DIR}"
-  VERBATIM
+include(ExternalProject)
+
+# Use the 'env' command to clear/set variables for the sub-process
+ExternalProject_Add(host_tools_project
+    SOURCE_DIR "${MKFS_MYFS_SRC_DIR}"
+    BINARY_DIR "${HOST_TOOLS_BINARY_DIR}"
+    
+    # Use the 'env' command to ensure we use the host compiler
+    # Note: Added -DSRC_DIR here because CONFIGURE_COMMAND overrides CMAKE_ARGS
+    CONFIGURE_COMMAND ${CMAKE_COMMAND} -E env CC=/usr/bin/gcc 
+        ${CMAKE_COMMAND} -S "${MKFS_MYFS_SRC_DIR}" 
+                         -B "${HOST_TOOLS_BINARY_DIR}"
+                         -DCMAKE_TOOLCHAIN_FILE=
+                         -DSRC_DIR=${CMAKE_SOURCE_DIR}  # <--- Added this line
+    
+    INSTALL_COMMAND ""
+    BUILD_BYPRODUCTS "${MKFS_MYFS_EXE}"
 )
 
-# Custom command to create the final OS image
-add_custom_command(
-  OUTPUT ${OS_IMAGE_OUT}
-  COMMAND ${CMAKE_COMMAND} -E make_directory ${OUT_DIR}
-  COMMAND ${Python_EXECUTABLE} ${CREATE_IMAGE_PY}
-          --image ${OS_IMAGE_OUT}
-          --boot ${STAGE1_BIN} 
-          --stage2 ${STAGE2_BIN} 
-          --kernel ${KERNEL_OUTPUT}  
-          --boot_dir ${BOOT_DIR}
-  DEPENDS ${STAGE2_BIN} ${STAGE1_BIN} ${KERNEL_OUTPUT} ${INITRD_IMG}
-  COMMENT "Creating partitioned OS image (MBR + stage2 + FAT12 partition)"
+
+
+configure_file(
+    "${CMAKE_SOURCE_DIR}/boot.cfg" 
+    "${BOOT_DIR}/boot.cfg" 
+    COPYONLY
 )
 
-# Single real target
-add_custom_target(os_image
-    DEPENDS ${OS_IMAGE_OUT}
-)
-add_dependencies(os_image bootloader kernel)
 
-# Run target
-add_custom_target(run
-    COMMAND ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/run.py
-            --kernel ${KERNEL_OUTPUT}
-            --image ${OS_IMAGE_OUT}
-    DEPENDS ${OS_IMAGE_OUT} os_image
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Running OS in QEMU and resolving panic addresses"
-    VERBATIM
-)
-add_custom_target(debug
-    COMMAND ${Python_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/run.py
-            --kernel ${KERNEL_OUTPUT}
-            --image ${OS_IMAGE_OUT}
-            --is_debug
-    DEPENDS ${OS_IMAGE_OUT} os_image
-    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-   COMMENT "Running QEMU with GDB server (port 1234)"
-    VERBATIM
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+if(NOT "${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
+    add_custom_target(fix_compile_commands ALL
+        COMMAND ln -sf build/compile_commands.json compile_commands.json
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        COMMENT "Fixing compile_commands.json for host IDE"
+    )
+endif()
+
+# A script to merge two JSON files
+set(MERGE_SCRIPT "${CMAKE_SOURCE_DIR}/scripts/build/merge_compile_commands.py")
+add_custom_target(combine_db ALL
+    COMMAND python3 ${MERGE_SCRIPT} 
+            ${CMAKE_BINARY_DIR}/compile_commands.json 
+            ${NEWLIB_BUILD_DIR}/compile_commands.json
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    DEPENDS newlib_project # Ensure newlib is built so its JSON exists
+    COMMENT "Merging Newlib and Kernel compile commands"
 )
 
-#  bochs -f bochsrc -q
+
+include(cmake/initrd.cmake)
+include(cmake/disk_image.cmake)
+

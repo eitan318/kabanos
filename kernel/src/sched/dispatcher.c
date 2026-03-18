@@ -1,0 +1,65 @@
+#include "sched/dispatcher.h"
+#include "hal.h"
+#include "klib/string.h"
+#include "mm/memdefs.h"
+#include <proc/proc.h>
+
+thread_t *g_current_thread = NULL;
+
+static thread_t kmain_thread;
+static arch_thread_t kmain_arch;
+
+extern uint8_t stack_bottom[BOOT_STACK_SIZE];
+
+int dispatch_init(module_t *self) {
+  memset(&kmain_thread, 0, sizeof(thread_t));
+
+  extern vmspace_t *g_kernel_vmspace;
+  process_t *kmain_proc = process_create();
+  kmain_proc->main_thread = &kmain_thread;
+  kmain_proc->vmspace = g_kernel_vmspace;
+
+  kmain_thread.process = kmain_proc;
+
+  kmain_thread.tid = 0; // The first thread
+  kmain_thread.priority = THREAD_PRIORITY_HIGH;
+  kmain_thread.state = THREAD_STATE_RUNNING;
+  kmain_thread.mode = THREAD_MODE_KERNEL;
+
+  // Crucial: Point it to its arch-specific storage
+  kmain_thread.arch = &kmain_arch;
+
+  kmain_thread.kstack_top = (void *)(stack_bottom + BOOT_STACK_SIZE);
+  kmain_thread.arch->kernel_esp = (void *)(stack_bottom + BOOT_STACK_SIZE);
+
+  // Adopt this as the current thread
+  g_current_thread = &kmain_thread;
+  return 0;
+}
+
+void dispatch_switch_to(thread_t *next) {
+  thread_t *current = dispatch_get_current();
+
+  next->state = THREAD_STATE_RUNNING;
+  if (!next || current == next) {
+    return;
+  }
+
+  hal_update_tss_and_syssenter_kstack(0, next->kstack_top);
+
+  g_current_thread = next;
+
+  hal_thread_switch(current, next);
+}
+
+// if g_current_thread = null ret IDLE task i think
+thread_t *dispatch_get_current(void) { return g_current_thread; }
+
+static const char *dispatch_deps[] = {"hal", NULL};
+
+ITER_MODULE(dispatcher) = {
+    .name = "dispatcher",
+    .required_modules_names = dispatch_deps,
+    .init = &dispatch_init,
+    .fini = NULL,
+};
