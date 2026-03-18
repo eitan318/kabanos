@@ -65,7 +65,7 @@ static int parse_line(char *line, char **argv, int *argc_out) {
 /* --- Builtin: cd --- */
 int shell_cd(char **args) {
   if (args[1] == NULL) {
-    printf("No args to cd");
+    printf("No args to cd\n");
   } else {
     if (chdir(args[1]) != 0)
       perror("shell");
