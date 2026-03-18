@@ -79,6 +79,7 @@ int shell_help(char **args) {
   printf("Built-in commands:\n");
   for (int i = 0; i < num_builtins(); i++)
     printf("  %s\n", builtin_str[i]);
+  printf("For more commands use 'man'\n");
   return 1;
 }
 

@@ -67,7 +67,7 @@ struct CommandHelp help_table[] = {
     },
     {
         "ping",
-        "pinging to an ip to check if its up.",
+        "Pinging to an ip to check if its up.",
         "Usage: ping x.x.x.x"
     },
     {
