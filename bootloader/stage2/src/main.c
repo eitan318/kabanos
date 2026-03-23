@@ -23,7 +23,7 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   i686_gdt_init();
 
   // Initialize disk
-  DiskParams disk_params = {0};
+  disk_params_t disk_params = {0};
   if (!disk_init(boot_drive, &disk_params)) {
     debugf("ERROR: Failed to initialize disk!\n");
     halt();

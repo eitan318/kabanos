@@ -27,7 +27,7 @@ bios_get_drive_params(uint8_t drive, uint8_t *drive_type, uint8_t *HDDs_count,
 
 extern bool __attribute__((cdecl)) bios_disk_reset(uint8_t disk_number);
 
-bool disk_init(uint8_t drive_number, DiskParams *disk_params) {
+bool disk_init(uint8_t drive_number, disk_params_t *disk_params) {
   if (!disk_params)
     return false;
 
@@ -59,7 +59,7 @@ bool disk_init(uint8_t drive_number, DiskParams *disk_params) {
   return true;
 }
 
-static void disk_lba_to_chs(const DiskParams *disk_params, uint32_t lba,
+static void disk_lba_to_chs(const disk_params_t *disk_params, uint32_t lba,
                             uint16_t *cylinder_out, uint16_t *head_out,
                             uint16_t *sector_out) {
   // sector = (LBA % sectors per track + 1)
@@ -72,7 +72,7 @@ static void disk_lba_to_chs(const DiskParams *disk_params, uint32_t lba,
   *head_out = (lba / disk_params->sectors) % disk_params->heads;
 }
 
-bool disk_read_sectors(const DiskParams *disk_params, uint32_t lba,
+bool disk_read_sectors(const disk_params_t *disk_params, uint32_t lba,
                        uint16_t count, void *dest) {
   const int reread = 3;
   uint8_t *buffer = (uint8_t *)dest;
