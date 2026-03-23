@@ -5,7 +5,8 @@ void *memcpy(void *dst, const void *src, uint32_t num) {
   uint32_t dwords = num >> 2;
   uint32_t rem = num & 3;
 
-  __asm__ volatile("rep movsl"
+  __asm__ volatile("cld\n\t"
+                   "rep movsl"
                    : "+D"(dst), "+S"(src), "+c"(dwords)
                    :
                    : "memory");
@@ -23,7 +24,8 @@ void *memset(void *ptr, int value, uint32_t num) {
   uint32_t rem = num & 3;
   uint8_t *dest = (uint8_t *)ptr;
 
-  __asm__ volatile("rep stosl"
+  __asm__ volatile("cld\n\t"
+                   "rep stosl"
                    : "+D"(dest), "+c"(dwords)
                    : "a"(pattern)
                    : "memory");
@@ -38,7 +40,11 @@ int memcmp(const void *ptr1, const void *ptr2, uint32_t num) {
   // repe cmpsb compares byte-by-byte and stops at first mismatch
   uint32_t count = num;
 
-  __asm__ volatile("repe cmpsb" : "+D"(p1), "+S"(p2), "+c"(count) : : "memory");
+  __asm__ volatile("cld\n\t"
+                   "repe cmpsb"
+                   : "+D"(p1), "+S"(p2), "+c"(count)
+                   :
+                   : "memory");
 
   if (count == 0)
     return 0;                        // all bytes matched

@@ -1,17 +1,18 @@
 #include "fat.h"
 #include "ctype.h"
+#include "mbr.h"
+#include "memdefs.h"
 #include "memory.h"
 #include "s2lib/stdio.h"
 #include "s2lib/string.h"
 #include "utils/math.h"
 #include <stdbool.h>
 #include <stdint.h>
+
 #define SECTOR_SIZE 512
 #define MAX_PATH_SIZE 256
 #define MAX_FILE_HANDLES 10
 #define ROOT_DIRECTORY_HANDLE -1
-#define MEMORY_FAT_ADDR ((void *)0x20000)
-#define MEMORY_FAT_SIZE 0x00010000
 
 enum FAT_Attributes {
   FAT_ATTRIBUTE_READ_ONLY = 0x01,
@@ -171,11 +172,11 @@ uint32_t fat_read(partition_t *disk, fat_file *file, uint32_t byte_count,
   uint8_t *out8 = (uint8_t *)out;
   if (!fd->public.is_directory ||
       (fd->public.is_directory && fd->public.size != 0))
-    byte_count = min(byte_count, fd->public.size - fd->public.position);
+    byte_count = MIN(byte_count, fd->public.size - fd->public.position);
 
   while (byte_count > 0) {
     uint32_t left_in_buffer = SECTOR_SIZE - (fd->public.position % SECTOR_SIZE);
-    uint32_t take = min(byte_count, left_in_buffer);
+    uint32_t take = MIN(byte_count, left_in_buffer);
     memcpy(out8, fd->buffer + (fd->public.position % SECTOR_SIZE), take);
     out8 += take;
     fd->public.position += take;
