@@ -10,6 +10,7 @@
 #include "multiboot2.h"
 #include "s2lib/stdio.h"
 #include "stdint.h"
+#include "vbe.h"
 
 #define CMDLINE_SIZE 2048
 
@@ -186,6 +187,8 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
     printf("kernel ELF read failed, booting halted!");
     halt();
   }
+
+  vbe_init();
 
   debugf("Kernel loaded successfully, jumping...\n");
 

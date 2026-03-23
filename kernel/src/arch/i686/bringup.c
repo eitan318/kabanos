@@ -44,7 +44,11 @@ __attribute__((section(".bss"),
 __attribute__((section(".bss"),
                aligned(PAGE_SIZE))) static uint32_t boot_pt[PD_ENTRIES];
 
-__attribute__((section(".multiboot.text"))) void kernel_start(void) {
+uintptr_t stack_top = (uintptr_t)stack_bottom + BOOT_STACK_SIZE;
+
+__attribute__((section(".multiboot.text"))) void bringup(uint32_t magic,
+                                                         uint32_t mb_info) {
+
   __asm__ volatile("mov %0, %%esp"
                    :
                    : "r"(stack_bottom + BOOT_STACK_SIZE)

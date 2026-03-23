@@ -14,9 +14,6 @@ VBE_LINEAR_FRAMEBUFFER   equ 0x4000
 
 
 
-
-
-
 ; uint32_t x86_set_video_mode(uint16_t mode)
 bios_vbe_set_mode:
     push ebp
@@ -30,17 +27,11 @@ bios_vbe_set_mode:
     or bx, 0x4000               ; VBE_LINEAR_FRAMEBUFFER
     int 0x10
 
-    cmp ax, 0x004F
-    je .success
-    mov eax, -1
-    jmp .exit
+    movzx eax, ax
 
-.success:
-    xor eax, eax
-
-.exit:
+    push eax
     x86_enter_protected_mode
-    bits 32
+    pop eax
 
     pop ebp
     ret
@@ -49,27 +40,35 @@ bios_vbe_set_mode:
 bios_vbe_info_block_get:
     push ebp
     mov ebp, esp
+    push ebx            ; Save EBX so we can use it for address math
+    push es
 
     x86_enter_real_mode
     bits 16
 
-    linear_to_segment_offset [bp + 8], es, eax, di
+    ; Manually calculate segment:offset for [bp + 8]
+    mov eax, [bp + 8]   ; EAX = Linear Address (e.g., 0x20000)
+    mov ebx, eax        ; EBX = 0x20000
     
+    shr eax, 4          ; EAX = 0x2000 (The Segment)
+    mov es, ax          ; ES = 0x2000
+    
+    and ebx, 0x000F     ; EBX = 0x0000 (The Offset)
+    mov di, bx          ; DI = 0x0000
+
+    ; Setup VBE call
     mov dword [es:di], 'VBE2'   ; Request VBE 2.0+
     mov ax, 0x4F00              ; VBE Get Controller Info
     int 0x10
 
-    cmp ax, 0x004F
-    je .success
-    mov eax, -1
-    jmp .exit
+    ; Capture return value before leaving real mode
+    movzx eax, ax
 
-.success:
-    xor eax, eax
-
-.exit:
+    push eax
     x86_enter_protected_mode
-    bits 32
+    pop eax
 
+    pop es
+    pop ebx
     pop ebp
     ret

@@ -10,5 +10,5 @@ typedef struct {
   uint8_t reserved[492];
 } __attribute__((packed)) vbe_info_block_t;
 
-vbe_info_block_t *vbe_info_get(int *count);
+vbe_info_block_t *vbe_init(int *mode_count);
 int vbe_set_mode(uint16_t vbe_mode);

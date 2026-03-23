@@ -1,5 +1,10 @@
 #pragma once
 
+#define VBE_TRANSFER_BUFFER ((void *)0x7000)
+
+// stack in this satge2 is from 0x9000 downwards
+//  satge2 code is  from 0x9000 upwards
+
 #define INITRD_LOAD_ADDR ((void *)0x200000)
 #define MODULE_LOAD_ADDR ((void *)0x300000)
 

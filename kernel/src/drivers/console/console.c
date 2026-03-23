@@ -1,5 +1,6 @@
 #include "drivers/console/console.h"
 #include "drivers/console/vga.h"
+#include "klib/stdio.h"
 #include "modules.h"
 #include <klib/stdarg.h>
 #include <klib/stdbool.h>
