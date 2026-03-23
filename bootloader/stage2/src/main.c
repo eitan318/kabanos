@@ -60,7 +60,7 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   MemoryMapInternal memory_map;
   memory_map_detect(&memory_map);
 
-  FAT_File *boot_cfg_file = fat_open(&boot_partition, "/boot.cfg");
+  fat_file *boot_cfg_file = fat_open(&boot_partition, "/boot.cfg");
 
   char config_buffer[boot_cfg_file->size];
   int config_size = fat_read(&boot_partition, boot_cfg_file,
@@ -75,7 +75,7 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   BCD bcd;
   bcd_parse_into(config_buffer, &bcd);
 
-  FAT_File *initrd_file = fat_open(&boot_partition, bcd.initrd);
+  fat_file *initrd_file = fat_open(&boot_partition, bcd.initrd);
   // Read initrd, not passed to kernel for now
   int initrd_size = fat_read(&boot_partition, initrd_file, initrd_file->size,
                              (void *)INITRD_LOAD_ADDR);
@@ -95,7 +95,7 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
   for (int i = 0; i < bcd.module_count; i++) {
     debugf("Loading module %d: %s\n", i, bcd.modules_paths[i]);
 
-    FAT_File *module_file = fat_open(&boot_partition, bcd.modules_paths[i]);
+    fat_file *module_file = fat_open(&boot_partition, bcd.modules_paths[i]);
 
     int module_size = fat_read(&boot_partition, module_file, module_file->size,
                                module_load_addr);

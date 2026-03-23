@@ -47,19 +47,19 @@ typedef struct __attribute__((packed)) {
 } FAT_BootSector;
 typedef struct {
   uint8_t buffer[SECTOR_SIZE];
-  FAT_File public;
+  fat_file public;
   bool opened;
   uint32_t first_cluster;
   uint32_t current_cluster;
   uint32_t current_sector_in_cluster;
-} FAT_FileData;
+} fat_fileData;
 typedef struct {
   union {
     FAT_BootSector boot_sector;
     uint8_t boot_sector_bytes[SECTOR_SIZE];
   } bs;
-  FAT_FileData root_directory;
-  FAT_FileData opened_files[MAX_FILE_HANDLES];
+  fat_fileData root_directory;
+  fat_fileData opened_files[MAX_FILE_HANDLES];
 } FAT_Data;
 
 static FAT_Data *g_data;
@@ -102,7 +102,7 @@ bool fat_initialize(partition_t *disk) {
       g_data->bs.boot_sector.reserved_sectors +
       g_data->bs.boot_sector.sectors_per_fat * g_data->bs.boot_sector.fat_count;
   uint32_t root_dir_size =
-      sizeof(FAT_DirectoryEntry) * g_data->bs.boot_sector.dir_entry_count;
+      sizeof(fat_dirent) * g_data->bs.boot_sector.dir_entry_count;
   g_data->root_directory.public.handle = ROOT_DIRECTORY_HANDLE;
   g_data->root_directory.public.is_directory = true;
   g_data->root_directory.public.position = 0;
@@ -130,7 +130,7 @@ uint32_t fat_cluster_to_lba(uint32_t cluster) {
   return g_data_section_lba +
          (cluster - 2) * g_data->bs.boot_sector.sectors_per_cluster;
 }
-FAT_File *fat_open_entry(partition_t *disk, FAT_DirectoryEntry *entry) {
+fat_file *fat_open_entry(partition_t *disk, fat_dirent *entry) {
   int handle = -1;
   for (int i = 0; i < MAX_FILE_HANDLES && handle < 0; i++)
     if (!g_data->opened_files[i].opened)
@@ -139,7 +139,7 @@ FAT_File *fat_open_entry(partition_t *disk, FAT_DirectoryEntry *entry) {
     debugf("FAT: out of file handles\n");
     return NULL;
   }
-  FAT_FileData *fd = &g_data->opened_files[handle];
+  fat_fileData *fd = &g_data->opened_files[handle];
   fd->public.handle = handle;
   fd->public.is_directory = (entry->attributes & FAT_ATTRIBUTE_DIRECTORY) != 0;
   fd->public.position = 0;
@@ -163,9 +163,9 @@ uint32_t fat_next_cluster(uint32_t current_cluster) {
   else
     return (*(uint16_t *)(g_fat + fat_index)) >> 4;
 }
-uint32_t fat_read(partition_t *disk, FAT_File *file, uint32_t byte_count,
+uint32_t fat_read(partition_t *disk, fat_file *file, uint32_t byte_count,
                   void *out) {
-  FAT_FileData *fd = (file->handle == ROOT_DIRECTORY_HANDLE)
+  fat_fileData *fd = (file->handle == ROOT_DIRECTORY_HANDLE)
                          ? &g_data->root_directory
                          : &g_data->opened_files[file->handle];
   uint8_t *out8 = (uint8_t *)out;
@@ -209,12 +209,10 @@ uint32_t fat_read(partition_t *disk, FAT_File *file, uint32_t byte_count,
   }
   return out8 - (uint8_t *)out;
 }
-bool fat_read_entry(partition_t *disk, FAT_File *file,
-                    FAT_DirectoryEntry *entry) {
-  return fat_read(disk, file, sizeof(FAT_DirectoryEntry), entry) ==
-         sizeof(FAT_DirectoryEntry);
+bool fat_read_entry(partition_t *disk, fat_file *file, fat_dirent *entry) {
+  return fat_read(disk, file, sizeof(fat_dirent), entry) == sizeof(fat_dirent);
 }
-void fat_close(FAT_File *file) {
+void fat_close(fat_file *file) {
   if (file->handle == ROOT_DIRECTORY_HANDLE) {
     file->position = 0;
     g_data->root_directory.current_cluster =
@@ -223,10 +221,10 @@ void fat_close(FAT_File *file) {
     g_data->opened_files[file->handle].opened = false;
   }
 }
-bool fat_find_file(partition_t *disk, FAT_File *file, const char *name,
-                   FAT_DirectoryEntry *out) {
+bool fat_find_file(partition_t *disk, fat_file *file, const char *name,
+                   fat_dirent *out) {
   char fat_name[12];
-  FAT_DirectoryEntry entry;
+  fat_dirent entry;
   memset(fat_name, ' ', sizeof(fat_name));
   fat_name[11] = '\0';
   const char *ext = strchr(name, '.');
@@ -247,11 +245,11 @@ bool fat_find_file(partition_t *disk, FAT_File *file, const char *name,
   }
   return false;
 }
-FAT_File *fat_open(partition_t *disk, const char *path) {
+fat_file *fat_open(partition_t *disk, const char *path) {
   char name[MAX_PATH_SIZE];
   if (path[0] == '/')
     path++;
-  FAT_File *current = &g_data->root_directory.public;
+  fat_file *current = &g_data->root_directory.public;
   while (*path) {
     bool is_last = false;
     const char *delim = strchr(path, '/');
@@ -266,7 +264,7 @@ FAT_File *fat_open(partition_t *disk, const char *path) {
       path += len;
       is_last = true;
     }
-    FAT_DirectoryEntry entry;
+    fat_dirent entry;
     if (fat_find_file(disk, current, name, &entry)) {
       fat_close(current);
       if (!is_last && (entry.attributes & FAT_ATTRIBUTE_DIRECTORY) == 0) {
@@ -287,7 +285,7 @@ int fat_read_file(const char *path, void *buffer) {
     debugf("ERROR: FAT not initialized!\n");
     return -1;
   }
-  FAT_File *file = fat_open(g_disk, path);
+  fat_file *file = fat_open(g_disk, path);
   if (!file) {
     debugf("ERROR: Could not open: %s\n", path);
     return -2;
