@@ -27,14 +27,14 @@ typedef struct __attribute__((packed)) {
 } FAT_DirectoryEntry;
 
 int fat_read_file(const char *path, void *buffer);
-FAT_File *fat_open(Partition *disk, const char *path);
-bool fat_find_file(Partition *disk, FAT_File *file, const char *name,
+FAT_File *fat_open(partition_t *disk, const char *path);
+bool fat_find_file(partition_t *disk, FAT_File *file, const char *name,
                    FAT_DirectoryEntry *out);
 
-bool fat_initialize(Partition *disk);
+bool fat_initialize(partition_t *disk);
 
-uint32_t fat_read(Partition *disk, FAT_File *file, uint32_t byteCount,
+uint32_t fat_read(partition_t *disk, FAT_File *file, uint32_t byteCount,
                   void *dataOut);
-bool fat_read_entry(Partition *disk, FAT_File *file,
+bool fat_read_entry(partition_t *disk, FAT_File *file,
                     FAT_DirectoryEntry *dirEntry);
 void fat_close(FAT_File *file);

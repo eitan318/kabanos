@@ -47,7 +47,7 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
     debugf("WARNING: multiple active partitions!\n");
   }
 
-  Partition boot_partition;
+  partition_t boot_partition;
   boot_partition.partitionOffset = boot_partition_entry->lba_start;
   boot_partition.partitionSize = boot_partition_entry->total_sectors;
   boot_partition.disk = &disk_params;
