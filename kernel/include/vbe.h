@@ -1,4 +1,5 @@
 #include "stdint.h"
+
 typedef struct {
   char vbe_signature[4];      // == "VESA"
   uint16_t vbe_version;       // == 0x0300 for VBE 3.0
@@ -8,3 +9,6 @@ typedef struct {
   uint16_t total_memory;      // as # of 64KB blocks
   uint8_t reserved[492];
 } __attribute__((packed)) vbe_info_block_t;
+
+vbe_info_block_t *vbe_info_get(int *count);
+int vbe_set_mode(uint16_t vbe_mode);
