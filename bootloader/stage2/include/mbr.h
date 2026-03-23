@@ -42,5 +42,5 @@ typedef struct {
 
 bool mbr_partition_table_get(disk_params_t *disk,
                              partition_table_t *partition_table);
-bool Partition_read_sectors(partition_t *part, uint32_t lba, uint8_t sectors,
+bool partition_read_sectors(partition_t *part, uint32_t lba, uint8_t sectors,
                             void *lowerDataOut);

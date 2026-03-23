@@ -67,10 +67,10 @@ static uint8_t *g_fat = NULL;
 static uint32_t g_data_section_lba;
 static partition_t *g_disk = NULL;
 bool fat_read_boot_sector(partition_t *disk) {
-  return Partition_read_sectors(disk, 0, 1, g_data->bs.boot_sector_bytes);
+  return partition_read_sectors(disk, 0, 1, g_data->bs.boot_sector_bytes);
 }
 bool fat_read_fat(partition_t *disk) {
-  return Partition_read_sectors(disk, g_data->bs.boot_sector.reserved_sectors,
+  return partition_read_sectors(disk, g_data->bs.boot_sector.reserved_sectors,
                                 g_data->bs.boot_sector.sectors_per_fat, g_fat);
 }
 bool fat_initialize(partition_t *disk) {
@@ -111,7 +111,7 @@ bool fat_initialize(partition_t *disk) {
   g_data->root_directory.first_cluster = root_dir_lba;
   g_data->root_directory.current_cluster = root_dir_lba;
   g_data->root_directory.current_sector_in_cluster = 0;
-  if (!Partition_read_sectors(disk, root_dir_lba, 1,
+  if (!partition_read_sectors(disk, root_dir_lba, 1,
                               g_data->root_directory.buffer)) {
     debugf("FAT: read root directory failed\n");
     return false;
@@ -148,7 +148,7 @@ FAT_File *fat_open_entry(partition_t *disk, FAT_DirectoryEntry *entry) {
       entry->first_cluster_low + ((uint32_t)entry->first_cluster_high << 16);
   fd->current_cluster = fd->first_cluster;
   fd->current_sector_in_cluster = 0;
-  if (!Partition_read_sectors(disk, fat_cluster_to_lba(fd->current_cluster), 1,
+  if (!partition_read_sectors(disk, fat_cluster_to_lba(fd->current_cluster), 1,
                               fd->buffer)) {
     debugf("FAT: open entry failed\n");
     return NULL;
@@ -183,7 +183,7 @@ uint32_t fat_read(partition_t *disk, FAT_File *file, uint32_t byte_count,
     if (left_in_buffer == take) {
       if (fd->public.handle == ROOT_DIRECTORY_HANDLE) {
         ++fd->current_cluster;
-        if (!Partition_read_sectors(disk, fd->current_cluster, 1, fd->buffer)) {
+        if (!partition_read_sectors(disk, fd->current_cluster, 1, fd->buffer)) {
           debugf("FAT: read error!\n");
           break;
         }
@@ -197,7 +197,7 @@ uint32_t fat_read(partition_t *disk, FAT_File *file, uint32_t byte_count,
           fd->public.size = fd->public.position;
           break;
         }
-        if (!Partition_read_sectors(disk,
+        if (!partition_read_sectors(disk,
                                     fat_cluster_to_lba(fd->current_cluster) +
                                         fd->current_sector_in_cluster,
                                     1, fd->buffer)) {
