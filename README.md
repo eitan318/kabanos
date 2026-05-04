@@ -1,7 +1,6 @@
 # Kabanos 
 
 A custom 32-bit operating system built from scratch for the i686 (x86) architecture. Implements a complete OS stack — bootloader, kernel, virtual file system, TCP/IP networking, process scheduler, and a userland with a shell and standard utilities.
-<img width="371" height="267" alt="KabanOS" src="https://github.com/user-attachments/assets/bc1a598f-520f-4f75-9bea-e768f14b28b2" />
 
 https://github.com/user-attachments/assets/70a78642-8550-4154-b75a-6c4127ea9be4
 
