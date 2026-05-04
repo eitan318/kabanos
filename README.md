@@ -1,93 +1,180 @@
-# 1001_myos
+# Kabanos 
 
+A custom 32-bit operating system built from scratch for the i686 (x86) architecture. Implements a complete OS stack — bootloader, kernel, virtual file system, TCP/IP networking, process scheduler, and a userland with a shell and standard utilities.
 
+---
 
-## Getting started
+## Features
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+- **Two-stage bootloader** — custom 512-byte boot sector + protected-mode stage-2 loader (Multiboot-compliant, GRUB-compatible)
+- **Memory management** — physical frame allocator, virtual memory with per-process paging, and a slab allocator (`kmalloc`/`kfree`)
+- **Process & thread management** — `fork`/`exec`/`exit`, preemptive scheduler, context switching, zombie/wait semantics
+- **Virtual File System (VFS)** — generic VFS interface with **MyFS**, a custom inode-based filesystem supporting files, directories, and symlinks
+- **Device drivers** — VGA text console, PS/2 keyboard, PCI bus enumeration, RTL8139 NIC
+- **TCP/IP networking** — ARP, ICMP, IP, and TCP layers; testable via QEMU TAP interface
+- **System calls** — 50+ syscalls via `int 0x80` / `SYSENTER` with full errno support
+- **Userland** — Newlib-backed C standard library, 16+ UNIX-style utilities, `vi` editor, `ping`, and a **TinyCC compiler** (self-hosting C compilation on the OS)
+- **Interrupt subsystem** — GDT, IDT, ISR handlers, PIC, and CPU exception handling
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+---
 
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+## Architecture Overview
 
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/eitan318/1001_myos.git
-git branch -M main
-git push -uf origin main
+kabanos/
+├── bootloader/          # Stage-1 (ASM) + Stage-2 (C/ASM) bootloader
+├── kernel/
+│   └── src/
+│       ├── arch/i686/   # CPU init, GDT, IDT, ISR, paging, context switch
+│       ├── drivers/     # Block, console, keyboard, PCI, RTL8139
+│       ├── fs/          # VFS layer + MyFS custom filesystem
+│       ├── mm/          # PMM, VMM, slab allocator
+│       ├── sched/       # Preemptive scheduler
+│       ├── proc/        # Process management & syscalls
+│       ├── net/         # TCP/IP stack
+│       └── klib/        # Kernel utility library
+├── userland/
+│   └── user_src/        # Shell, ls, cp, mv, cat, vi, ping, tcc, ...
+├── common/              # Code shared between bootloader and kernel
+├── extern/
+│   ├── newlib_myos/     # Newlib C library stubs for MyOS
+│   └── i386-tcc/        # TinyCC cross-compiler binary
+├── tools/mkfs_myfs/     # Utility to format MyFS volumes
+├── scripts/             # Build, run (QEMU), debug (GDB), and network scripts
+├── cmake/               # Toolchain, sysroot, disk image, and initrd CMake modules
+├── Dockerfile           # Hermetic build environment (Ubuntu 22.04 + cross-toolchain)
+└── Makefile             # Top-level convenience targets
 ```
 
-## Integrate with your tools
+---
 
-- [ ] [Set up project integrations](https://gitlab.com/eitan318/1001_myos/-/settings/integrations)
+## Prerequisites
 
-## Collaborate with your team
+The build environment is fully containerized. You only need:
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+- [Docker](https://www.docker.com/) — for building
+- [QEMU](https://www.qemu.org/) (`qemu-system-i386`) — for running (can also run inside Docker)
+- Python 3 — for the QEMU launcher script
 
-## Test and Deploy
+---
 
-Use the built-in continuous integration in GitLab.
+## Getting Started
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+### 1. Build the Docker image
 
-***
+```bash
+make setup
+```
 
-# Editing this README
+This builds the `myos_builder` Docker image containing the `i686-myos-gcc` cross-compiler (Binutils 2.41 + GCC 13.2.0), NASM, CMake, Newlib 2.5.0, and TinyCC.
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+### 2. Build the OS
 
-## Suggestions for a good README
+```bash
+make build
+```
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+This runs CMake inside the container and produces:
 
-## Name
-Choose a self-explaining name for your project.
+| Artifact | Path |
+|---|---|
+| Kernel ELF | `build/kernel/kernel.elf` |
+| Bootloader binary | `build/bootloader/bootloader.bin` |
+| Bootable disk image | `build/os.img` |
+| Initial RAM disk | `build/initrd.tar` |
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+### 3. Run in QEMU
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+```bash
+make run
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+Launches the OS in QEMU with a serial console and TAP-based network interface.
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### 4. Debug with GDB
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+```bash
+make debug
+```
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+Starts QEMU in debug mode (halted at startup) and attaches GDB with the provided scripts in `scripts/gdb/`.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+### 5. Open a build shell
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+```bash
+make shell
+```
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+Drops into an interactive Docker shell with the full cross-compile environment available.
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+### 6. Generate API documentation
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+```bash
+make docs
+```
 
-## License
-For open source projects, say how it is licensed.
+Runs Doxygen and opens `docs/html/index.html` in your browser.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+### 7. Clean build artifacts
+
+```bash
+make clean
+```
+
+---
+
+## Boot Configuration
+
+`boot.cfg` controls the bootloader parameters:
+
+```
+kernel=/kernel.elf
+initrd=/initrd.tar
+cmdline=fs_name=myfs root_device=atap2 init_proc=/bin/init.elf
+```
+
+- `fs_name` — filesystem driver to mount root with (`myfs`)
+- `root_device` — ATA device for the root partition
+- `init_proc` — path to PID-1 (`init.elf`)
+
+---
+
+## Userland Programs
+
+| Program | Description |
+|---|---|
+| `init.elf` | PID-1 init process |
+| `sh.elf` | Interactive shell with background job support |
+| `ls`, `cat`, `cp`, `mv`, `rm`, `mkdir`, `rmdir`, `touch` | POSIX file utilities |
+| `vi.elf` | Text editor |
+| `ping.elf` | ICMP ping |
+| `clock.elf` | System clock |
+| `neofetch.elf` | System info display |
+| `tcc.elf` | **TinyCC** — C compiler running natively on MyOS |
+| `man.elf` | Manual page viewer |
+| `test_fs.elf` | Filesystem test suite |
+
+---
+
+## Building the Cross-Compiler Manually
+
+If you want to build the toolchain outside of Docker, see [`docs/build_cross_compiler.sh`](docs/build_cross_compiler.sh) for step-by-step instructions to compile Binutils, GCC, and Newlib targeting `i686-myos`.
+
+---
+
+## Documentation
+
+| File | Description |
+|---|---|
+| [`docs/tips.md`](docs/tips.md) | Development tips and OS architecture notes |
+| [`docs/drivers.md`](docs/drivers.md) | Driver abstraction layer design |
+| [`docs/multiboot.md`](docs/multiboot.md) | Multiboot specification overview |
+| [`docs/compile_with_tcc.md`](docs/compile_with_tcc.md) | On-OS compilation with TinyCC |
+
+Source code is documented with Doxygen comments. Run `make docs` to generate the full HTML reference.
+
+---
+
+## Project Status
+
+Active development. Core subsystems (memory, processes, VFS, networking) are functional and bootable in QEMU. The self-hosting TinyCC compiler demonstrates a working userland execution environment.
