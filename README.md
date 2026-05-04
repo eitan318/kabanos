@@ -2,9 +2,7 @@
 
 A custom 32-bit operating system built from scratch for the i686 (x86) architecture. Implements a complete OS stack — bootloader, kernel, virtual file system, TCP/IP networking, process scheduler, and a userland with a shell and standard utilities.
 
-https://github.com/user-attachments/assets/70a78642-8550-4154-b75a-6c4127ea9be4
-
-
+https://github.com/user-attachments/assets/6aa0e4ee-1144-4125-b4fa-fb9b4cc06a28
 
 ---
 
