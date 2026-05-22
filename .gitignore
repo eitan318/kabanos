@@ -7,3 +7,38 @@ GPATH
 GRTAGS
 GTAGS
 NppGTags.cfg
+
+# ==========================================
+# Visual Studio / VS Code Rules
+# ==========================================
+# User-specific files & local runtime caches
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Build Output & Intermediate Directories
+[Db]ebug/
+[Rr]elease/
+x64/
+x86/
+[Aa]rm/
+[Aa]rm64/
+bld/
+[Bb]in/
+[Ob]j/
+
+# Visual Studio Code workspace configuration
+.vscode/
+!.vscode/extensions.json
+
+# Compiler artifacts, symbols, and diagnostics
+*.pdb
+*.ilk
+*.aps
+*.idb
+*.ipch
+*.log
+*.tlog
+*.unsuccessfulbuild
