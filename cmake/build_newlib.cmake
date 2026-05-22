@@ -11,13 +11,16 @@ if(FORCE_NEWLIB_BUILD OR NOT EXISTS "${NEWLIB_SYSROOT}")
         UPDATE_COMMAND ""
         PATCH_COMMAND ""
         CONFIGURE_COMMAND
-        bash -c "cmake -E copy_directory ${MYOS_STUBS_SRC} ${NEWLIB_SRC_DIR}/newlib/libc/sys/myos && \
+        bash -c "rm -rf ${NEWLIB_SRC_DIR}/newlib/libc/sys/myos && \
+                 mkdir -p ${NEWLIB_SRC_DIR}/newlib/libc/sys/myos && \
+                 cp -rf ${MYOS_STUBS_SRC}/* ${NEWLIB_SRC_DIR}/newlib/libc/sys/myos/ && \
+                 sync && sleep 1 && \
                  cd ${NEWLIB_SRC_DIR}/newlib/libc/sys && \
                  autoconf && \
                  cd myos && \
                  aclocal-1.11 -I ../../.. -I ../../../.. && \
                  autoconf && \
-                 automake-1.11 --cygnus && \
+                 automake-1.11 --cygnus --add-missing && \
                  cd ${NEWLIB_BUILD_DIR} && \
                  ${NEWLIB_SRC_DIR}/configure \
                     --target=i686-myos \
