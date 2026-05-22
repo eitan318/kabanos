@@ -1,13 +1,21 @@
 # Handle line endings automatically for text files
 * text=auto
 
-# Explicitly declare that C/H files must use LF
+# Explicitly declare that core source files must use LF
 *.c text eol=lf
 *.h text eol=lf
 *.py text eol=lf
 Makefile text eol=lf
 
+# CRITICAL: Force Newlib/autotools scripts to use LF so Docker doesn't crash
+**/configure text eol=lf
+**/Makefile.am text eol=lf
+**/Makefile.in text eol=lf
+*.sh text eol=lf
+
 # Denote all binary files (so Git doesn't try to "fix" them)
 *.iso binary
 *.bin binary
 *.tar binary
+*.img binary
+*.elf binary
