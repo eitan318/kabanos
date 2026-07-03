@@ -9,12 +9,11 @@ enable_language(C ASM_NASM)
 
 include(cmake/paths.cmake)
 
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 add_subdirectory("${SRC_DIR}/bootloader")
 add_subdirectory("${SRC_DIR}/kernel")
 add_subdirectory("${SRC_DIR}/userland")
-
-
-
 
 set(HOST_TOOLS_BINARY_DIR "${CMAKE_BINARY_DIR}/host_tools")
 set(MKFS_MYFS_EXE "${HOST_TOOLS_BINARY_DIR}/mkfs_myfs")
@@ -48,7 +47,6 @@ configure_file(
 )
 
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 if(NOT "${CMAKE_SOURCE_DIR}" STREQUAL "${CMAKE_BINARY_DIR}")
     add_custom_target(fix_compile_commands ALL

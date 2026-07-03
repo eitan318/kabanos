@@ -31,6 +31,7 @@ setup:
 # Flattened single-line recipes bypass multi-line tracking bugs perfectly
 build:
 	docker run --rm -u $(USER_ID):$(GROUP_ID) -v "$(PROJECT_DIR)":/project -w /project $(IMAGE_NAME) bash -c "cmake -S . -B $(BUILD_DIR) -DCMAKE_BUILD_TYPE=Debug && cmake --build $(BUILD_DIR)"
+	sed -i 's|/project|$(PROJECT_DIR)|g' $(BUILD_DIR)/compile_commands.json
 
 run: build
 	python3 scripts/run/run.py --kernel $(BUILD_DIR)/kernel/kernel.elf --image $(OUT_DIR)/os.img

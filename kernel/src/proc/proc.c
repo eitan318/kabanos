@@ -1,10 +1,9 @@
 #include "proc/proc.h"
 #include "fs/vfs_internal.h"
-#include "klib/string.h"
 #include "mm/kmalloc.h"
 #include "mm/vmspace.h"
-#include "sched/thread.h"
 #include "net/net_syscalls.h"
+#include "sched/thread.h"
 
 static uint32_t next_pid = 1;
 static uint32_t alloc_pid() { return next_pid++; }
