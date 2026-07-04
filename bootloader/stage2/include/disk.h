@@ -1,3 +1,7 @@
+/**
+ * @file disk.h
+ * @brief BIOS disk access (INT 13h) with CHS/LBA support.
+ */
 #pragma once
 #include <stdbool.h>
 #include <stdint.h>

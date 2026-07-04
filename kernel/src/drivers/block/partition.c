@@ -1,3 +1,7 @@
+/**
+ * @file partition.c
+ * @brief MBR parsing; exposes partitions as virtual block devices.
+ */
 #include "drivers/block/partition.h"
 #include "drivers/block/blockdev.h"
 #include "klib/errno.h"

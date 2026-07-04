@@ -25,9 +25,11 @@
 
 /**
  * @brief Loads an ELF executable into a virtual address space.
- * * Opens the file, reads it into kernel memory, parses the ELF headers,
+ *
+ * Opens the file, reads it into kernel memory, parses the ELF headers,
  * and maps the segments into the target VM.
- * * @param vm The destination virtual memory space.
+ *
+ * @param vm The destination virtual memory space.
  * @param path Filesystem path to the ELF file.
  * @param entry [out] Pointer to store the program entry point (EIP).
  * @return 0 on success, negative errno on failure.
@@ -75,8 +77,10 @@ static int exec_load_elf(vmspace_t *vm, const char *path, vnode_t *cwd,
 
 /**
  * @brief Initializes the user stack with System V i386 ABI arguments.
- * * Copies argument strings and the argv pointer array into the target VM.
- * * @param dst_vm Target virtual memory space.
+ *
+ * Copies argument strings and the argv pointer array into the target VM.
+ *
+ * @param dst_vm Target virtual memory space.
  * @param stack_top The high address of the allocated stack.
  * @param argc Number of arguments.
  * @param argv Array of argument strings.
@@ -130,8 +134,10 @@ typedef struct {
 
 /**
  * @brief Copies user-space arguments into kernel-space buffers.
- * * This is necessary to preserve arguments before switching address spaces.
- * * @param argv User-space argument array.
+ *
+ * This is necessary to preserve arguments before switching address spaces.
+ *
+ * @param argv User-space argument array.
  * @param envp User-space environment array.
  * @return A structure containing the kernel-side copies.
  */

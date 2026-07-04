@@ -1,3 +1,7 @@
+/**
+ * @file string.c
+ * @brief String and memory functions for the kernel.
+ */
 #include "klib/string.h"
 #include "klib/stdbool.h"
 #include "klib/stddef.h"

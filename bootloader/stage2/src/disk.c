@@ -1,3 +1,7 @@
+/**
+ * @file disk.c
+ * @brief BIOS disk reads with LBA-to-CHS fallback.
+ */
 #include "disk.h"
 #include "s2lib/stdio.h"
 

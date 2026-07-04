@@ -1,3 +1,7 @@
+/**
+ * @file paging_ut_main.h
+ * @brief Entry point running the paging test suite.
+ */
 #pragma once
 #include "ut/ut_framework.h"
 

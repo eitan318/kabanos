@@ -1,3 +1,7 @@
+/**
+ * @file modules.c
+ * @brief Module registry and dependency-ordered initialization.
+ */
 #include "modules.h"
 #include "kernel_boot_info.h"
 #include "klib/stdio.h"
@@ -6,6 +10,7 @@
 static module_t *module_registry;
 static int registry_count = 0;
 
+/* Bounds of the .modules linker section (see ITER_MODULE) */
 extern module_t _modules_start[];
 extern module_t _modules_end[];
 
@@ -43,6 +48,10 @@ module_t *find_module_by_name(const char *name) {
   return NULL;
 }
 
+/**
+ * @brief Initializes @p mod after recursively initializing its
+ *        dependencies. Already-loaded modules are skipped.
+ */
 void module_load(module_t *mod) {
   if (mod->state == MODULE_LOADED)
     return;

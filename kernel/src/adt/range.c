@@ -1,3 +1,7 @@
+/**
+ * @file range.c
+ * @brief Address-range clamping and alignment.
+ */
 #include "adt/range.h"
 #include "utils/math.h"
 

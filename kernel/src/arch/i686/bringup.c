@@ -1,3 +1,9 @@
+/**
+ * @file bringup.c
+ * @brief First C code to run: sets up a temporary boot page table that
+ *        maps the kernel both identity and at KERNEL_BASE, enables
+ *        paging, and jumps to the higher half.
+ */
 #include "klib/stddef.h"
 #include "klib/stdint.h"
 #include "mm/memdefs.h"

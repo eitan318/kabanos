@@ -1,3 +1,7 @@
+/**
+ * @file frame_allocator_ut_main.h
+ * @brief Entry point running the frame allocator test suite.
+ */
 #include "boot/bootparams.h"
 #include "mm/pmm.h"
 #include "ut/ut_framework.h"

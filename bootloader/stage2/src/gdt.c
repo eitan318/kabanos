@@ -1,3 +1,7 @@
+/**
+ * @file gdt.c
+ * @brief Flat GDT setup for protected mode.
+ */
 #include "gdt.h"
 #include <stdint.h>
 

@@ -1,6 +1,11 @@
+/**
+ * @file vga.h
+ * @brief VGA text-mode (80x25) frame buffer access.
+ */
 #pragma once
 #include "klib/stdint.h"
 
+/* VGA attribute colors */
 #define VGA_COLOR_BLACK 0x0
 #define VGA_COLOR_BLUE 0x1
 #define VGA_COLOR_GREEN 0x2
@@ -21,16 +26,21 @@
 #define SCREEN_WIDTH 80
 #define SCREEN_HEIGHT 25
 
+/** @brief Builds an attribute byte from foreground and background colors. */
 #define VGA_MAKE_COLOR(fg, bg) (((bg) << 4) | (fg))
 
-/* raw cell access */
+/* Raw cell access */
 void vga_write_char(int x, int y, char c);
 void vga_write_color(int x, int y, uint8_t color);
 char vga_read_char(int x, int y);
 uint8_t vga_read_color(int x, int y);
 
+/** @brief Scrolls the screen up by @p lines, filling new lines with
+ *         @p back_color. */
 void vga_scroll(int lines, uint8_t back_color);
+
+/** @brief Clears the whole screen to @p back_color. */
 void vga_clear(uint8_t back_color);
 
-/* hardware cursor */
+/** @brief Moves the hardware (blinking) cursor. */
 void vga_cursor_set(int x, int y);

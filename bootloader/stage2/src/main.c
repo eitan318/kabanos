@@ -1,3 +1,7 @@
+/**
+ * @file main.c
+ * @brief Stage2 entry: loads boot.cfg, kernel and modules, builds Multiboot2 info and jumps to the kernel.
+ */
 #include "bcd.h"
 #include "boot/bootparams.h"
 #include "elf.h"

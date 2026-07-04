@@ -1,3 +1,7 @@
+/**
+ * @file math.h
+ * @brief Min/max and alignment helpers.
+ */
 #pragma once
 #include <stdint.h>
 

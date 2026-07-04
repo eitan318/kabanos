@@ -1,7 +1,12 @@
+/**
+ * @file sys_sbrk.c
+ * @brief sbrk syscall: grows the process heap.
+ */
 #include "mm/vmspace.h"
 #include "proc/proc.h"
 #include "sched/dispatcher.h"
 #include "utils/math.h"
+
 /**
  * @brief Resizes the program break (heap).
  * @param increment Bytes to add (positive) or remove (negative).

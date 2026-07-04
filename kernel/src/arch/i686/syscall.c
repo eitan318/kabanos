@@ -1,3 +1,7 @@
+/**
+ * @file syscall.c
+ * @brief Marshals a trap frame into syscall_info_t and dispatches it.
+ */
 #include "syscall.h"
 #include "hal.h"
 #include "mm/kmalloc.h"

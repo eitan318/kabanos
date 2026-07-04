@@ -1,3 +1,7 @@
+/**
+ * @file fat.h
+ * @brief Read-only FAT filesystem driver.
+ */
 #pragma once
 
 #include "mbr.h"

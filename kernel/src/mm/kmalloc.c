@@ -1,3 +1,11 @@
+/**
+ * @file kmalloc.c
+ * @brief Slab-based kernel heap allocator.
+ *
+ * Small allocations come from per-size-class slab caches (one page per
+ * slab); allocations larger than the biggest size class fall back to
+ * direct page allocation.
+ */
 #include "mm/kmalloc.h"
 #include "arch/types.h"
 #include "hal.h"
@@ -38,9 +46,7 @@ static uint32_t next_heap_addr = KERNEL_HEAP_START;
 
 arch_vm_t *kernel_arch_vm;
 
-/**
- * Allocate a page from the kernel heap
- */
+/** @brief Allocate a page from the kernel heap. */
 static void *heap_page_alloc(void) {
   if (next_heap_addr >= KERNEL_HEAP_END) {
     return NULL;
@@ -63,9 +69,7 @@ static void *heap_page_alloc(void) {
   return (void *)virtual;
 }
 
-/**
- * Free a page back to the heap
- */
+/** @brief Free a page back to the heap. */
 static void heap_page_free(void *ptr) {
   uint32_t virtual = (uint32_t)ptr;
   uint32_t physical = hal_vm_virt_to_phys(kernel_arch_vm, virtual);
@@ -75,9 +79,7 @@ static void heap_page_free(void *ptr) {
     pmm_frame_free(physical);
   }
 }
-/**
- * Create a new slab for the given cache
- */
+/** @brief Create a new slab for the given cache. */
 static slab_t *slab_create(kmem_cache_t *cache) {
   // Allocate page for slab
   void *page = heap_page_alloc();
@@ -111,14 +113,10 @@ static slab_t *slab_create(kmem_cache_t *cache) {
   return slab;
 }
 
-/**
- * Destroy a slab
- */
+/** @brief Destroy a slab. */
 static void slab_destroy(slab_t *slab) { heap_page_free(slab); }
 
-/**
- * Allocate an object from a slab
- */
+/** @brief Allocate an object from a slab. */
 static void *slab_alloc(slab_t *slab) {
   if (!slab->free_list) {
     return NULL;
@@ -132,9 +130,7 @@ static void *slab_alloc(slab_t *slab) {
   return obj;
 }
 
-/**
- * Free an object back to a slab
- */
+/** @brief Free an object back to a slab. */
 static void slab_free(slab_t *slab, void *ptr) {
   // Push onto free list
   *(void **)ptr = slab->free_list;
@@ -142,18 +138,14 @@ static void slab_free(slab_t *slab, void *ptr) {
   slab->free_count++;
 }
 
-/**
- * Find which slab an address belongs to
- */
+/** @brief Find which slab an address belongs to. */
 static slab_t *slab_find(void *ptr) {
   // Slabs are page-aligned
   uint32_t addr = (uint32_t)ptr;
   return (slab_t *)(addr & ~(PAGE_SIZE - 1));
 }
 
-/**
- * Get cache for a given size
- */
+/** @brief Get cache for a given size. */
 static kmem_cache_t *cache_for_size(size_t size) {
   for (size_t i = 0; i < NUM_SIZE_CLASSES; i++) {
     if (size <= SIZE_CLASSES[i]) {
@@ -163,10 +155,7 @@ static kmem_cache_t *cache_for_size(size_t size) {
   return NULL;
 }
 
-/**
- * Initialize the kernel memory allocator
- */
-
+/** @brief Initialize the kernel memory allocator. */
 void kmalloc_init() {
   // Initialize each cache
   for (size_t i = 0; i < NUM_SIZE_CLASSES; i++) {
@@ -184,9 +173,7 @@ void kmalloc_init() {
   kernel_arch_vm = g_kernel_vmspace->arch;
 }
 
-/**
- * Internal allocation function
- */
+/** @brief Internal allocation function. */
 static void *kmalloc_internal(size_t size, bool zero) {
   if (size == 0) {
     return NULL;
@@ -279,19 +266,13 @@ static void *kmalloc_internal(size_t size, bool zero) {
   return ptr;
 }
 
-/**
- * Allocate kernel memory
- */
+/** @brief Allocate kernel memory. */
 void *kmalloc(size_t size) { return kmalloc_internal(size, false); }
 
-/**
- * Allocate and zero kernel memory
- */
+/** @brief Allocate and zero kernel memory. */
 void *kzalloc(size_t size) { return kmalloc_internal(size, true); }
 
-/**
- * Allocate memory like calloc(count, size)
- */
+/** @brief Allocate memory like calloc(count, size). */
 void *kcalloc(size_t count, size_t size) {
   // Check for overflow
   if (count != 0 && size > SIZE_MAX / count) {
@@ -301,9 +282,7 @@ void *kcalloc(size_t count, size_t size) {
   return kzalloc(count * size);
 }
 
-/**
- * Free kernel memory
- */
+/** @brief Free kernel memory. */
 void kfree(void *ptr) {
   if (!ptr) {
     return;
@@ -365,9 +344,7 @@ void kfree(void *ptr) {
   }
 }
 
-/**
- * Reallocate kernel memory
- */
+/** @brief Reallocate kernel memory. */
 void *krealloc(void *ptr, size_t size) {
   if (!ptr) {
     return kmalloc(size);
@@ -406,7 +383,5 @@ void *krealloc(void *ptr, size_t size) {
   return new_ptr;
 }
 
-/**
- * Get statistics
- */
+/** @brief Get statistics. */
 void kmalloc_stats_get(kmalloc_stats_t *out) { *out = stats; }

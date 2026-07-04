@@ -1,3 +1,7 @@
+/**
+ * @file errno.h
+ * @brief Arch-level errno constants (Linux-compatible numbering).
+ */
 #pragma once
 #define EPERM 1
 #define ENOENT 2

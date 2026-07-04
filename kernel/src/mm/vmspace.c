@@ -1,3 +1,11 @@
+/**
+ * @file vmspace.c
+ * @brief Address-space lifecycle, vma tracking and cross-space copies.
+ *
+ * Cross-space copies use the single-page KMAPPING_BASE scratch window to
+ * reach the other space's physical pages, so they are serialized by a
+ * lock.
+ */
 #include "mm/vmspace.h"
 #include "adt/range.h"
 #include "arch/types.h"
@@ -132,7 +140,7 @@ vma_t *vma_create(vaddr_t va_start, size_t mem_size, uint32_t flags) {
   vma->range.start = va_start;
   vma->range.end = va_start + mem_size;
   vma->flags = flags;
-  vma->next = NULL; // Safety first
+  vma->next = NULL;
 
   return vma;
 }
@@ -149,12 +157,9 @@ bool vmspace_map_stack(vmspace_t *vm, uint32_t stack_top, size_t size) {
 
   vmspace_add_vma(vm, stack_vma);
 
-  // 3. EITHER allocate now:
+  // Allocate eagerly; returning true instead would defer to demand paging
   uint32_t flags = PAGE_PRESENT | PAGE_READWRITE | PAGE_USER;
   return va_alloc_region(vm->arch, stack_start, size, flags);
-
-  // OR just return true here if you want lazy demand paging!
-  return true;
 }
 
 bool vmspace_map_heap(vmspace_t *vm, uint32_t heap_start, size_t initial_size) {

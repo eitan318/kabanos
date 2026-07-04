@@ -1,3 +1,10 @@
+/**
+ * @file myfs.h
+ * @brief MyFS: the native filesystem (superblock, inodes, directories).
+ *
+ * This layer has no VFS dependencies; it is also linked into the host
+ * mkfs tool (built with MKFS_MYFS defined).
+ */
 #pragma once
 
 #ifdef MKFS_MYFS
@@ -14,378 +21,232 @@
 #define MYFS_ROOT_INODE_NUM 0
 #define MYFS_DIRECT_BLOCKS_MAX 10
 
-/**
- * struct MyfsDirEntry - Directory entry structure
- * @file_name: Name of the file/directory (max 31 chars + null terminator)
- * @inode_num: Inode number of the entry
- */
+/** @brief On-disk directory entry. */
 typedef struct {
-  char file_name[32];
-  uint32_t inode_num;
+  char file_name[32]; /**< Entry name (max 31 chars + null terminator). */
+  uint32_t inode_num; /**< Inode number of the entry. */
 } __attribute__((packed)) MyfsDirEntry;
 
-/**
- * struct MyfsInode - Filesystem inode structure
- * @i_ino: Inode number
- * @direct_blocks: Direct block pointers (up to MYFS_DIRECT_BLOCKS_MAX)
- * @block_count: Number of blocks allocated to this inode
- * @size: File/directory size in bytes
- * @mode: File type (S_IFREG, S_IFDIR, S_IFLNK, etc.)
- * @ref_count: In-memory reference count
- * @links_count: Hard link count
- * @uid: Owner user ID
- * @gid: Owner group ID
- * @permissions: File permissions (e.g., 0755)
- * @atime: Access time (Unix timestamp)
- * @mtime: Modification time (Unix timestamp)
- * @ctime: Creation time (Unix timestamp)
- * @dirty: Flag indicating inode needs to be written to disk
- *
- * This structure represents an in-memory inode with no VFS dependencies.
- */
+/** @brief Inode structure (on-disk layout, also used in memory). */
 typedef struct {
-  uint32_t i_ino;
-  uint32_t block_ptrs[MYFS_DIRECT_BLOCKS_MAX];
-  uint32_t single_indirect_ptr;
-  uint32_t double_indirect_ptr;
-  uint32_t block_count;
-  uint32_t size;
-  uint32_t mode;
-  uint32_t ref_count;
-  uint32_t links_count;
-  uint32_t uid;
-  uint32_t gid;
-  uint32_t permissions;
-  uint64_t atime;
-  uint64_t mtime;
-  uint64_t ctime;
-  uint32_t dirty;
+  uint32_t i_ino;                              /**< Inode number. */
+  uint32_t block_ptrs[MYFS_DIRECT_BLOCKS_MAX]; /**< Direct block pointers. */
+  uint32_t single_indirect_ptr; /**< Block holding further block pointers. */
+  uint32_t double_indirect_ptr; /**< Block holding single-indirect blocks. */
+  uint32_t block_count;         /**< Number of blocks allocated. */
+  uint32_t size;                /**< File/directory size in bytes. */
+  uint32_t mode;                /**< File type (S_IFREG, S_IFDIR, ...). */
+  uint32_t ref_count;           /**< In-memory reference count. */
+  uint32_t links_count;         /**< Hard link count. */
+  uint32_t uid;                 /**< Owner user ID. */
+  uint32_t gid;                 /**< Owner group ID. */
+  uint32_t permissions;         /**< Permission bits (e.g. 0755). */
+  uint64_t atime;               /**< Access time (Unix timestamp). */
+  uint64_t mtime;               /**< Modification time (Unix timestamp). */
+  uint64_t ctime;               /**< Creation time (Unix timestamp). */
+  uint32_t dirty;               /**< Nonzero if it must be written back. */
 } __attribute__((packed)) MyfsInode;
 
-/**
- * struct MyfsDiskSuperBlock - On-disk superblock structure
- * @magic: Magic number to identify the filesystem (MYFS_MAGIC)
- * @total_inodes: Total number of inodes in the filesystem
- * @total_blocks: Total number of blocks in the filesystem
- * @free_inodes: Number of free inodes (currently unused)
- * @free_blocks: Number of free blocks (currently unused)
- * @block_sectors: Number of sectors per block
- * @file_initial_blocks: Initial number of blocks allocated for new files
- * @inode_bitmap_start: First block of inode bitmap
- * @block_bitmap_start: First block of block bitmap
- * @inode_table_start: First block of inode table
- * @data_blocks_start: First block of data area
- * @root_inode: Root directory inode number
- */
+/** @brief On-disk superblock. */
 typedef struct {
-  uint32_t magic;
-  uint32_t total_inodes;
-  uint32_t total_blocks;
-  uint32_t free_inodes;
-  uint32_t free_blocks;
-  uint32_t block_sectors;
-  uint32_t file_initial_blocks;
-  uint32_t inode_bitmap_start;
-  uint32_t block_bitmap_start;
-  uint32_t inode_table_start;
-  uint32_t data_blocks_start;
-  uint32_t root_inode;
+  uint32_t magic;               /**< MYFS_MAGIC. */
+  uint32_t total_inodes;        /**< Total number of inodes. */
+  uint32_t total_blocks;        /**< Total number of blocks. */
+  uint32_t free_inodes;         /**< Currently unused. */
+  uint32_t free_blocks;         /**< Currently unused. */
+  uint32_t block_sectors;       /**< Sectors per block. */
+  uint32_t file_initial_blocks; /**< Blocks pre-allocated for new files. */
+  uint32_t inode_bitmap_start;  /**< First block of the inode bitmap. */
+  uint32_t block_bitmap_start;  /**< First block of the block bitmap. */
+  uint32_t inode_table_start;   /**< First block of the inode table. */
+  uint32_t data_blocks_start;   /**< First block of the data area. */
+  uint32_t root_inode;          /**< Root directory inode number. */
 } MyfsDiskSuperBlock;
 
 #define INODE_HASH_SIZE 256
 #define INODE_HASH(ino) ((ino) % INODE_HASH_SIZE)
 
-/**
- * struct inode_hash_entry - Inode cache hash table entry
- * @inode: Pointer to cached inode
- * @next: Next entry in hash bucket (chaining for collisions)
- */
+/** @brief Inode cache hash bucket entry (chained on collision). */
 typedef struct inode_hash_entry {
   MyfsInode *inode;
   struct inode_hash_entry *next;
 } InodeHashEntry;
 
-/**
- * struct MyfsSuperBlock - In-memory superblock structure
- * @on_disk: On-disk superblock data
- * @block_bitmap: In-memory block allocation bitmap
- * @inode_bitmap: In-memory inode allocation bitmap
- * @inode_hash_table: Hash table for inode cache
- * @mounted: Flag indicating if filesystem is mounted
- * @block_bytes: Block size in bytes (computed from block_sectors)
- */
+/** @brief In-memory superblock. */
 typedef struct {
-  MyfsDiskSuperBlock on_disk;
-  blkdev_t *dev; /* ← add this */
-  uint32_t block_bytes;
-  uint8_t *block_bitmap;
-  uint8_t *inode_bitmap;
-  InodeHashEntry *inode_hash_table[INODE_HASH_SIZE];
-  uint32_t mounted;
+  MyfsDiskSuperBlock on_disk; /**< Copy of the on-disk superblock. */
+  blkdev_t *dev;              /**< Backing block device. */
+  uint32_t block_bytes;       /**< Block size in bytes. */
+  uint8_t *block_bitmap;      /**< In-memory block allocation bitmap. */
+  uint8_t *inode_bitmap;      /**< In-memory inode allocation bitmap. */
+  InodeHashEntry *inode_hash_table[INODE_HASH_SIZE]; /**< Inode cache. */
+  uint32_t mounted;                                  /**< Mounted flag. */
 } MyfsSuperBlock;
 
 /**
- * myfs_format() - Format a disk with MyFS filesystem
+ * @brief Formats a disk with the MyFS filesystem.
  *
- * Creates the superblock, bitmaps, and inode table
- * structures.
+ * Creates the superblock, bitmaps and inode table structures.
  *
- * Return: 0 on success, negative on error
+ * @return 0 on success, negative on error.
  */
 int myfs_format(blkdev_t *dev, uint32_t max_blocks);
 
 /**
- * myfs_sb_read() - Read superblock from disk
- *
- * Loads the superblock and initializes the in-memory structures.
- *
- * Return: Pointer to superblock on success, NULL on error
+ * @brief Reads the superblock from disk and initializes the in-memory
+ *        structures.
+ * @return Pointer to superblock on success, NULL on error.
  */
 MyfsSuperBlock *myfs_sb_read(blkdev_t *dev);
 
 /**
- * myfs_sb_kill() - Unmount filesystem and free superblock
- * @sb: Superblock to destroy
- *
- * Flushes all dirty data and frees memory.
- *
- * Return: 0 on success
+ * @brief Unmounts the filesystem: flushes all dirty data and frees @p sb.
+ * @return 0 on success.
  */
 int myfs_sb_kill(MyfsSuperBlock *sb);
 
 /**
- * myfs_rename() - Rename/move a file or directory
- * @sb: Superblock
- * @old_parent_inode: Old parent directory inode
- * @old_name: Current name
- * @new_parent_inode: New parent directory inode
- * @new_name: New name
- *
- * Return: 0 on success, negative on error
+ * @brief Renames/moves a file or directory.
+ * @return 0 on success, negative on error.
  */
 int myfs_rename(MyfsSuperBlock *sb, MyfsInode *old_parent_inode,
                 const char *old_name, MyfsInode *new_parent_inode,
                 const char *new_name);
 
 /**
- * myfs_read_symlink() - Read the target path of a symbolic link
- * @sb: Superblock
- * @inode: Symlink inode
- * @buf: Buffer to store target path
- * @bufsize: Size of buffer
- *
- * Return: Number of bytes read, or negative on error
+ * @brief Reads the target path of a symbolic link into @p buf.
+ * @return Number of bytes read, or negative on error.
  */
 ssize_t myfs_symlink_read(MyfsSuperBlock *sb, MyfsInode *inode, char *buf,
                           size_t bufsize);
 
 /**
- * myfs_create_symlink() - Create a symbolic link
- * @sb: Superblock
- * @dir_inode: Parent directory inode
- * @name: Name of the symlink
- * @target: Target path the symlink points to
- *
- * Return: 0 on success, negative on error
+ * @brief Creates a symbolic link named @p name pointing to @p target.
+ * @return 0 on success, negative on error.
  */
 int myfs_create_symlink(MyfsSuperBlock *sb, MyfsInode *dir_inode,
                         const char *name, const char *target);
 
 /**
- * myfs_readdir() - Read a directory entry at a given offset
- * @sb: Superblock
- * @dir_inode: Directory inode
- * @offset: Byte offset into directory
- * @entry: Pointer to store directory entry
- *
- * Return: Number of bytes read, 0 at end of directory, negative on error
+ * @brief Reads the directory entry at byte offset @p offset.
+ * @return Number of bytes read, 0 at end of directory, negative on error.
  */
 int myfs_readdir(MyfsSuperBlock *sb, MyfsInode *dir_inode, uint32_t offset,
                  MyfsDirEntry *entry);
 
 /**
- * myfs_disk_inode_read() - Read an inode from disk
- * @sb: Superblock
- * @ino: Inode number to read
- *
- * Return: Pointer to newly allocated inode, or NULL on error
+ * @brief Reads inode @p ino from disk, bypassing the cache.
+ * @return Newly allocated inode, or NULL on error.
  */
 MyfsInode *myfs_disk_inode_read(MyfsSuperBlock *sb, int ino);
 
 /**
- * myfs_disk_inode_write() - Write an inode to disk
- * @sb: Superblock
- * @ino: Inode number to write
- *
- * Return: 0 on success, negative on error
+ * @brief Writes inode @p ino back to disk.
+ * @return 0 on success, negative on error.
  */
 int myfs_disk_inode_write(MyfsSuperBlock *sb, int ino);
 
 /**
- * myfs_iget() - Get an inode (from cache or disk)
- * @sb: Superblock
- * @ino: Inode number
+ * @brief Gets an inode from the cache, reading it from disk on a miss.
  *
- * Increments the reference count. Must be balanced with myfs_iput().
+ * Increments the reference count; must be balanced with myfs_iput().
  *
- * Return: Pointer to inode, or NULL on error
+ * @return Pointer to inode, or NULL on error.
  */
 MyfsInode *myfs_iget(MyfsSuperBlock *sb, uint32_t ino);
 
 /**
- * myfs_iput() - Release an inode reference
- * @sb: Superblock
- * @inode: Inode to release
- *
- * Decrements reference count and writes back if dirty and ref_count reaches 0.
+ * @brief Releases an inode reference; writes it back if dirty when the
+ *        reference count reaches zero.
  */
 void myfs_iput(MyfsSuperBlock *sb, MyfsInode *inode);
 
 /**
- * myfs_inode_alloc() - Allocate a new inode
- * @sb: Superblock
- * @inode: Pointer to store newly allocated inode
- * @mode: File mode (S_IFREG, S_IFDIR, S_IFLNK, etc.)
- *
- * Return: 0 on success, negative on error
+ * @brief Allocates a new inode with the given mode.
+ * @param inode [out] Receives the newly allocated inode.
+ * @return 0 on success, negative on error.
  */
 int myfs_inode_alloc(MyfsSuperBlock *sb, MyfsInode **inode, int mode);
 
 /**
- * myfs_read_inode() - Read data from an inode
- * @sb: Superblock
- * @inode: Inode to read from
- * @offset: Byte offset to start reading
- * @buf: Buffer to store read data
- * @count: Number of bytes to read
- *
- * Return: Number of bytes read, or negative on error
+ * @brief Reads @p count bytes of file data starting at @p offset.
+ * @return Number of bytes read, or negative on error.
  */
 ssize_t myfs_node_read(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
                        void *buf, size_t count);
 
 /**
- * myfs_write_inode() - Write data to an inode
- * @sb: Superblock
- * @inode: Inode to write to
- * @offset: Byte offset to start writing
- * @buf: Buffer containing data to write
- * @count: Number of bytes to write
- *
- * Return: Number of bytes written, or negative on error
+ * @brief Writes @p count bytes of file data starting at @p offset,
+ *        allocating blocks as needed.
+ * @return Number of bytes written, or negative on error.
  */
 ssize_t myfs_node_write(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
                         const void *buf, size_t count);
 
 /**
- * myfs_truncate_inode() - Change the size of an inode
- * @sb: Superblock
- * @inode: Inode to truncate
- * @new_size: New size in bytes
- *
- * Frees blocks if shrinking the file.
- *
- * Return: 0 on success, negative on error
+ * @brief Changes an inode's size, freeing blocks when shrinking.
+ * @return 0 on success, negative on error.
  */
 int myfs_inode_truncate(MyfsSuperBlock *sb, MyfsInode *inode,
                         uint32_t new_size);
 
 /**
- * myfs_lookup() - Look up a directory entry by name
- * @sb: Superblock
- * @dir_inode: Directory inode to search in
- * @name: Name to search for
- * @found_ino: Pointer to store found inode number
- *
- * Return: 0 on success, negative if not found or on error
+ * @brief Looks up @p name in a directory.
+ * @param found_ino [out] Receives the entry's inode number.
+ * @return 0 on success, negative if not found or on error.
  */
 int myfs_lookup(MyfsSuperBlock *sb, MyfsInode *dir_inode, const char *name,
                 uint32_t *found_ino);
 
 /**
- * myfs_add_dir_entry() - Add an entry to a directory
- * @sb: Superblock
- * @dir_inode: Directory inode
- * @name: Name of the new entry
- * @inode_num: Inode number of the new entry
- *
- * Return: 0 on success, negative on error
+ * @brief Adds an entry to a directory.
+ * @return 0 on success, negative on error.
  */
 int myfs_dir_add_entry(MyfsSuperBlock *sb, MyfsInode *dir_inode,
                        const char *name, uint32_t inode_num);
 
 /**
- * myfs_remove_dir_entry() - Remove an entry from a directory
- * @sb: Superblock
- * @dir_inode: Directory inode
- * @name: Name of entry to remove
- *
- * Return: 0 on success, negative on error
+ * @brief Removes an entry from a directory.
+ * @return 0 on success, negative on error.
  */
 int myfs_dir_rm_entry(MyfsSuperBlock *sb, MyfsInode *dir_inode,
                       const char *name);
 
 /**
- * myfs_create_file() - Create a new file
- * @sb: Superblock
- * @parent_dir: Parent directory inode
- * @name: Name of the new file
- * @new_ino: Pointer to store new inode number
- *
- * Return: 0 on success, negative on error
+ * @brief Creates a new regular file.
+ * @param new_ino [out] Receives the new inode number.
+ * @return 0 on success, negative on error.
  */
 int myfs_create_file(MyfsSuperBlock *sb, MyfsInode *parent_dir,
                      const char *name, uint32_t *new_ino);
 
 /**
- * myfs_create_dir() - Create a new directory
- * @sb: Superblock
- * @parent_dir: Parent directory inode
- * @name: Name of the new directory
- * @new_ino: Pointer to store new inode number
- *
- * Automatically creates "." and ".." entries.
- *
- * Return: 0 on success, negative on error
+ * @brief Creates a new directory with "." and ".." entries.
+ * @param new_ino [out] Receives the new inode number.
+ * @return 0 on success, negative on error.
  */
 int myfs_create_dir(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name,
                     uint32_t *new_ino);
 
 /**
- * myfs_unlink() - Delete a file
- * @sb: Superblock
- * @parent_dir: Parent directory inode
- * @name: Name of entry to delete
- *
- * Return: 0 on success, negative on error
+ * @brief Deletes a file from a directory.
+ * @return 0 on success, negative on error.
  */
 int myfs_unlink(MyfsSuperBlock *sb, MyfsInode *parent_dir, const char *name);
 
 /**
- * myfs_unlink() - Delete a directory
- * @sb: Superblock
- * @parent_dir: Parent directory inode
- * @name: Name of entry to delete
- *
- * Return: 0 on success, negative on error
+ * @brief Deletes an (empty) directory.
+ * @return 0 on success, negative on error.
  */
 int myfs_remove_dir(MyfsSuperBlock *sb, MyfsInode *parent_dir,
                     const char *name);
 
 /**
- * myfs_find_entry_idx() - Find the index of a directory entry
- * @entries: Array of directory entries
- * @entries_count: Number of entries in array
- * @name: Name to search for
- *
- * Return: Index of entry, or -1 if not found
+ * @brief Finds the index of a named entry in an entry array.
+ * @return Index of entry, or -1 if not found.
  */
 int myfs_entry_idx_find(MyfsDirEntry *entries, int entries_count,
                         const char *name);
 
-/**
- * myfs_get_version() - Get filesystem version string
- *
- * Return: Version string
- */
+/** @brief Returns the filesystem version string. */
 const char *myfs_version_get(void);

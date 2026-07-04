@@ -1,3 +1,7 @@
+/**
+ * @file pci.c
+ * @brief PCI configuration-space access (mechanism #1 ports 0xCF8/0xCFC).
+ */
 #include "drivers/pci/pci.h"
 #include "hal.h"
 

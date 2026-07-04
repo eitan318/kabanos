@@ -1,8 +1,10 @@
-/*
- * ut_framework.h - Generic Unit Test Framework
+/**
+ * @file ut_framework.h
+ * @brief Generic unit test framework: suites, UT_ASSERT_* macros and
+ *        colored reporting. No external dependencies.
  *
- * A simple, reusable unit testing framework for C projects.
- * No external dependencies required.
+ * Test functions return UT_PASS / UT_FAIL / UT_SKIP; the UT_ASSERT_*
+ * macros return UT_FAIL from the calling test on violation.
  */
 
 #pragma once
@@ -32,26 +34,29 @@
 
 typedef int (*ut_test_func_t)(void);
 
+/** @brief A single named test. */
 typedef struct {
   const char *name;
   ut_test_func_t func;
 } ut_test_case_t;
 
+/** @brief A group of tests with optional fixtures. */
 typedef struct {
   const char *suite_name;
   ut_test_case_t *tests;
   int num_tests;
-  int (*setup)(void);          // Called before each test (optional)
-  void (*teardown)(void);      // Called after each test (optional)
-  int (*suite_setup)(void);    // Called once before suite (optional)
-  int (*suite_teardown)(void); // Called once after suite (optional)
+  int (*setup)(void);          /**< Called before each test (optional). */
+  void (*teardown)(void);      /**< Called after each test (optional). */
+  int (*suite_setup)(void);    /**< Called once before the suite (optional). */
+  int (*suite_teardown)(void); /**< Called once after the suite (optional). */
 } ut_test_suite_t;
 
+/** @brief Runner output/behavior options. */
 typedef struct {
-  int verbose;      // Print detailed output
-  int stop_on_fail; // Stop on first failure
-  int show_passed;  // Show passed test names
-  int quiet;        // Minimal output
+  int verbose;      /**< Print detailed output. */
+  int stop_on_fail; /**< Stop on first failure. */
+  int show_passed;  /**< Show passed test names. */
+  int quiet;        /**< Minimal output. */
 } ut_config_t;
 
 #define UT_ASSERT(condition, msg)                                              \
@@ -147,19 +152,23 @@ typedef struct {
     }                                                                          \
   } while (0)
 
-// Skip a test (useful for temporarily disabling tests)
+/** @brief Skips a test (useful for temporarily disabling tests). */
 #define UT_SKIP_TEST(msg)                                                      \
   do {                                                                         \
     kdebugf("%sSKIP%s: %s\n", UT_COLOR_YELLOW, UT_COLOR_RESET, (msg));         \
     return UT_SKIP;                                                            \
   } while (0)
 
-// Define a test array
+/** @brief Builds a ut_test_case_t entry from a function name. */
 #define UT_TEST(func)                                                          \
   { #func, func }
 
+/** @brief Runs one suite; returns the number of failed tests. */
 int ut_run_suite(ut_test_suite_t *suite, ut_config_t *config);
+
+/** @brief Runs multiple suites and prints a combined summary. */
 int ut_run_suites(ut_test_suite_t *suites, int num_suites, ut_config_t *config);
+
 void ut_print_summary(int total, int passed, int failed, int skipped);
 
 static inline ut_config_t ut_default_config(void) {

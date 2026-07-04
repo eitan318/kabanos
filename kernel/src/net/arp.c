@@ -1,3 +1,7 @@
+/**
+ * @file arp.c
+ * @brief ARP request/reply handling and the ARP cache.
+ */
 #include "net/arp.h"
 #include "drivers/rtl8139/rtl8139.h"
 #include "klib/string.h"

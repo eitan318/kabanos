@@ -1,3 +1,7 @@
+/**
+ * @file bcd.h
+ * @brief Boot configuration data (boot.cfg) parsing.
+ */
 #pragma once
 #include <stdbool.h>
 #include <stddef.h>

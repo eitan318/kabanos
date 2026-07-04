@@ -1,3 +1,7 @@
+/**
+ * @file ut_framework.c
+ * @brief Unit test runner and reporting.
+ */
 #include "ut/ut_framework.h"
 #include "klib/stdio.h"
 

@@ -1,3 +1,7 @@
+/**
+ * @file stdio.h
+ * @brief printf-family output for stage2.
+ */
 #pragma once
 #include "vfs.h"
 #include <stdarg.h>

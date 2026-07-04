@@ -1,3 +1,7 @@
+/**
+ * @file hal_io.c
+ * @brief Port I/O primitives (in/out instructions).
+ */
 #include "klib/stdint.h"
 
 uint8_t hal_in8(uint16_t port) {

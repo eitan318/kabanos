@@ -1,3 +1,11 @@
+/**
+ * @file thread.c
+ * @brief Thread creation, cloning and destruction.
+ *
+ * Each thread's kernel stack lives at a fixed virtual slot derived from
+ * its tid (PROCESS_KERNEL_STACKS_START + tid * stack size) and is mapped
+ * into both the kernel and the owning user address space.
+ */
 #include "sched/thread.h"
 #include "arch/types.h"
 #include "hal.h"
@@ -12,7 +20,11 @@
 static uint32_t next_tid = 1;
 static uint32_t alloc_tid() { return next_tid++; }
 
-// Allocate and map kernel stack (in both kernel and user page directories)
+/**
+ * @brief Allocates the tid's kernel stack and maps it into the kernel
+ *        page directory, plus @p user_vm if given.
+ * @return Pointer to the stack top, or NULL on failure.
+ */
 static void *alloc_kernel_stack(uint32_t tid, arch_vm_t *user_vm) {
   vaddr_t stack_bottom =
       PROCESS_KERNEL_STACKS_START + tid * PROCESS_KERNEL_STACK_SIZE;

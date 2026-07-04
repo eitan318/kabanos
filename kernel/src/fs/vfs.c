@@ -1,3 +1,8 @@
+/**
+ * @file vfs.c
+ * @brief VFS core: mounts, path resolution, vnode cache and the
+ *        fd-level file operations.
+ */
 #include "fs/vfs.h"
 #include "assert.h"
 #include "fs/fd.h"
@@ -10,8 +15,8 @@
 #include "mm/kmalloc.h"
 #include <sched/thread.h>
 
-mount_point_t *mount_p_table = NULL;
-fs_type_t *fs_registry_table = NULL;
+mount_point_t *mount_p_table = NULL;  /**< Active mounts (linked list). */
+fs_type_t *fs_registry_table = NULL;  /**< Registered fs drivers. */
 
 static int kernel_write_block(const void *dev, uint32_t lba, const void *buf) {
   blkdev_t *device = (blkdev_t *)dev;
@@ -30,6 +35,7 @@ fs_platform_t g_vfs_platform =
                     .write_block = kernel_write_block,
                     .log = kdebugf};
 
+/** @brief dir_ctx actor that fills a vdir_entry_t array for getdents. */
 static int filldir(dir_ctx_t *ctx, const char *name, int namelen, off_t offset,
                    int ino, int type) {
   if (!ctx->buf || !name)
@@ -165,7 +171,7 @@ void vfs_vnode_put(vnode_t *vnode) {
   }
 }
 
-// Allocate a new file descriptor
+/** @brief Places @p file in the first free fd slot. */
 static int alloc_fd(file_t *file) {
   for (int i = 0; i < MAX_FD; i++) {
     if (!g_fd_table[i]) {
@@ -176,7 +182,7 @@ static int alloc_fd(file_t *file) {
   return -1;
 }
 
-// Close a file descriptor
+/** @brief Releases the fd slot; frees the file at refcount zero. */
 static void free_fd(int fd) {
   if (fd < 0 || fd >= MAX_FD || !g_fd_table[fd])
     return;
@@ -393,7 +399,6 @@ int vfs_umount(const char *target, vnode_t *const base_node) {
   return 0;
 }
 
-// Find the best matching mount point for a path
 mount_point_t *vfs_find_mount_point(const char *path,
                                     vnode_t *const base_node) {
   ASSERT(!base_node); // Rel unimplemented
@@ -420,6 +425,17 @@ mount_point_t *vfs_find_mount_point(const char *path,
   return best_match;
 }
 
+/**
+ * @brief Resolves @p relative_path component by component from
+ *        @p base_node.
+ *
+ * Symlinks in the middle of the path are always followed (relative ones
+ * continue from the current directory, absolute ones restart from the
+ * root); a symlink in the final component is only followed when
+ * @p follow_final_symlink is set. Depth is capped at MAX_SYMLINK_DEPTH.
+ *
+ * @return Referenced vnode, or NULL on any resolution failure.
+ */
 static vnode_t *vfs_walk(vnode_t *const base_node, const char *relative_path,
                          bool follow_final_symlink) {
   vnode_t *current = base_node;
@@ -665,7 +681,6 @@ int vfs_fstat(int fd, fstat_t *stat) {
   return n;
 }
 
-// return bytes written
 ssize_t vfs_write(int fd, const void *buf, size_t size) {
   if (fd < 0 || fd >= MAX_FD || !g_fd_table[fd])
     return -1;
@@ -692,7 +707,6 @@ ssize_t vfs_write(int fd, const void *buf, size_t size) {
   return n;
 }
 
-// Close a file descriptor
 int vfs_close(int fd) {
   if (fd < 0 || fd >= MAX_FD || !g_fd_table[fd])
     return -1;
@@ -709,7 +723,11 @@ int vfs_close(int fd) {
   return result;
 }
 
-// Common helper for operations that need parent dir + child name
+/**
+ * @brief Splits @p path into parent directory + final name, resolves the
+ *        parent and invokes @p op on it (shared by create/mkdir/rmdir/
+ *        unlink).
+ */
 static int vfs_parent_operation(const char *path, vnode_t *base_node,
                                 int (*op)(vnode_t *parent, const char *name,
                                           mode_t mode),
@@ -745,7 +763,7 @@ static int vfs_parent_operation(const char *path, vnode_t *base_node,
   kfree(path_copy);
   return result;
 }
-// Helper to dry up the boilerplate
+/** @brief Returns the vnode_ops of the filesystem @p path lives on. */
 static struct vnode_ops *get_vops(const char *path, vnode_t *const base_node) {
   if (base_node) {
     return base_node->super_block->v_ops;

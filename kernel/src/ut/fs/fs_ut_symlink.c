@@ -1,3 +1,7 @@
+/**
+ * @file fs_ut_symlink.c
+ * @brief Filesystem tests: symbolic links.
+ */
 
 /*
  * File: fs_ut_symlink.c

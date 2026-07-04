@@ -1,3 +1,7 @@
+/**
+ * @file vga_text.h
+ * @brief VGA text-mode output.
+ */
 #pragma once
 
 #include <stdint.h>

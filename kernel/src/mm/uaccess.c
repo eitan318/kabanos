@@ -1,3 +1,7 @@
+/**
+ * @file uaccess.c
+ * @brief Kernel/user copy helpers over the current process's vmspace.
+ */
 #include "mm/uaccess.h"
 #include "hal.h"
 #include "klib/errno.h"

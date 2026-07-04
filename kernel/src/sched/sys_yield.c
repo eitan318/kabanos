@@ -1,3 +1,7 @@
+/**
+ * @file sys_yield.c
+ * @brief yield syscall: re-enqueue the caller and switch away.
+ */
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
 #include "sched/thread.h"

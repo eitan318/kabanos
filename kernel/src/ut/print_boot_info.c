@@ -1,3 +1,7 @@
+/**
+ * @file print_boot_info.c
+ * @brief Debug dump of the boot memory map.
+ */
 #include "kernel_boot_info.h"
 #include "klib/stdio.h"
 

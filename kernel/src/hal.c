@@ -1,3 +1,7 @@
+/**
+ * @file hal.c
+ * @brief Registers the HAL as a module so arch init runs at module load.
+ */
 #include "hal.h"
 #include "modules.h"
 

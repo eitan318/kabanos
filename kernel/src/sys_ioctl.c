@@ -1,3 +1,8 @@
+/**
+ * @file sys_ioctl.c
+ * @brief ioctl syscall: routes requests to the device behind a
+ *        character-device fd.
+ */
 #include "sys_ioctl.h"
 #include "device.h"
 #include "drivers/console/tty.h"

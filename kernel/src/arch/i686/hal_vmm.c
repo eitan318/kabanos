@@ -1,3 +1,11 @@
+/**
+ * @file hal_vmm.c
+ * @brief i686 two-level paging: page directory/table management and COW.
+ *
+ * Page tables are accessed through the higher-half physical mapping
+ * (phys + KERNEL_BASE). COW pages are marked read-only with the custom
+ * PT_COW software bit; the write fault handler re-links or copies them.
+ */
 #include "arch/types.h"
 #include "assert.h"
 #include "hal.h"

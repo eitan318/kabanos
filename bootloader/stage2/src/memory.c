@@ -1,3 +1,7 @@
+/**
+ * @file memory.c
+ * @brief memcpy/memset/memcmp.
+ */
 #include "memory.h"
 
 void *memcpy(void *dst, const void *src, uint32_t num) {

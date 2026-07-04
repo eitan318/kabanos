@@ -1,3 +1,7 @@
+/**
+ * @file rtl8139.c
+ * @brief RTL8139 NIC driver: PCI discovery, TX/RX rings, interrupts.
+ */
 #include "drivers/rtl8139/rtl8139.h"
 #include "hal.h"
 #include "isr.h"

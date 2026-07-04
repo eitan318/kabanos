@@ -1,7 +1,8 @@
 /**
  * @file vfs.h
  * @brief Virtual File System (VFS) Interface.
- * * Provides a unified abstraction layer over different physical filesystems,
+ *
+ * Provides a unified abstraction layer over different physical filesystems,
  * supporting standard POSIX-like file and directory operations.
  */
 

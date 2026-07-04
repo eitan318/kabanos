@@ -1,3 +1,10 @@
+/**
+ * @file dispatcher.c
+ * @brief Tracks the running thread and performs context switches.
+ *
+ * At init the boot flow (kmain on the boot stack) is adopted as thread 0
+ * so it can be switched away from like any other thread.
+ */
 #include "sched/dispatcher.h"
 #include "hal.h"
 #include "klib/string.h"
@@ -11,6 +18,7 @@ static arch_thread_t kmain_arch;
 
 extern uint8_t stack_bottom[BOOT_STACK_SIZE];
 
+/** @brief Wraps the currently executing boot flow in a thread_t. */
 int dispatch_init(module_t *self) {
   memset(&kmain_thread, 0, sizeof(thread_t));
 
@@ -52,7 +60,6 @@ void dispatch_switch_to(thread_t *next) {
   hal_thread_switch(current, next);
 }
 
-// if g_current_thread = null ret IDLE task i think
 thread_t *dispatch_get_current(void) { return g_current_thread; }
 
 static const char *dispatch_deps[] = {"hal", NULL};

@@ -1,3 +1,7 @@
+/**
+ * @file vfs.h
+ * @brief Minimal fd-based output streams for stage2.
+ */
 #pragma once
 #include <stddef.h>
 #include <stdint.h>

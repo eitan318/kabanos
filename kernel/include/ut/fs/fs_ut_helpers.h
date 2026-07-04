@@ -1,3 +1,7 @@
+/**
+ * @file fs_ut_helpers.h
+ * @brief Shared fixtures and helpers for the filesystem test suites.
+ */
 #pragma once
 #include "fs/vfs.h"
 

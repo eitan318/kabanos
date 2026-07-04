@@ -1,3 +1,7 @@
+/**
+ * @file fs_ut_rename.c
+ * @brief Filesystem tests: rename/move.
+ */
 
 /*
  * File: fs_ut_rename.c

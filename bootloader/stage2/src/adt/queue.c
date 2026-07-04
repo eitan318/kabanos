@@ -1,3 +1,7 @@
+/**
+ * @file queue.c
+ * @brief Circular FIFO implementation.
+ */
 #include "adt/queue.h"
 #include <stddef.h>
 

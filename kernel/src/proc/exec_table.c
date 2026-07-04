@@ -1,3 +1,10 @@
+/**
+ * @file exec_table.c
+ * @brief Table of executed programs, read by the GDB helper scripts.
+ *
+ * The count is reset on every add, so only the most recent exec is
+ * actually kept.
+ */
 #include "proc/exec_table.h"
 #include <klib/stddef.h>
 #include <klib/string.h>
@@ -10,7 +17,6 @@ void exec_table_add(const char *path, uintptr_t load_base) {
     return;
   g_exec_table_count = 0;
   exec_table_entry_t *e = &g_exec_table[g_exec_table_count++];
-  // 1. Zero out the entire struct first
   memset(e, 0, sizeof(exec_table_entry_t));
   strncpy(e->path, path, sizeof(e->path) - 1);
   e->path[sizeof(e->path) - 1] = '\0';

@@ -1,3 +1,7 @@
+/**
+ * @file blockdev.c
+ * @brief Block device registry.
+ */
 #include "drivers/block/blockdev.h"
 #include "klib/errno.h"
 #include "klib/string.h"

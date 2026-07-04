@@ -1,3 +1,10 @@
+/**
+ * @file spinlock.c
+ * @brief Spinlock implementation using GCC atomic builtins.
+ *
+ * Interrupts are disabled for the whole time a lock is held so that an
+ * interrupt handler on the same CPU cannot deadlock against the holder.
+ */
 #include "spinlock.h"
 #include "hal.h"
 

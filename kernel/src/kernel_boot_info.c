@@ -1,3 +1,7 @@
+/**
+ * @file kernel_boot_info.c
+ * @brief Early Multiboot2 parsing, before any allocator exists.
+ */
 #include "kernel_boot_info.h"
 #include "adt/range.h"
 #include "boot/bootparams.h"
@@ -7,6 +11,7 @@
 
 #define EARLYALLOC_SIZE (5 * 1024)
 
+/** @brief Bump allocator over a static buffer; memory is never freed. */
 static void *early_alloc(unsigned len) {
   static uint8_t buf[EARLYALLOC_SIZE];
   static unsigned idx = 0;

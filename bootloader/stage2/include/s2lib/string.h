@@ -1,3 +1,7 @@
+/**
+ * @file string.h
+ * @brief String helpers for stage2.
+ */
 #pragma once
 #include <stdbool.h>
 

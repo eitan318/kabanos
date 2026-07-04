@@ -1,3 +1,7 @@
+/**
+ * @file timer.c
+ * @brief PIT programming and the timer IRQ handler.
+ */
 #include "sched/timer.h"
 #include "hal.h"
 #include "isr.h"

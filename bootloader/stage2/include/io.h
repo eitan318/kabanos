@@ -1,3 +1,7 @@
+/**
+ * @file io.h
+ * @brief Port I/O and panic primitives (implemented in assembly).
+ */
 #pragma once
 #include <stdint.h>
 

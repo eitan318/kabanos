@@ -1,3 +1,7 @@
+/**
+ * @file device.c
+ * @brief Global device registry.
+ */
 #include "device.h"
 #include "klib/stdbool.h"
 #include "klib/stddef.h"
@@ -6,13 +10,13 @@
 
 #define MAX_DEVICES 32
 
-// A global registry of all detected hardware
+/** @brief Registry of all registered devices, indexed by handle. */
 static device_t *g_device_table[MAX_DEVICES];
 
 device_t *device_init(int id) {
   device_t *dev = kmalloc(sizeof(device_t));
   if (!dev)
-    return NULL; // Always check for kmalloc failure!
+    return NULL;
 
   dev->device_id = id;
   dev->data_ready = false;
@@ -27,13 +31,14 @@ device_t *device_init(int id) {
   return dev;
 }
 
+/**
+ * @brief Frees a device unless threads are still blocked on its wait queue.
+ */
 void device_destroy(device_t *dev) {
   if (!dev)
     return;
 
-  // Safety check: ensure no threads are still sleeping here!
   if (dev->waitq.head != NULL) {
-    // Handle error: You can't delete a device people are waiting on!
     return;
   }
 

@@ -1,3 +1,7 @@
+/**
+ * @file stdio.c
+ * @brief printf-family formatting for stage2.
+ */
 // stage2 stdio.c
 #include "s2lib/stdio.h"
 #include "s2lib/vfs.h"

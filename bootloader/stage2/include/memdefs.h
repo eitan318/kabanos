@@ -1,3 +1,7 @@
+/**
+ * @file memdefs.h
+ * @brief Fixed physical memory layout used by stage2.
+ */
 #pragma once
 
 #define INITRD_LOAD_ADDR ((void *)0x200000)

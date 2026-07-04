@@ -1,3 +1,7 @@
+/**
+ * @file com_one.c
+ * @brief COM1 serial output.
+ */
 #include "com_one.h"
 #include "io.h"
 

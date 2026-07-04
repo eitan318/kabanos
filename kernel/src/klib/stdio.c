@@ -1,3 +1,7 @@
+/**
+ * @file stdio.c
+ * @brief printf-family formatting and per-fd output.
+ */
 #include "klib/stdio.h"
 #include "fs/vfs.h"
 #include "klib/stdbool.h"

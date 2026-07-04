@@ -1,3 +1,7 @@
+/**
+ * @file tty.c
+ * @brief TTY line discipline: canonical-mode buffering and echo.
+ */
 #include "drivers/console/tty.h"
 #include "device.h"
 #include "drivers/console/console.h"

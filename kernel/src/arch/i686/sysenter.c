@@ -1,3 +1,7 @@
+/**
+ * @file sysenter.c
+ * @brief SYSENTER MSR setup for fast syscalls.
+ */
 #include "arch/i686/gdt.h"
 #include "arch/i686/msr.h"
 #include "sched/dispatcher.h"

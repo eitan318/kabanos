@@ -1,3 +1,7 @@
+/**
+ * @file elf.h
+ * @brief ELF32 structures and kernel image loading for stage2.
+ */
 #pragma once
 // stage2 elf reader
 #include "mbr.h"

@@ -1,3 +1,7 @@
+/**
+ * @file sys_console.c
+ * @brief Console syscalls.
+ */
 #include "drivers/console/sys_console.h"
 #include "drivers/console/console.h"
 

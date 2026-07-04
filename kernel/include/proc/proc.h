@@ -34,10 +34,10 @@ typedef struct process {
   struct process *parent; /**< Pointer to the parent process. */
   bool is_waiting;        /**< True if the process is blocked in waitpid. */
 
-  vnode_t *cwd; /** The vnode of the current working directory of the proc */
+  vnode_t *cwd; /**< Vnode of the process's current working directory. */
 
-  uint32_t heap_start; /**< base of heap, set at exec time */
-  uint32_t brk;        /**< current break (top of heap) */
+  uint32_t heap_start; /**< Base of the heap, set at exec time. */
+  uint32_t brk;        /**< Current break (top of the heap). */
 
   struct process *first_child;  /**< Head of the linked list of children. */
   struct process *next_sibling; /**< Next sibling in the parent's child list. */

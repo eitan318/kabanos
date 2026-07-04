@@ -1,3 +1,7 @@
+/**
+ * @file ctype.c
+ * @brief Character classification helpers.
+ */
 #include "ctype.h"
 
 bool islower(char chr) { return chr >= 'a' && chr <= 'z'; }

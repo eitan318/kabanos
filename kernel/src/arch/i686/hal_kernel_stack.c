@@ -1,3 +1,7 @@
+/**
+ * @file hal_kernel_stack.c
+ * @brief Points TSS.esp0 and the SYSENTER stack at a thread's kernel stack.
+ */
 #include "arch/i686/gdt.h"
 #include "arch/i686/msr.h"
 #include "arch/i686/tss.h"

@@ -1,3 +1,7 @@
+/**
+ * @file paging_ut.c
+ * @brief Paging/VMM test suite.
+ */
 #include "arch/types.h"
 #include "boot/bootparams.h"
 #include "hal.h"

@@ -10,8 +10,10 @@
 
 /**
  * @brief Spawns a new process from a file.
- * * Creates a new process and main thread, loads the ELF, and enqueues it.
- * * @param path Path to the executable.
+ *
+ * Creates a new process and main thread, loads the ELF, and enqueues it.
+ *
+ * @param path Path to the executable.
  * @param argc Argument count.
  * @param argv Argument array.
  * @param envp Environment array.
@@ -23,9 +25,11 @@ int process_spawn(const char *path, int argc, char *const argv[],
 
 /**
  * @brief The execve() system call.
- * * Replaces the current process image. Captures arguments, loads the new ELF,
+ *
+ * Replaces the current process image. Captures arguments, loads the new ELF,
  * switches the address space, and reinitializes the thread context.
- * * @param pathname Path to the new executable.
+ *
+ * @param pathname Path to the new executable.
  * @param argv Argument array.
  * @param envp Environment array.
  * @return 0 on success, or error code on failure.

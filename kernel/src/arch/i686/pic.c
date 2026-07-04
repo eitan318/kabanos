@@ -1,3 +1,7 @@
+/**
+ * @file pic.c
+ * @brief 8259A PIC remapping, masking and EOI.
+ */
 #include "arch/i686/pic.h"
 #include "hal.h"
 

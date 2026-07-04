@@ -1,3 +1,7 @@
+/**
+ * @file mbr.c
+ * @brief MBR partition table parsing.
+ */
 #include "mbr.h"
 #include "disk.h"
 #include "s2lib/string.h" // optional for memset

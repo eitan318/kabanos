@@ -1,3 +1,11 @@
+/**
+ * @file sys_cwd.c
+ * @brief chdir/getcwd syscalls.
+ *
+ * getcwd reconstructs the path by walking ".." upward and searching each
+ * parent directory for the child's inode number, building the string
+ * back-to-front.
+ */
 #include "sys_cwd.h"
 #include "fs/fd.h"
 #include "fs/vfs_internal.h"

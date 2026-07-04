@@ -1,3 +1,7 @@
+/**
+ * @file bcd.c
+ * @brief boot.cfg parsing and initrd loading.
+ */
 #include "bcd.h"
 #include "boot/bootparams.h"
 #include "s2lib/string.h"

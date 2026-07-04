@@ -1,3 +1,7 @@
+/**
+ * @file exceptions.c
+ * @brief Exception vector names for panic reporting.
+ */
 #include "hal.h"
 
 // clang-format off

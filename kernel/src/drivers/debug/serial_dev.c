@@ -1,3 +1,7 @@
+/**
+ * @file serial_dev.c
+ * @brief Debug serial output device (fd 3).
+ */
 #include "fs/vfs.h"
 #include "fs/vfs_internal.h"
 #include "hal.h"

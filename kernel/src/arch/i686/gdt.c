@@ -1,3 +1,7 @@
+/**
+ * @file gdt.c
+ * @brief GDT construction: kernel/user segments plus per-core TSS descriptors.
+ */
 #include "arch/i686/gdt.h"
 #include "arch/i686/tss.h"
 #include "klib/stdint.h"

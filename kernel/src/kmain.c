@@ -16,17 +16,24 @@
 #include "proc/sys_exec.h"
 #include "sched/sched.h"
 #include "sched/thread.h"
+/**
+ * @file kmain.c
+ * @brief Kernel entry point: memory bring-up, module init, root mount and
+ *        the first user process.
+ */
 #include "ut/frame_allocator_ut_main.h"
 #include "ut/fs/fs_ut_main.h"
 #include <cmdline.h>
 
 /**
  * @mainpage MyOS Kernel Documentation
- * * @section subsystems Kernel Subsystems
+ *
+ * @section subsystems Kernel Subsystems
  * - @ref scheduler : Manages CPU time and thread states.
  * - @ref vfs : Virtual File System abstraction.
  * - @ref process_mgr : Process lifecycle and address space management.
- * * @section arch Hardware Abstraction Layer
+ *
+ * @section arch Hardware Abstraction Layer
  * - @ref hal_interface : The mandatory interface for porting to new CPUs.
  */
 
@@ -35,6 +42,8 @@ vmspace_t *g_kernel_vmspace = &g_kernel_vmspace_obj;
 range_t g_kernel_virt_range;
 range_t g_kernel_phys_range;
 
+/** @brief Initializes stdio, loads all modules and mounts the root fs
+ *         named on the kernel command line. */
 static void kmain_init_services(KernelBootInfo *boot_info) {
   vfs_init_stdio();
   modules_init_registry(boot_info->modules);
@@ -54,6 +63,8 @@ static void kmain_init_services(KernelBootInfo *boot_info) {
   kfree(fs);
 }
 
+/** @brief Brings up the physical allocator, the kernel address space and
+ *         the kernel heap, in that order. */
 static void kmain_init_memory(KernelBootInfo *boot_info) {
   range_t total_range = get_memory_range(&boot_info->memory_map);
   size_t used_count, usable_count;
@@ -69,10 +80,10 @@ static void kmain_init_memory(KernelBootInfo *boot_info) {
   kmalloc_init();
 }
 
+/** @brief Spawns the init process named by the init_proc cmdline arg. */
 static void kmain_launch_init(const char *cmdline) {
   char *init_path = cmdline_get_arg_copy(cmdline, "init_proc");
 
-  // Fallback if cmdline doesn't specify an init
   if (!init_path) {
     panic("Cmdline didnt specify init path");
   }

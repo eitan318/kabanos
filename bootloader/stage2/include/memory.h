@@ -1,3 +1,7 @@
+/**
+ * @file memory.h
+ * @brief memcpy/memset/memcmp.
+ */
 #pragma once
 #include "stdint.h"
 

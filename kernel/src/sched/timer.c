@@ -1,3 +1,7 @@
+/**
+ * @file timer.c
+ * @brief Tick counting and tick-derived wall-clock time.
+ */
 #include "sched/timer.h"
 #include "assert.h"
 #include "hal.h"
@@ -22,6 +26,7 @@ void timer_on_tick(void *context) {
   sched_on_timer_tick(context);
 }
 
+/** @brief Hardcoded wall-clock time of boot (no RTC driver yet). */
 static timespec_t boot_time_offset = {1771149600, 0};
 
 void timekeeping_get_walltime(timespec_t *tv) {

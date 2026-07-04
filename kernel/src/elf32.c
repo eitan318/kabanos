@@ -1,3 +1,7 @@
+/**
+ * @file elf32.c
+ * @brief ELF32 validation and segment loading.
+ */
 #include "elf32.h"
 #include "arch/types.h"
 #include "assert.h"
@@ -10,9 +14,13 @@
 #include "utils/math.h"
 #include <klib/stdint.h>
 
-// Load segment: allocate, zero, and copy from file data
-// currently menually touch frame alloc and page_map
-// In future will be with VMA of process
+/**
+ * @brief Maps one PT_LOAD segment: registers a vma, allocates and zeroes
+ *        the pages, then copies in the file-backed portion.
+ *
+ * Writes go through the kernel's physical-memory window rather than the
+ * target address space, since the target is not the active one.
+ */
 static int load_segment(vmspace_t *vmspace, vaddr_t va_start, size_t mem_size,
                         void *file_data, size_t file_size, uint32_t flags) {
 
@@ -53,12 +61,12 @@ static int load_segment(vmspace_t *vmspace, vaddr_t va_start, size_t mem_size,
   return 0;
 }
 
+/** @brief Returns the string at @p name_idx of the string table. */
 static const char *get_elf_string(void *elf_data, uint32_t strtab_off,
                                   uint32_t name_idx) {
   return (const char *)((uint8_t *)elf_data + strtab_off + name_idx);
 }
 
-// Load ELF file
 int elf32_load(vmspace_t *vmspace, void *elf_data, uint32_t elf_size,
                uintptr_t *entry, uintptr_t *text_base) {
   ASSERT(vmspace && vmspace->arch && elf_data && entry);

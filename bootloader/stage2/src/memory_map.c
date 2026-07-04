@@ -1,3 +1,7 @@
+/**
+ * @file memory_map.c
+ * @brief E820 memory map detection via BIOS calls.
+ */
 #include "memory_map.h"
 #include "boot/bootparams.h"
 #include "s2lib/stdio.h"

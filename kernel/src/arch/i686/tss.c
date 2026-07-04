@@ -1,3 +1,7 @@
+/**
+ * @file tss.c
+ * @brief Per-core TSS storage and task register loading.
+ */
 #include "arch/i686/tss.h"
 #include "arch/i686/gdt.h"
 #include "klib/string.h"

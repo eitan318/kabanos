@@ -1,3 +1,12 @@
+/**
+ * @file sched.c
+ * @brief Multilevel-feedback-queue scheduler.
+ *
+ * Four priority ready queues with per-priority time quantums. Priorities
+ * are recomputed from an exponential average of past CPU bursts (shorter
+ * bursts -> higher priority), and waiting threads are periodically aged
+ * up one level to prevent starvation.
+ */
 #include "sched/sched.h"
 #include "hal.h"
 #include "klib/stdio.h"
@@ -25,6 +34,7 @@ static thread_t *ready_queue_tails[THREAD_NUM_PRIORITIES] = {NULL};
 static thread_t *kernel_idle_task = NULL;
 static spinlock_t sched_lock = SPINLOCK_RELEASED;
 
+/** @brief Runs when nothing is ready; halts until the next interrupt. */
 void idle_task(void *arg) {
   while (1) {
     hal_interrupts_enable();
@@ -101,8 +111,12 @@ void sched_enqueue(thread_t *t) {
   spinlock_release(&sched_lock);
 }
 
+/**
+ * @brief Re-estimates the thread's CPU burst and derives its priority
+ *        from it before the thread gets the CPU.
+ */
 void sched_prepare_for_cpu_burst(thread_t *t) {
-  // Formula for history based prediction: T<n+1> = t<n> * a + (1-a) * T<n>
+  // History-based prediction: T<n+1> = t<n> * a + (1-a) * T<n>
   const double a = 0.5;
   int next_burst_ticks_estimate = (t->curr_time_quantum_ticks_passed * a) +
                                   ((1 - a) * t->burst_ticks_estimate);
@@ -124,6 +138,10 @@ void sched_prepare_for_cpu_burst(thread_t *t) {
   t->curr_time_quantum_ticks_passed = 0;
 }
 
+/**
+ * @brief Promotes threads that waited longer than AGING_THRESHOLD_MS one
+ *        priority level. Caller must hold sched_lock.
+ */
 void sched_apply_aging(void) {
   // We start from 1 because Priority 0 is already the highest
   for (int i = 1; i < THREAD_NUM_PRIORITIES; i++) {

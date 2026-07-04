@@ -1,3 +1,10 @@
+/**
+ * @file panic.c
+ * @brief Kernel panic: prints registers and a backtrace, then halts.
+ *
+ * The backtrace is printed in a fixed format (STACK_OF_PANIC) that the
+ * debug tooling can parse and symbolize.
+ */
 #include "hal.h"
 #include "klib/stdio.h"
 #include "klib/unistd.h"

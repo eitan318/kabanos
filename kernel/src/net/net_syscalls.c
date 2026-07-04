@@ -1,3 +1,7 @@
+/**
+ * @file net_syscalls.c
+ * @brief Raw-socket syscalls over the RTL8139 driver.
+ */
 #include "net/net_syscalls.h"
 #include "drivers/rtl8139/rtl8139.h"
 #include "mm/kmalloc.h"

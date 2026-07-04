@@ -1,7 +1,8 @@
 /**
  * @file partition.h
  * @brief MBR Partition Table parsing and management.
- * * Provides structures to decode the Master Boot Record (MBR) found on
+ *
+ * Provides structures to decode the Master Boot Record (MBR) found on
  * block devices and abstractions to treat partitions as independent
  * logical block devices.
  */
@@ -33,7 +34,8 @@ enum MBRPartitionEntryType {
 /**
  * @struct mbr_partition_entry_t
  * @brief The 16-byte MBR partition record structure.
- * * This structure is byte-packed to match the physical layout on disk
+ *
+ * This structure is byte-packed to match the physical layout on disk
  * within the boot sector (starting at offset 446).
  */
 typedef struct __attribute__((packed)) {
@@ -59,9 +61,11 @@ typedef struct {
 
 /**
  * @brief Scans a physical block device for an MBR and registers partitions.
- * * Reads the first sector of the device, verifies the boot signature (0xAA55),
+ *
+ * Reads the first sector of the device, verifies the boot signature (0xAA55),
  * and iterates through the partition table. Valid partitions are typically
  * registered as new virtual block devices (e.g., "ata0p1").
- * * @param physical_dev The physical device to probe.
+ *
+ * @param physical_dev The physical device to probe.
  */
 void partition_probe(blkdev_t *physical_dev);

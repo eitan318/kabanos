@@ -1,3 +1,7 @@
+/**
+ * @file vga.c
+ * @brief VGA text-mode frame buffer access.
+ */
 #include "drivers/console/vga.h"
 #include "hal.h"
 #include "mm/memdefs.h"

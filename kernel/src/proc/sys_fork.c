@@ -1,3 +1,8 @@
+/**
+ * @file sys_fork.c
+ * @brief fork syscall: clones the process, its address space (COW) and
+ *        its main thread.
+ */
 #include "fs/vfs.h"
 #include "hal.h"
 #include "proc/proc.h"

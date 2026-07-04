@@ -1,3 +1,11 @@
+/**
+ * @file pmm.c
+ * @brief Bitmap-based physical frame allocator with reference counts.
+ *
+ * Initialization marks everything used, then frees the usable ranges and
+ * re-reserves the critical ones. Frame 0 is never handed out so that a
+ * physical address of 0 can mean "allocation failed".
+ */
 #include "mm/pmm.h"
 #include "adt/bitmap.h"
 #include "adt/range.h"
@@ -62,6 +70,7 @@ static inline uint64_t frame_to_aligned_addr(uint64_t frame) {
   return memory_range.start + (frame * FRAME_SIZE);
 }
 
+/** @brief Drops one reference; clears the bitmap bit at refcount zero. */
 static void mark_frame_free(uint64_t frame) {
   if (!bitmap_test(bitmap, frame))
     return;

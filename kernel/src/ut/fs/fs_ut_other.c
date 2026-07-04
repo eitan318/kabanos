@@ -1,3 +1,7 @@
+/**
+ * @file fs_ut_other.c
+ * @brief Filesystem tests: mixed/miscellaneous cases.
+ */
 /*
  * File: fs_ut_other.c
  *

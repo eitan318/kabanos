@@ -1,3 +1,7 @@
+/**
+ * @file console.c
+ * @brief Text console: cursor, colors, scrolling on top of the VGA driver.
+ */
 #include "drivers/console/console.h"
 #include "drivers/console/vga.h"
 #include "modules.h"

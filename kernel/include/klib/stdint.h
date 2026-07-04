@@ -1,3 +1,7 @@
+/**
+ * @file stdint.h
+ * @brief Fixed-width integer types (from compiler builtins).
+ */
 #pragma once
 
 // Unsigned integers

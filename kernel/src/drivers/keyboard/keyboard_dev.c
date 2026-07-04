@@ -1,3 +1,7 @@
+/**
+ * @file keyboard_dev.c
+ * @brief Keyboard character-device registration (stdin).
+ */
 #include "device.h"
 #include "fs/vfs.h"
 #include "fs/vfs_internal.h"

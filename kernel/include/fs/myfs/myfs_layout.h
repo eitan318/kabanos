@@ -1,3 +1,9 @@
+/**
+ * @file myfs_layout.h
+ * @brief Legacy MyFS on-disk layout definitions.
+ * @deprecated Not included anywhere; the live definitions are in myfs.h
+ *             (note the differing MYFS_MAGIC and inode layout).
+ */
 #pragma once
 
 #include <klib/stdint.h>

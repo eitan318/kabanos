@@ -1,3 +1,11 @@
+/**
+ * @file sys_fs.h
+ * @brief Filesystem syscalls (thin wrappers over the VFS layer).
+ *
+ * All paths are resolved relative to the calling process's current
+ * working directory. Each call returns 0 (or a count) on success and a
+ * negative errno on failure.
+ */
 #include "fs/vfs.h"
 #include "klib/errno.h"
 #include "klib/stdio.h"

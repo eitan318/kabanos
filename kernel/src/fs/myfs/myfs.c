@@ -1,3 +1,10 @@
+/**
+ * @file myfs.c
+ * @brief MyFS core: on-disk superblock, bitmaps, inodes (direct +
+ *        single/double indirect blocks) and directory entries.
+ *
+ * Compiles both in-kernel and inside the host mkfs tool (MKFS_MYFS).
+ */
 #ifdef MKFS_MYFS
 #include "myfs.h"
 #include <stdbool.h>
@@ -32,6 +39,11 @@ static void disk_write_block(MyfsSuperBlock *sb, uint32_t block_lba,
                          sb->on_disk.block_sectors, buf);
 }
 
+/**
+ * @brief Translates a file-relative block index to its on-disk block,
+ *        walking the direct, single- and double-indirect pointers.
+ * @return Block number, or 0 if the block is not allocated.
+ */
 uint32_t myfs_block_lba_get(MyfsSuperBlock *sb, MyfsInode *inode,
                             uint32_t logical_block_idx) {
   const uint32_t ptrs_per_block = sb->block_bytes / sizeof(uint32_t);
@@ -467,7 +479,7 @@ void myfs_iput(MyfsSuperBlock *sb, MyfsInode *inode) {
  * Block bitmap alloc/free primitives
  * ---------------------------------------------------------------------- */
 
-// Allocates one block, returns its LBA (block index), or 0 on failure
+/** @brief Allocates one data block; returns its block number, 0 if full. */
 static uint32_t myfs_bitmap_alloc(MyfsSuperBlock *sb) {
   int n =
       find_first_empty_bit(sb->block_bitmap, (sb->on_disk.total_blocks + 7) / 8,
@@ -478,7 +490,7 @@ static uint32_t myfs_bitmap_alloc(MyfsSuperBlock *sb) {
   return (uint32_t)n;
 }
 
-// Allocates one block AND zeroes it on disk
+/** @brief Allocates one block and zeroes it on disk (for indirect tables). */
 static uint32_t myfs_bitmap_alloc_zeroed(MyfsSuperBlock *sb) {
   uint32_t lba = myfs_bitmap_alloc(sb);
   if (lba == 0)
@@ -511,6 +523,10 @@ static int write_ptr_to_block(MyfsSuperBlock *sb, uint32_t block_lba,
   return 0;
 }
 
+/**
+ * @brief Points the inode's logical block @p logical_idx at @p phys_lba,
+ *        allocating indirect tables on the way as needed.
+ */
 static int myfs_map_block_to_inode(MyfsSuperBlock *sb, MyfsInode *inode,
                                    uint32_t logical_idx, uint32_t phys_lba) {
   const uint32_t ptrs_per_blk = sb->block_bytes / sizeof(uint32_t);
@@ -564,11 +580,7 @@ static int myfs_map_block_to_inode(MyfsSuperBlock *sb, MyfsInode *inode,
   return -1; // File exceeds max supported size
 }
 
-/* -----------------------------------------------------------------------
- * myfs_map_block_to_inode  (no changes needed, already correct)
- * myfs_inode_grow           (rename myfs_blocks_alloc → this)
- * ---------------------------------------------------------------------- */
-
+/** @brief Appends @p count freshly allocated blocks to the inode. */
 static int myfs_blocks_alloc(MyfsSuperBlock *sb, MyfsInode *inode,
                              uint32_t count) {
   uint32_t new_total = inode->block_count + count;
@@ -585,10 +597,6 @@ static int myfs_blocks_alloc(MyfsSuperBlock *sb, MyfsInode *inode,
   inode->dirty = 1;
   return 0;
 }
-
-/* -----------------------------------------------------------------------
- * myfs_node_write — fix the MYFS_DIRECT_BLOCKS_MAX limit check
- * ---------------------------------------------------------------------- */
 
 ssize_t myfs_node_write(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
                         const void *buf, size_t count) {
@@ -635,10 +643,10 @@ ssize_t myfs_node_write(MyfsSuperBlock *sb, MyfsInode *inode, uint32_t offset,
   return bytes_written;
 }
 
-/* -----------------------------------------------------------------------
- * myfs_inode_free — also free indirect blocks themselves
- * ---------------------------------------------------------------------- */
-
+/**
+ * @brief Releases everything the inode owns: data blocks, the indirect
+ *        table blocks themselves, its bitmap bit and its cache entry.
+ */
 static void myfs_inode_free(MyfsSuperBlock *sb, MyfsInode *inode) {
   if (!inode)
     return;
@@ -674,10 +682,6 @@ static void myfs_inode_free(MyfsSuperBlock *sb, MyfsInode *inode) {
   myfs_inode_cache_remove(sb->inode_hash_table, inode->i_ino);
 }
 
-/* -----------------------------------------------------------------------
- * myfs_inode_truncate — handle indirect blocks on shrink
- * ---------------------------------------------------------------------- */
-
 int myfs_inode_truncate(MyfsSuperBlock *sb, MyfsInode *inode,
                         uint32_t new_size) {
   if (!inode)
@@ -702,6 +706,7 @@ int myfs_inode_truncate(MyfsSuperBlock *sb, MyfsInode *inode,
   return 0;
 }
 
+/** @brief Grows the inode to @p new_total_blocks allocated blocks. */
 static int myfs_inode_grow(MyfsSuperBlock *sb, MyfsInode *inode,
                            uint32_t new_total_blocks) {
   uint32_t current_blocks = inode->block_count;
@@ -723,6 +728,7 @@ static int myfs_inode_grow(MyfsSuperBlock *sb, MyfsInode *inode,
   return 0;
 }
 
+/** @brief Frees the first @p count data blocks of the inode. */
 static void myfs_blocks_free(MyfsSuperBlock *sb, MyfsInode *inode, int count) {
   for (int i = 0; i < count; i++) {
     uint32_t block_lba = myfs_block_lba_get(sb, inode, i);

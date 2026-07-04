@@ -1,3 +1,7 @@
+/**
+ * @file fs_ut_helpers.c
+ * @brief Shared fixtures/helpers for filesystem tests.
+ */
 /*
  * fs_test_helpers.c - Filesystem test helper implementation
  */

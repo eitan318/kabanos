@@ -1,10 +1,18 @@
+/**
+ * @file string.h
+ * @brief Standard C string/memory functions plus a few kernel extras.
+ */
 #pragma once
 #include "klib/stdbool.h"
 #include "klib/stddef.h"
 #include "klib/stdint.h"
 
 int atoi(const char *str);
+
+/** @brief Strips a trailing '\\n' from @p str, if present. */
 void trim_newline(char *str);
+
+/** @brief Converts @p value to its decimal string representation. */
 void itoa(unsigned value, char *str);
 char *strchr(const char *str, char chr);
 char *strrchr(const char *str, char chr);
@@ -14,6 +22,7 @@ unsigned strlen(const char *str);
 size_t strcspn(const char *s, const char *reject);
 int strcmp(const char *a, const char *b);
 int strncmp(const char *a, const char *b, unsigned n);
+/** @brief True if @p str begins with @p prefix. */
 bool starts_with(const char *str, const char *prefix);
 char *strtok(char *str, const char *delim);
 

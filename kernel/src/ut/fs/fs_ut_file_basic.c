@@ -1,3 +1,7 @@
+/**
+ * @file fs_ut_file_basic.c
+ * @brief Filesystem tests: basic file operations.
+ */
 /*
  * File: fs_ut_file_basic.c
  *

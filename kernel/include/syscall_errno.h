@@ -1,5 +1,11 @@
-#define EDEADLOCK EDEADLK
+/**
+ * @file syscall_errno.h
+ * @brief errno values returned (negated) by syscalls; Linux-compatible
+ *        numbering.
+ */
 
+/* Aliases */
+#define EDEADLOCK EDEADLK
 #define ENOTSUP EOPNOTSUPP
 #define EWOULDBLOCK EAGAIN
 #define EPERM 1

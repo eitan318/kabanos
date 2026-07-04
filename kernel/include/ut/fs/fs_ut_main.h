@@ -1,3 +1,7 @@
+/**
+ * @file fs_ut_main.h
+ * @brief Entry point running all filesystem test suites.
+ */
 #include "ut/ut_framework.h"
 
 extern ut_test_suite_t fs_seek_suite;

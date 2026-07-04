@@ -1,3 +1,7 @@
+/**
+ * @file proc.c
+ * @brief Process control block allocation and teardown.
+ */
 #include "proc/proc.h"
 #include "fs/vfs_internal.h"
 #include "mm/kmalloc.h"

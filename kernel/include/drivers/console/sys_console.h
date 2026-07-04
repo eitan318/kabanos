@@ -1,3 +1,8 @@
+/**
+ * @file sys_console.h
+ * @brief Console syscalls.
+ */
 #include "console.h"
 
-long sys_clear(void); 
+/** @brief Syscall: clears the screen. */
+long sys_clear(void);

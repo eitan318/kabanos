@@ -1,14 +1,19 @@
+/**
+ * @file cpu_info.h
+ * @brief CPU identification via the CPUID instruction.
+ */
 #pragma once
 #include "klib/stdbool.h"
 #include "klib/stdint.h"
 
+/** @brief Processor identification and feature flags gathered from CPUID. */
 typedef struct {
-  // Basic CPUID info
-  uint32_t max_basic_cpuid;
-  uint32_t max_extended_cpuid;
-  char vendor[13];
+  /* Basic CPUID info */
+  uint32_t max_basic_cpuid;    /**< Highest supported basic CPUID leaf. */
+  uint32_t max_extended_cpuid; /**< Highest supported extended CPUID leaf. */
+  char vendor[13];             /**< Vendor string, e.g. "GenuineIntel". */
 
-  // CPU features (CPUID.01H)
+  /* Version info (CPUID.01H, EAX) */
   uint32_t stepping : 4;
   uint32_t model : 4;
   uint32_t family : 4;
@@ -16,66 +21,67 @@ typedef struct {
   uint32_t extended_model : 4;
   uint32_t extended_family : 8;
 
-  // Feature flags from EDX (CPUID.01H)
-  bool fpu;   // x87 FPU
-  bool pse;   // Page Size Extension
-  bool pae;   // Physical Address Extension
-  bool msr;   // Model Specific Registers
-  bool apic;  // APIC on chip
-  bool sep;   // SYSENTER/SYSEXIT
-  bool mtrr;  // Memory Type Range Registers
-  bool pge;   // Page Global Enable
-  bool cmov;  // CMOV instruction
-  bool pat;   // Page Attribute Table
-  bool pse36; // 36-bit PSE
-  bool mmx;   // MMX Technology
-  bool fxsr;  // FXSAVE/FXRSTOR
-  bool sse;   // SSE
-  bool sse2;  // SSE2
-  bool htt;   // Hyper-Threading Technology
+  /* Feature flags from EDX (CPUID.01H) */
+  bool fpu;   /**< x87 FPU */
+  bool pse;   /**< Page Size Extension */
+  bool pae;   /**< Physical Address Extension */
+  bool msr;   /**< Model Specific Registers */
+  bool apic;  /**< APIC on chip */
+  bool sep;   /**< SYSENTER/SYSEXIT */
+  bool mtrr;  /**< Memory Type Range Registers */
+  bool pge;   /**< Page Global Enable */
+  bool cmov;  /**< CMOV instruction */
+  bool pat;   /**< Page Attribute Table */
+  bool pse36; /**< 36-bit PSE */
+  bool mmx;   /**< MMX Technology */
+  bool fxsr;  /**< FXSAVE/FXRSTOR */
+  bool sse;   /**< SSE */
+  bool sse2;  /**< SSE2 */
+  bool htt;   /**< Hyper-Threading Technology */
 
-  // Feature flags from ECX (CPUID.01H)
+  /* Feature flags from ECX (CPUID.01H) */
   bool sse3;
   bool ssse3;
   bool sse4_1;
   bool sse4_2;
   bool x2apic;
-  bool aes;    // AES instruction set
-  bool xsave;  // XSAVE/XRSTOR
-  bool avx;    // AVX
-  bool rdrand; // RDRAND
+  bool aes;    /**< AES instruction set */
+  bool xsave;  /**< XSAVE/XRSTOR */
+  bool avx;    /**< AVX */
+  bool rdrand; /**< RDRAND */
 
-  // Extended features (CPUID.07H)
-  bool fsgsbase; // FSGSBASE instructions
-  bool bmi1;     // Bit Manipulation Instruction Set 1
-  bool bmi2;     // Bit Manipulation Instruction Set 2
-  bool avx2;     // AVX2
-  bool smep;     // Supervisor Mode Execution Prevention
-  bool smap;     // Supervisor Mode Access Prevention
-  bool avx512f;  // AVX-512 Foundation
+  /* Extended features (CPUID.07H) */
+  bool fsgsbase; /**< FSGSBASE instructions */
+  bool bmi1;     /**< Bit Manipulation Instruction Set 1 */
+  bool bmi2;     /**< Bit Manipulation Instruction Set 2 */
+  bool avx2;     /**< AVX2 */
+  bool smep;     /**< Supervisor Mode Execution Prevention */
+  bool smap;     /**< Supervisor Mode Access Prevention */
+  bool avx512f;  /**< AVX-512 Foundation */
   bool rdseed;
-  bool sha; // SHA extensions
+  bool sha; /**< SHA extensions */
 
-  // Extended CPUID info
-  bool syscall; // SYSCALL/SYSRET
-  bool nx_bit;  // No-Execute bit
-  bool pdpe1gb; // 1GB pages
+  /* Extended CPUID info */
+  bool syscall; /**< SYSCALL/SYSRET */
+  bool nx_bit;  /**< No-Execute bit */
+  bool pdpe1gb; /**< 1GB pages */
   bool rdtscp_instruction;
-  bool long_mode;
+  bool long_mode; /**< x86-64 long mode available */
 
-  // Cache info
+  /* Cache info */
   uint32_t cache_line_size;
   uint32_t l2_cache_size_kb;
   uint32_t l3_cache_size_kb;
 
-  // Processor counts
+  /* Processor counts */
   uint32_t logical_processors;
   uint32_t cores_per_package;
 
-  // Address sizes
+  /* Address sizes */
   uint32_t phys_addr_bits;
   uint32_t virt_addr_bits;
 
 } CPUInfo;
 
+/** @brief Fills @p info by querying all supported CPUID leaves. */
 void collect_cpu_info(CPUInfo *info);

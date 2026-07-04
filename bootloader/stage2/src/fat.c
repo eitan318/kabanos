@@ -1,3 +1,7 @@
+/**
+ * @file fat.c
+ * @brief Read-only FAT driver: directory walking and file reads.
+ */
 #include "fat.h"
 #include "ctype.h"
 #include "memory.h"

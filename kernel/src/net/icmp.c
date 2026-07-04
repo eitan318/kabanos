@@ -1,3 +1,7 @@
+/**
+ * @file icmp.c
+ * @brief ICMP echo request/reply (ping) implementation.
+ */
 #include "net/icmp.h"
 #include "drivers/rtl8139/rtl8139.h"
 #include "klib/string.h"

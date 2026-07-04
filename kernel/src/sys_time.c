@@ -1,3 +1,7 @@
+/**
+ * @file sys_time.c
+ * @brief gettimeofday syscall.
+ */
 #include "klib/time.h"
 #include "sched/timer.h"
 

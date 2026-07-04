@@ -1,3 +1,11 @@
+/**
+ * @file malloc.h
+ * @brief Bump allocator over the fixed stage2 heap region.
+ *
+ * free() is a no-op; memory is reclaimed only by rebooting. Definitions
+ * live in this header, so it must be included by exactly one translation
+ * unit.
+ */
 #include "memdefs.h"
 #include "stddef.h"
 #include "stdint.h"
@@ -10,7 +18,7 @@ void *malloc(size_t size) {
   void *res = heap_ptr;
   heap_ptr += size;
 
-  // check if hit start of end of ram
+  // TODO: fail once the heap region (MEMORY_HEAP_SIZE) is exhausted
   return res;
 }
 

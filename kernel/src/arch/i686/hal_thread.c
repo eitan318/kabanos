@@ -1,3 +1,7 @@
+/**
+ * @file hal_thread.c
+ * @brief Thread context init, switch and clone (kernel-stack based).
+ */
 #include "arch/i686/gdt.h"
 #include "arch/types.h"
 #include "hal.h"

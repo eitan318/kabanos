@@ -1,3 +1,7 @@
+/**
+ * @file hal_interrupts.c
+ * @brief IDT construction and ISR stub registration.
+ */
 #include "adt/binary.h"
 #include "arch/i686/gdt.h"
 #include "arch/i686/pic.h"

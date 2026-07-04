@@ -1,3 +1,7 @@
+/**
+ * @file circular_buffer.c
+ * @brief Fixed-capacity circular FIFO of pointers.
+ */
 #include "adt/circular_buffer.h"
 #include "klib/stddef.h"
 

@@ -1,3 +1,7 @@
+/**
+ * @file console_dev.c
+ * @brief Console character-device registration (vnode + device ops).
+ */
 #include "drivers/console/console.h"
 #include "fs/vfs.h"
 #include "fs/vfs_internal.h"

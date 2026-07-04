@@ -1,3 +1,7 @@
+/**
+ * @file delay.c
+ * @brief Calibrated busy-wait delay.
+ */
 #include "delay.h"
 
 void ndelay(uint64_t ns, uint64_t cpu_loops_per_ns) {

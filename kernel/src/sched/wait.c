@@ -1,3 +1,7 @@
+/**
+ * @file wait.c
+ * @brief Wait queues with condition-variable style locking.
+ */
 #include "sched/wait.h"
 #include "proc/proc.h"
 #include "sched/dispatcher.h"

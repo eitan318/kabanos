@@ -1,3 +1,7 @@
+/**
+ * @file errno.h
+ * @brief Kernel-library errno constants (newlib-compatible numbering).
+ */
 #define EPERM 1         /* Not owner */
 #define ENOENT 2        /* No such file or directory */
 #define ESRCH 3         /* No such process */

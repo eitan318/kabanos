@@ -1,3 +1,7 @@
+/**
+ * @file fs_ut_seek.c
+ * @brief Filesystem tests: seek behavior.
+ */
 /*
  * Example: How to create a new test file
  * File: fs_seek_tests.c

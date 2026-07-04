@@ -1,4 +1,9 @@
 /**
+ * @file sys_proc.h
+ * @brief Process lifecycle syscalls: fork, exit, getpid.
+ */
+
+/**
  * @brief Clones the current process.
  * @return In parent: PID of child. In child: 0. On failure: negative error.
  */

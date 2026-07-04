@@ -1,3 +1,7 @@
+/**
+ * @file unistd.h
+ * @brief POSIX-style constants: standard fds, seek modes, path limits.
+ */
 #pragma once
 
 // File descriptors of std streams

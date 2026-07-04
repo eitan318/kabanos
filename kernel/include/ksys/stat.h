@@ -1,7 +1,12 @@
+/**
+ * @file stat.h
+ * @brief File-type bits of the st_mode field (POSIX layout).
+ */
 #pragma once
 typedef long long off_t;
 typedef unsigned long ino_t;
 
+/* File type bits */
 #define S_IFSOCK 0140000
 #define S_IFLNK 0120000
 #define S_IFREG 0100000
@@ -10,9 +15,9 @@ typedef unsigned long ino_t;
 #define S_IFCHR 0020000
 #define S_IFIFO 0010000
 
-#define S_IFMT 0170000 // Bitmask for the file type bit field
+#define S_IFMT 0170000 /**< Bitmask of the file-type bit field. */
 
-// Helper Macros to check types
+/* File-type test macros */
 #define S_ISDIR(m) (((m)&S_IFMT) == S_IFDIR)
 #define S_ISREG(m) (((m)&S_IFMT) == S_IFREG)
 #define S_ISLNK(m) (((m)&S_IFMT) == S_IFLNK)

@@ -1,3 +1,7 @@
+/**
+ * @file gdt.h
+ * @brief Flat GDT for protected mode.
+ */
 #pragma once
 
 #define i686_GDT_CODE_SEGMENT 0x08

@@ -1,3 +1,8 @@
+/**
+ * @file sys_fs.c
+ * @brief Filesystem syscalls: argument checks plus dispatch into the VFS,
+ *        relative to the caller's cwd.
+ */
 #include "assert.h"
 #include "fs/vfs.h"
 #include "klib/errno.h"
@@ -8,6 +13,7 @@
 #include "sched/thread.h"
 #include <sched/thread.h>
 
+/** @brief Current working directory vnode of the calling process. */
 static vnode_t *get_cwd() {
   thread_t *curr_thread = dispatch_get_current();
   ASSERT(curr_thread);

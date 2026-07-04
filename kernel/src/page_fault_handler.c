@@ -1,3 +1,11 @@
+/**
+ * @file page_fault_handler.c
+ * @brief Page fault (#PF) handling: demand paging and COW resolution.
+ *
+ * A fault is legal only inside a known vma; it is then either a COW
+ * write (resolved by the HAL) or a not-yet-backed page (allocated on
+ * demand). Everything else is a segmentation fault.
+ */
 #include "hal.h"
 #include "isr.h"
 #include "klib/stdio.h"
@@ -8,6 +16,7 @@
 #include "sched/dispatcher.h"
 #include <mm/vmspace.h>
 
+/** @brief Bits of the #PF hardware error code. */
 enum pf_errors {
   PF_ERR_PRESENT = (1 >> 0),
   PF_ERR_WRITE = (1 >> 1),
@@ -61,8 +70,7 @@ void pf_handle(trap_frame_t *regs) {
     return;
   }
 
-  // fix: moved outside the PF_ERR_PRESENT block — unhandled fault that is
-  // present-but-not-cow
+  // Present-but-not-COW fault that nothing above claimed
   kprintf("Unhandled Page Fault at 0x%p (Error: 0x%x)\n", addr, regs->error);
   panic_from_regs(regs);
 }

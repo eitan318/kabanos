@@ -1,3 +1,8 @@
+/**
+ * @file sys_exit.c
+ * @brief exit syscall: turns the process into a zombie and wakes a
+ *        waiting parent; reaping happens in waitpid.
+ */
 #include "panic.h"
 #include "proc/proc.h"
 #include "sched/dispatcher.h"

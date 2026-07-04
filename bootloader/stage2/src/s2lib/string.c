@@ -1,3 +1,7 @@
+/**
+ * @file string.c
+ * @brief String helpers for stage2.
+ */
 #include "s2lib/string.h"
 #include <stddef.h>
 #include <stdint.h>

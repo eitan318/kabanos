@@ -1,3 +1,7 @@
+/**
+ * @file elf.c
+ * @brief Loads the kernel ELF into memory segment by segment.
+ */
 #include "elf.h"
 #include "fat.h"
 #include "memdefs.h"

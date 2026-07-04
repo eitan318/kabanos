@@ -1,3 +1,7 @@
+/**
+ * @file memory_map.c
+ * @brief Queries over the E820-style physical memory map.
+ */
 #include "mm/memory_map.h"
 
 range_t get_memory_range(memory_map_t *memory_map) {

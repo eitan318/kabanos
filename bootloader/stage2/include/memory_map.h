@@ -1,3 +1,7 @@
+/**
+ * @file memory_map.h
+ * @brief E820 memory map detection.
+ */
 #pragma once
 
 #include "boot/bootparams.h"

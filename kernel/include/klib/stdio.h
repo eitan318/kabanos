@@ -1,3 +1,7 @@
+/**
+ * @file stdio.h
+ * @brief Kernel printf-family output (k-prefixed stdio equivalents).
+ */
 #pragma once
 #include "fs/fd.h"
 #include "fs/vfs.h"
@@ -20,8 +24,10 @@ int kvsprintf(char *buffer, const char *format, va_list args);
 int ksnprintf(char *buffer, size_t size, const char *fmt, ...);
 int kvsnprintf(char *buffer, size_t size, const char *format, va_list args);
 
-// Debug to debug stream
+/* Output to the debug (serial) stream */
 void kdebugc(char c);
 void kdebugs(const char *s);
 void kdebugf(const char *fmt, ...);
+
+/** @brief Writes to both the debug stream and the console. */
 void kdebugf_and_printf(const char *fmt, ...);

@@ -1,3 +1,7 @@
+/**
+ * @file mbr.h
+ * @brief MBR partition table structures.
+ */
 #pragma once
 #include "disk.h"
 #include <stdbool.h>

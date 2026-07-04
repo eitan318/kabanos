@@ -1,3 +1,7 @@
+/**
+ * @file print_boot_info.h
+ * @brief Debug dump of the boot-time memory map.
+ */
 #pragma once
 #include "mm/memory_map.h"
 

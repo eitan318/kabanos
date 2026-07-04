@@ -1,3 +1,7 @@
+/**
+ * @file hal.c
+ * @brief i686 implementations of the generic HAL entry points.
+ */
 #include "hal.h"
 #include "arch/i686/gdt.h"
 #include "arch/i686/interrupts.h"

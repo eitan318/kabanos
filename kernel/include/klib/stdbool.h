@@ -1,3 +1,9 @@
+/**
+ * @file stdbool.h
+ * @brief Boolean type for freestanding kernel code.
+ *
+ * Note: bool is a 32-bit integer here, not C99 _Bool, so sizeof(bool) == 4.
+ */
 #pragma once
 #include "klib/stdint.h"
 

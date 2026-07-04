@@ -1,8 +1,10 @@
-// Bootloader CPUID Information Collector
-
+/**
+ * @file cpu_info.c
+ * @brief CPUID information collector.
+ */
 #include "cpu_info.h"
 
-// Execute CPUID instruction
+/** @brief Executes CPUID for the given leaf/subleaf. */
 static inline void cpuid(uint32_t leaf, uint32_t subleaf, uint32_t *eax,
                          uint32_t *ebx, uint32_t *ecx, uint32_t *edx) {
   asm volatile("cpuid"
@@ -10,7 +12,6 @@ static inline void cpuid(uint32_t leaf, uint32_t subleaf, uint32_t *eax,
                : "a"(leaf), "c"(subleaf));
 }
 
-// Collect all CPU information
 void collect_cpu_info(CPUInfo *info) {
   uint32_t eax, ebx, ecx, edx;
 

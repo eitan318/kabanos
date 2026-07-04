@@ -1,3 +1,7 @@
+/**
+ * @file multiboot2.c
+ * @brief Builds the Multiboot2 info block and jumps to the kernel.
+ */
 #include "multiboot2.h"
 #include "boot/bootparams.h"
 #include "s2lib/string.h"

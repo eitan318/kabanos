@@ -1,3 +1,7 @@
+/**
+ * @file frame_allocator_ut.c
+ * @brief Frame allocator test suite.
+ */
 #include "klib/stdio.h"
 #include "mm/kmalloc.h"
 #include "mm/pmm.h"

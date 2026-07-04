@@ -1,3 +1,7 @@
+/**
+ * @file sleep.c
+ * @brief Timed sleeping via a wakeup-time-sorted sleeper list.
+ */
 #include "sched/sleep.h"
 #include "delay.h"
 #include "klib/stddef.h"
@@ -7,6 +11,7 @@
 #include "sched/timer.h"
 #include "syscall_errno.h"
 
+/** @brief Sleeping threads, sorted by ascending wakeup_time. */
 thread_t *sleep_queue_head;
 
 void wake_up_sleeping(uint32_t g_curr_tick) {

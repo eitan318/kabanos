@@ -1,3 +1,10 @@
+/**
+ * @file va_allocation.c
+ * @brief Backing virtual regions with physical frames (and undoing it).
+ *
+ * On partial failure va_alloc_region rolls back everything it mapped, so
+ * the call is all-or-nothing.
+ */
 #include "mm/va_allocation.h"
 #include "arch/types.h"
 #include "hal.h"
@@ -44,8 +51,7 @@ void va_free_region(arch_vm_t *vm, uint32_t virt_start, size_t size) {
   ASSERT(is_aligned(size, PAGE_SIZE));
 
   size = align_up(size, PAGE_SIZE);
-  uint32_t pages =
-      size / PAGE_SIZE; // fix: was align_down(size) giving bytes not pages
+  uint32_t pages = size / PAGE_SIZE;
 
   for (uint32_t i = 0; i < pages; i++) {
     uint32_t va = virt_start + i * PAGE_SIZE;
@@ -55,6 +61,5 @@ void va_free_region(arch_vm_t *vm, uint32_t virt_start, size_t size) {
     }
   }
 
-  hal_vm_unmap_range(vm, virt_start,
-                     size); // fix: use virt_start not re-aligned start
+  hal_vm_unmap_range(vm, virt_start, size);
 }

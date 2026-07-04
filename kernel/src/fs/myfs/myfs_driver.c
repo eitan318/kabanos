@@ -1,3 +1,8 @@
+/**
+ * @file myfs_driver.c
+ * @brief VFS glue for MyFS: implements vnode_ops/file_ops on top of the
+ *        VFS-independent core in myfs.c and registers the fs type.
+ */
 #include "drivers/block/blockdev.h"
 #include "fs/myfs/myfs.h"
 #include "fs/vfs.h"
@@ -5,7 +10,6 @@
 #include "klib/stdio.h"
 #include "klib/string.h"
 #include "klib/errno.h"
-#include "ksys/stat.h"
 #include "ksys/stat.h"
 #include "mm/kmalloc.h"
 #include "modules.h"

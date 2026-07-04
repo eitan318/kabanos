@@ -1,3 +1,7 @@
+/**
+ * @file multiboot2.h
+ * @brief Multiboot2 info construction and kernel handoff.
+ */
 #include "memory_map.h"
 #include <stdint.h>
 

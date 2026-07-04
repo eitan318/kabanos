@@ -1,3 +1,7 @@
+/**
+ * @file ata.c
+ * @brief ATA PIO disk driver (primary channel).
+ */
 #include "arch/i686/ata_portmap.h"
 #include "device.h"
 #include "drivers/block/blockdev.h"

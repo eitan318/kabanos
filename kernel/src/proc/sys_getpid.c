@@ -1,3 +1,7 @@
+/**
+ * @file sys_getpid.c
+ * @brief getpid syscall.
+ */
 #include "proc/proc.h"
 #include "sched/dispatcher.h"
 

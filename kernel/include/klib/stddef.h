@@ -1,3 +1,7 @@
+/**
+ * @file stddef.h
+ * @brief Core scalar types and NULL (from compiler builtins).
+ */
 #pragma once
 
 typedef __SIZE_TYPE__ size_t;

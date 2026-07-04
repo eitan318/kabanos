@@ -1,3 +1,7 @@
+/**
+ * @file vfs.c
+ * @brief Routes fd writes to VGA or serial.
+ */
 #include "s2lib/vfs.h"
 #include "com_one.h"
 #include "vga_text.h"

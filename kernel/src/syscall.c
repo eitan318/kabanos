@@ -1,3 +1,7 @@
+/**
+ * @file syscall.c
+ * @brief Syscall number table and the central dispatch switch.
+ */
 #include "syscall.h"
 #include "drivers/console/sys_console.h"
 #include "fs/sys_fs.h"
@@ -16,6 +20,10 @@
 #include <fs/vfs.h>
 #include <stdint.h>
 
+/**
+ * @brief Syscall numbers; must stay in sync with the userland syscall
+ *        stubs in extern/newlib_myos.
+ */
 typedef enum {
   SYSCALL_NUMBER_INITIAL = 1,
 

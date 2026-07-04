@@ -1,3 +1,7 @@
+/**
+ * @file keyboard.c
+ * @brief PS/2 keyboard driver: scancode to ASCII, feeds the TTY.
+ */
 #include "device.h"
 #include "drivers/console/tty.h"
 #include "hal.h"

@@ -1,3 +1,7 @@
+/**
+ * @file queue.h
+ * @brief Fixed-capacity circular FIFO of pointers.
+ */
 #ifndef QUEUE_H
 #define QUEUE_H
 

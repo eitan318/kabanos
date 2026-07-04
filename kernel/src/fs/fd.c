@@ -1,9 +1,14 @@
-/* fs/fd.c */
+/**
+ * @file fd.c
+ * @brief Global fd table and standard-stream setup.
+ *
+ * fd 0 = keyboard, 1/2 = console, 3 = debug serial.
+ */
 #include "fs/fd.h"
 #include "ksys/fcntl.h"
 #include "mm/kmalloc.h"
 
-/* these are provided by each driver */
+/* These vnodes are provided by the respective device drivers */
 extern vnode_t kbd_vnode_static;
 extern vnode_t con_vnode_static;
 extern vnode_t dbg_vnode_static;

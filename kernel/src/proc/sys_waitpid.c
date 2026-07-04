@@ -1,3 +1,7 @@
+/**
+ * @file sys_waitpid.c
+ * @brief waitpid syscall: reaps zombie children, blocking if needed.
+ */
 #include "proc/sys_wait.h"
 #include "sched/dispatcher.h"
 #include "sched/sched.h"
