@@ -96,6 +96,7 @@ static void kmain_launch_init(const char *cmdline) {
 }
 
 void kmain(uint32_t mb2_ptr) {
+  panic("check");
   kdebugf("[Kernel starting...]\n");
 
   // Critical Early Setup (Symbols and Multiboot)

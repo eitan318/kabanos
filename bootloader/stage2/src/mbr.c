@@ -19,7 +19,7 @@ static union {
   uint8_t bytes[SECTOR_SIZE];
 } mbr_union;
 
-bool mbr_partition_table_get(DiskParams *disk,
+bool mbr_partition_table_get(disk_params_t *disk,
                              partition_table_t *partition_table) {
   if (!disk_read_sectors(disk, 0, 1, mbr_union.bytes)) {
     return false;
@@ -34,7 +34,7 @@ bool mbr_partition_table_get(DiskParams *disk,
   return true;
 }
 
-bool Partition_read_sectors(Partition *part, uint32_t lba, uint8_t sectors,
+bool partition_read_sectors(partition_t *part, uint32_t lba, uint8_t sectors,
                             void *lowerDataOut) {
   return disk_read_sectors(part->disk, lba + part->partitionOffset, sectors,
                            lowerDataOut);

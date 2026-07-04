@@ -31,7 +31,7 @@ set(STAGE2_BIN ${STAGE2_OUT_DIR}/stage2.bin)
 
 add_custom_command(
     OUTPUT "${STAGE2_BIN}"
-    COMMAND ${CMAKE_OBJCOPY} -O binary "${STAGE2_ELF}" "${STAGE2_BIN}"
+    COMMAND ${CMAKE_OBJCOPY} -O binary $<TARGET_FILE:stage2.elf> "${STAGE2_BIN}"
     DEPENDS stage2.elf
     COMMENT "Generating sector-aligned stage2.bin (Linker handled padding)"
     VERBATIM
@@ -39,5 +39,6 @@ add_custom_command(
 
 add_custom_target(bootloader_stage2 ALL 
     DEPENDS "${STAGE2_BIN}"
+    DEPENDS stage2.elf
 )
 

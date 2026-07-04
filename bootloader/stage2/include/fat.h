@@ -13,7 +13,7 @@ typedef struct {
   bool is_directory;
   uint32_t position;
   uint32_t size;
-} FAT_File;
+} fat_file;
 
 typedef struct __attribute__((packed)) {
   uint8_t name[11];
@@ -28,17 +28,16 @@ typedef struct __attribute__((packed)) {
   uint16_t modified_date;
   uint16_t first_cluster_low;
   uint32_t size;
-} FAT_DirectoryEntry;
+} fat_dirent;
 
 int fat_read_file(const char *path, void *buffer);
-FAT_File *fat_open(Partition *disk, const char *path);
-bool fat_find_file(Partition *disk, FAT_File *file, const char *name,
-                   FAT_DirectoryEntry *out);
+fat_file *fat_open(partition_t *disk, const char *path);
+bool fat_find_file(partition_t *disk, fat_file *file, const char *name,
+                   fat_dirent *out);
 
-bool fat_initialize(Partition *disk);
+bool fat_initialize(partition_t *disk);
 
-uint32_t fat_read(Partition *disk, FAT_File *file, uint32_t byteCount,
+uint32_t fat_read(partition_t *disk, fat_file *file, uint32_t byteCount,
                   void *dataOut);
-bool fat_read_entry(Partition *disk, FAT_File *file,
-                    FAT_DirectoryEntry *dirEntry);
-void fat_close(FAT_File *file);
+bool fat_read_entry(partition_t *disk, fat_file *file, fat_dirent *dirEntry);
+void fat_close(fat_file *file);

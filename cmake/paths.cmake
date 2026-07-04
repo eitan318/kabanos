@@ -31,3 +31,4 @@ set(NEWLIB_SYSROOT "${SYSROOT_DIR}")
 
 set(CREATE_IMAGE_PY "${CMAKE_SOURCE_DIR}/scripts/build/create_disk_img.py")
 set(MAKE_INITRD_PY "${CMAKE_SOURCE_DIR}/scripts/build/create_initrd.py")
+set(CALC_STAGE2_SECTORS_SH "${CMAKE_SOURCE_DIR}/scripts/build/calc_stage2_size.sh")

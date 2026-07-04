@@ -114,3 +114,9 @@ STACK BACKTRACE:
 /project/kernel/src/fs/myfs/myfs.c:869
 
 --- End of panic resolution ---
+
+
+
+(gdb) x $esp
+0x8ec8: 0x0000004f
+(gdb)

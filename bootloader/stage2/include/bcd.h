@@ -17,4 +17,3 @@ typedef struct {
 } BCD;
 
 void bcd_parse_into(char *boot_config, BCD *out);
-void load_initrd(char *initrd_path);

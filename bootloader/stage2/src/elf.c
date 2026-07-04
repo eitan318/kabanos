@@ -9,7 +9,7 @@
 #include "s2lib/stdio.h"
 #include "utils/minmax.h"
 
-static bool fat_seek(Partition *part, FAT_File *fd, uint32_t offset,
+static bool fat_seek(partition_t *part, fat_file *fd, uint32_t offset,
                      uint8_t *scratch, uint32_t scratchSize) {
   while (offset > 0) {
     uint32_t toRead = min(offset, scratchSize);
@@ -21,12 +21,12 @@ static bool fat_seek(Partition *part, FAT_File *fd, uint32_t offset,
   return true;
 }
 
-bool elf_read(Partition *part, const char *path, void **entryPoint) {
+bool elf_read(partition_t *part, const char *path, void **entryPoint) {
   uint8_t *headerBuffer = MEMORY_STAGE2_ELF_BUFFER;
   uint8_t *loadBuffer = MEMORY_STAGE2_LOAD_BUFFER;
   uint32_t read;
 
-  FAT_File *fd = fat_open(part, path);
+  fat_file *fd = fat_open(part, path);
 
   // 1. Read ELF header
   uint32_t filePos = 0;

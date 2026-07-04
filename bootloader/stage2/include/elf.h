@@ -107,4 +107,4 @@ enum ELFProgramType {
   ELF_PROGRAM_TYPE_HIPROC = 0x7FFFFFFF,
 };
 
-bool elf_read(Partition *part, const char *path, void **entryPoint);
+bool elf_read(partition_t *part, const char *path, void **entryPoint);
