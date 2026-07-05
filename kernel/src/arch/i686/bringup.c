@@ -53,6 +53,10 @@ __attribute__((section(".bss"),
 
 uintptr_t stack_top = (uintptr_t)stack_bottom + BOOT_STACK_SIZE;
 
+// Multiboot info pointer, stashed for higher_half (safer than relying on
+// ebx surviving untouched through all of bringup)
+static uint32_t g_boot_mb_info;
+
 __attribute__((section(".multiboot.text"))) void bringup(uint32_t magic,
                                                          uint32_t mb_info) {
 
@@ -64,6 +68,10 @@ __attribute__((section(".multiboot.text"))) void bringup(uint32_t magic,
       (uint8_t *)((uintptr_t)_bss_end - KERNEL_BASE);
   while (bss_ptr_phys < bss_end_phys)
     *bss_ptr_phys++ = 0;
+
+  // Store after the bss zeroing above, through the physical alias since
+  // paging is not enabled yet
+  *(uint32_t *)((uintptr_t)&g_boot_mb_info - KERNEL_BASE) = mb_info;
 
   uintptr_t *boot_pt_phys = (uintptr_t *)((uintptr_t)boot_pt - KERNEL_BASE);
   uintptr_t *boot_pd_phys = (uintptr_t *)((uintptr_t)boot_pd - KERNEL_BASE);
@@ -112,10 +120,7 @@ __attribute__((section(".multiboot.text"))) void bringup(uint32_t magic,
 }
 
 void higher_half(void) {
-  void *mb2_ptr;
-  __asm__ volatile("mov %%ebx, %0" : "=r"(mb2_ptr));
-
-  kmain((uint32_t)mb2_ptr);
+  kmain(g_boot_mb_info);
 
   __asm__ volatile("cli\n");
   while (1)

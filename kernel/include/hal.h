@@ -133,6 +133,12 @@ void hal_vm_arch_clone_mapping(arch_vm_t *dst, arch_vm_t *src);
 /** @brief Creates a fresh address space containing only kernel mappings. */
 bool hal_vm_empty_arch_vm_create(arch_vm_t *kernel_arch_vm);
 
+/** @brief Creates every kernel-half page table up front so kernel PDEs
+ *         never change after boot. See implementation for why this
+ *         matters. Call once, after the physical memory map is in place
+ *         and before any process is created. */
+void hal_vm_prealloc_kernel_tables(arch_vm_t *vm);
+
 /** @brief Clones an address space (used by fork; user pages become COW). */
 void hal_vm_arch_clone(arch_vm_t *dst, arch_vm_t *src);
 

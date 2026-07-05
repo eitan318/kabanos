@@ -15,8 +15,10 @@
 #include "klib/stdio.h"
 #include "mm/memdefs.h"
 #include "mm/pmm.h"
+#include "panic.h"
 #include "utils/math.h"
 #include <sched/dispatcher.h>
+#include <stdint.h>
 
 typedef uint32_t page_dir_entry_t;
 
@@ -26,7 +28,6 @@ typedef uint32_t page_dir_entry_t;
 #define ARCH_PD_PT_USER 0x4
 #define PT_ENTRIES 1024
 #define PD_ENTRIES PAGE_SIZE / sizeof(uint32_t)
-#define PT_SIZE (PT_ENTRIES * PAGE_SIZE)
 
 #define PT_COW 0x200 // Bit 9: Our custom "Copy-on-Write" flag
 
@@ -48,8 +49,8 @@ static inline uint32_t *get_pt_virtual(paddr_t pt_phys) {
   return (uint32_t *)(pt_phys + KERNEL_BASE);
 }
 
-static inline uint32_t calc_remaining_in_pt(uint32_t pt_index) {
-  return (PT_ENTRIES - pt_index) * PAGE_SIZE;
+static inline uint32_t pt_pages_remaining(uint32_t pt_index) {
+  return PT_ENTRIES - pt_index;
 }
 
 static uint32_t public_flags_to_arch_flags(uint32_t flags) {
@@ -99,22 +100,6 @@ static paddr_t allocate_page_table(void) {
   return pt_phys;
 }
 
-static bool ensure_page_table_exists(page_dir_entry_t *pd, uint32_t pd_index,
-                                     uint32_t internal_flags) {
-  if (pd[pd_index] & ARCH_PD_PT_PRESENT) {
-    return true;
-  }
-
-  paddr_t pt_phys = allocate_page_table();
-  if (!pt_phys) {
-    return false;
-  }
-
-  pd[pd_index] = pt_phys | ARCH_PD_PT_PRESENT | ARCH_PD_PT_READWRITE |
-                 (internal_flags & ARCH_PD_PT_USER);
-  return true;
-}
-
 static paddr_t get_or_create_page_table(page_dir_entry_t *pd, uint32_t pd_index,
                                         uint32_t arch_flags, bool *created) {
   if (pd[pd_index] & ARCH_PD_PT_PRESENT) {
@@ -146,33 +131,21 @@ static void fill_page_table_entries(uint32_t *pt, uint32_t start_index,
   }
 }
 
-static void map_full_page_table(page_dir_entry_t *pd, uint32_t pd_index,
-                                paddr_t pa, uint32_t arch_flags) {
+/** @brief Maps @p page_count entries starting at @p pt_index, creating the
+ *         page table if needed. Returns false only on allocation failure. */
+static bool map_page_table_range(page_dir_entry_t *pd, uint32_t pd_index,
+                                 uint32_t pt_index, uint32_t page_count,
+                                 paddr_t pa, uint32_t arch_flags) {
   bool created;
   paddr_t pt_phys =
       get_or_create_page_table(pd, pd_index, arch_flags, &created);
-  uint32_t *pt_virt = get_pt_virtual(pt_phys);
-
-  fill_page_table_entries(pt_virt, 0, PT_ENTRIES, pa, arch_flags);
-}
-
-static void map_partial_page_table(page_dir_entry_t *pd, uint32_t pd_index,
-                                   uint32_t pt_index, uint32_t page_count,
-                                   paddr_t pa, uint32_t arch_flags,
-                                   vaddr_t va) {
-  if (!ensure_page_table_exists(pd, pd_index, arch_flags)) {
-    return;
+  if (!pt_phys) {
+    return false;
   }
 
-  paddr_t pt_phys = pd[pd_index] & ~0xFFF;
   uint32_t *pt_virt = get_pt_virtual(pt_phys);
-
   fill_page_table_entries(pt_virt, pt_index, page_count, pa, arch_flags);
-
-  // Flush individual pages for partial mappings
-  for (uint32_t i = 0; i < page_count; i++) {
-    tlb_flush(va + i * PAGE_SIZE);
-  }
+  return true;
 }
 
 //
@@ -187,36 +160,39 @@ static void clear_page_table_entries(uint32_t *pt, uint32_t start_index,
   }
 }
 
-static void unmap_full_page_table(page_dir_entry_t *pd, uint32_t pd_index) {
-  paddr_t pt_phys = pd[pd_index] & ~0xFFF;
-  pmm_frame_free(pt_phys);
-  pd[pd_index] = 0;
-}
+/** @brief Clears @p page_count entries starting at @p pt_index. If that
+ *         empties the entire table, reclaims it too -- except in kernel
+ *         space, where page tables are preallocated once at boot and must
+ *         stay put forever (every process PD shares them by reference). */
+static void unmap_page_table_range(page_dir_entry_t *pd, uint32_t pd_index,
+                                   uint32_t pt_index, uint32_t page_count) {
+  if (!(pd[pd_index] & ARCH_PD_PT_PRESENT)) {
+    return;
+  }
 
-static void unmap_partial_page_table(page_dir_entry_t *pd, uint32_t pd_index,
-                                     uint32_t pt_index, uint32_t page_count) {
   paddr_t pt_phys = pd[pd_index] & ~0xFFF;
   uint32_t *pt_virt = get_pt_virtual(pt_phys);
   clear_page_table_entries(pt_virt, pt_index, page_count);
+
+  if (pt_index == 0 && page_count == PT_ENTRIES) {
+    ASSERT(pd_index < KERNEL_PD_START);
+    pmm_frame_free(pt_phys);
+    pd[pd_index] = 0;
+  }
 }
 
 //
 // Range Mapping/Unmapping Logic
 //
-
-static uint32_t calculate_map_size(uint32_t pt_index, vaddr_t va,
-                                   vaddr_t va_end) {
-  uint32_t remaining_in_pt = calc_remaining_in_pt(pt_index);
-  uint32_t remaining_total = va_end - va;
-  return (remaining_in_pt < remaining_total) ? remaining_in_pt
-                                             : remaining_total;
-}
+// Both loops walk the range one page-table's worth at a time (a chunk never
+// crosses a 4MB boundary, so pd_index/pt_index stay valid for the whole
+// chunk) and flush once at the end: a single invlpg for a lone page, a full
+// TLB flush otherwise.
+//
 
 bool hal_vm_map_range(arch_vm_t *vm, paddr_t pa_start, vaddr_t va_start,
                       size_t size, uint32_t public_flags) {
   ASSERT(vm);
-  uint32_t arch_flags = public_flags_to_arch_flags(public_flags);
-  page_dir_entry_t *pd_virt = vm->pd;
 
   if (size == 0) {
     return true;
@@ -226,6 +202,9 @@ bool hal_vm_map_range(arch_vm_t *vm, paddr_t pa_start, vaddr_t va_start,
   ASSERT(is_aligned(pa_start, PAGE_SIZE));
   ASSERT(is_aligned(size, PAGE_SIZE));
 
+  uint32_t arch_flags = public_flags_to_arch_flags(public_flags);
+  page_dir_entry_t *pd_virt = vm->pd;
+
   vaddr_t va = va_start;
   paddr_t pa = pa_start;
   vaddr_t va_end = va_start + size;
@@ -233,24 +212,21 @@ bool hal_vm_map_range(arch_vm_t *vm, paddr_t pa_start, vaddr_t va_start,
   while (va < va_end) {
     uint32_t pd_index = get_pd_index(va);
     uint32_t pt_index = get_pt_index(va);
-    uint32_t map_size = calculate_map_size(pt_index, va, va_end);
+    uint32_t page_count =
+        MIN(pt_pages_remaining(pt_index), (va_end - va) / PAGE_SIZE);
 
-    if ((pt_index == 0 && map_size >= PT_SIZE)) {
-      // Fast path: map entire 4MB region
-      map_full_page_table(pd_virt, pd_index, pa, arch_flags);
-      va += PT_SIZE;
-      pa += PT_SIZE;
-    } else {
-      // Slow path: map partial page table
-      uint32_t page_count = map_size / PAGE_SIZE;
-      map_partial_page_table(pd_virt, pd_index, pt_index, page_count, pa,
-                             arch_flags, va);
-      va += map_size;
-      pa += map_size;
+    if (!map_page_table_range(pd_virt, pd_index, pt_index, page_count, pa,
+                              arch_flags)) {
+      return false;
     }
+
+    va += page_count * PAGE_SIZE;
+    pa += page_count * PAGE_SIZE;
   }
 
-  if (size > PAGE_SIZE) {
+  if (size == PAGE_SIZE) {
+    tlb_flush(va_start);
+  } else {
     tlb_flush_all();
   }
 
@@ -258,40 +234,32 @@ bool hal_vm_map_range(arch_vm_t *vm, paddr_t pa_start, vaddr_t va_start,
 }
 
 bool hal_vm_unmap_range(arch_vm_t *vm, vaddr_t va_start, size_t size) {
+  ASSERT(vm);
+
   if (size == 0) {
     return true;
   }
-  page_dir_entry_t *pd_virt = vm->pd;
 
   ASSERT(is_aligned(va_start, PAGE_SIZE));
   ASSERT(is_aligned(size, PAGE_SIZE));
 
+  page_dir_entry_t *pd_virt = vm->pd;
   vaddr_t va = va_start;
   vaddr_t va_end = va_start + size;
 
   while (va < va_end) {
     uint32_t pd_index = get_pd_index(va);
     uint32_t pt_index = get_pt_index(va);
+    uint32_t page_count =
+        MIN(pt_pages_remaining(pt_index), (va_end - va) / PAGE_SIZE);
 
-    if (!(pd_virt[pd_index] & ARCH_PD_PT_PRESENT)) {
-      // Skip to next page table boundary
-      va = (pd_index + 1) << 22;
-      continue;
-    }
-
-    uint32_t unmap_size = calculate_map_size(pt_index, va, va_end);
-
-    if ((pt_index == 0 && unmap_size >= PT_SIZE)) {
-      unmap_full_page_table(pd_virt, pd_index);
-      va += PT_SIZE;
-    } else {
-      uint32_t page_count = unmap_size / PAGE_SIZE;
-      unmap_partial_page_table(pd_virt, pd_index, pt_index, page_count);
-      va += unmap_size;
-    }
+    unmap_page_table_range(pd_virt, pd_index, pt_index, page_count);
+    va += page_count * PAGE_SIZE;
   }
 
-  if (size > PAGE_SIZE) {
+  if (size == PAGE_SIZE) {
+    tlb_flush(va_start);
+  } else {
     tlb_flush_all();
   }
 
@@ -302,19 +270,11 @@ bool hal_vm_unmap_range(arch_vm_t *vm, vaddr_t va_start, size_t size) {
 // Single Page Operations
 //
 bool hal_vm_map(arch_vm_t *vm, vaddr_t va, paddr_t pa, uint32_t public_flags) {
-  bool res = hal_vm_map_range(vm, pa, va, PAGE_SIZE, public_flags);
-  if (res) {
-    tlb_flush(va);
-  }
-  return res;
+  return hal_vm_map_range(vm, pa, va, PAGE_SIZE, public_flags);
 }
 
 bool hal_vm_unmap(arch_vm_t *vm, vaddr_t virt_addr) {
-  bool res = hal_vm_unmap_range(vm, virt_addr, PAGE_SIZE);
-  if (res) {
-    tlb_flush(virt_addr);
-  }
-  return res;
+  return hal_vm_unmap_range(vm, virt_addr, PAGE_SIZE);
 }
 
 bool hal_vm_empty_arch_vm_create(arch_vm_t *kernel_arch_vm) {
@@ -323,6 +283,32 @@ bool hal_vm_empty_arch_vm_create(arch_vm_t *kernel_arch_vm) {
     return false;
   kernel_arch_vm->pd = (uint32_t *)(kernel_arch_vm->pd_phys + KERNEL_BASE);
   return true;
+}
+
+/**
+ * @brief Creates every kernel-half page table up front, once.
+ *
+ * Process page directories are created by copying the kernel's PDEs
+ * (hal_vm_arch_clone_mapping) at process-creation time. If a kernel PDE were
+ * created later (e.g. heap growth crossing a 4MB boundary), already-cloned
+ * process PDs would never learn about it and would fault on that region
+ * forever. Populating all 256 kernel PDEs before any process exists makes
+ * every future kernel mapping just fill PTEs into an already-shared page
+ * table, so no process PD can ever fall out of sync with the kernel's.
+ *
+ * Must run with the kernel address space already active (CR3 loaded):
+ * creating a page table zeroes it through the physical-memory mapping,
+ * which the bootstrap page tables from bringup only cover up to the end
+ * of the kernel image. And must run before the first process is created.
+ */
+void hal_vm_prealloc_kernel_tables(arch_vm_t *vm) {
+  for (uint32_t pd_index = KERNEL_PD_START; pd_index < PD_ENTRIES;
+      pd_index++) {
+    bool created;
+    if (!get_or_create_page_table(vm->pd, pd_index, 0, &created)) {
+      panic("hal_vm_prealloc_kernel_tables: out of memory");
+    }
+  }
 }
 
 void hal_vm_arch_load(arch_vm_t *arch_vm) {

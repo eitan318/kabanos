@@ -18,12 +18,12 @@
 
 /** @brief Bits of the #PF hardware error code. */
 enum pf_errors {
-  PF_ERR_PRESENT = (1 >> 0),
-  PF_ERR_WRITE = (1 >> 1),
-  PF_ERR_USER = (1 >> 2),
-  PF_ERR_RESERVED_WRITE = (1 >> 3),
-  PF_ERR_INSTRUCTION_FETCH = (1 >> 4),
-  PF_ERR_PROTECTION_KEY = (1 >> 5),
+  PF_ERR_PRESENT = (1 << 0),
+  PF_ERR_WRITE = (1 << 1),
+  PF_ERR_USER = (1 << 2),
+  PF_ERR_RESERVED_WRITE = (1 << 3),
+  PF_ERR_INSTRUCTION_FETCH = (1 << 4),
+  PF_ERR_PROTECTION_KEY = (1 << 5),
 };
 
 void pf_handle(trap_frame_t *regs) {

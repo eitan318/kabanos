@@ -164,7 +164,7 @@ long sys_execve(const char *pathname, char *const argv[], char *const envp[]) {
   vmspace_t *new_vm = vmspace_create();
   uintptr_t entry = 0;
   if (exec_load_elf(new_vm, kpath, current->process->cwd, &entry) < 0) {
-    kdebugf("Couldnt load: %s");
+    kdebugf("Couldnt load: %s", kpath);
     vmspace_destroy(new_vm);
     return -ENOENT;
   }

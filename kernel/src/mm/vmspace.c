@@ -30,7 +30,8 @@ void kernel_vmspace_create(vmspace_t *vmspace, range_t total_memory_range) {
   // Map to HIGHER HALF ONLY
   hal_vm_map_range(vmspace->arch, total_memory_range.start,
                    total_memory_range.start + KERNEL_BASE,
-                   total_memory_range.end, PAGE_READWRITE);
+                   total_memory_range.end - total_memory_range.start,
+                   PAGE_READWRITE);
 
   // Map VGA buffer BEFORE switching
   hal_vm_map(vmspace->arch, VGA_SCREEN_BUF, VGA_SCREEN_BUF_PHYS,
@@ -157,7 +158,6 @@ bool vmspace_map_stack(vmspace_t *vm, uint32_t stack_top, size_t size) {
 
   vmspace_add_vma(vm, stack_vma);
 
-  // Allocate eagerly; returning true instead would defer to demand paging
   uint32_t flags = PAGE_PRESENT | PAGE_READWRITE | PAGE_USER;
   return va_alloc_region(vm->arch, stack_start, size, flags);
 }

@@ -120,3 +120,71 @@ STACK BACKTRACE:
 (gdb) x $esp
 0x8ec8: 0x0000004f
 (gdb)
+
+
+
+
+
+  virtual addresses on every command, and a stale-page-directory bug that turns the first 4MB-boundary crossing into a
+  panic.
+
+  The crash: stale kernel PDEs in process page directories
+
+  The math on the fault address gives it away: KERNEL_HEAP_START = KERNEL_BASE + MAX_PHYSICAL_MEMORY = 0xE0000000, and
+  the fault is at 0xE0400000 — the heap start plus exactly 4MB, i.e. the first page-table boundary.
+
+  The chain:
+
+  1. Each process page directory is created by hal_vm_arch_clone_mapping (hal_vmm.c:418), which is a one-time memcpy of
+  the whole PD — including the kernel's PDEs as they existed at that moment.
+  2. When the kernel heap grows past 4MB, heap_page_alloc → hal_vm_map(kernel_arch_vm, ...) → get_or_create_page_table
+  allocates a brand-new page table and writes its PDE only into the kernel's PD (hal_vmm.c:130). Nobody tells the
+  already-cloned process PDs.
+  3. Your fault happened during a syscall, so cr3 was the process's PD (0xa45000). The kernel's memcpy wrote to the
+  freshly-allocated heap page at 0xE0400000, the process PD has no PDE for that 4MB slot → page fault (err_code 0x2 =
+  supervisor write to non-present — matches).
+  4. pf_handle (page_fault_handler.c:33-38) only searches the current process's vmspace for a VMA. Kernel heap
+  addresses aren't in any process VMA → "No VMA at 0xe0400000" → panic.
+
+  It never happened below 0xE0400000 because the heap's first page table was created at boot, before any process
+  existed, so every clone inherited it.
+
+  The "budget": heap VAs are never reused
+
+  heap_page_alloc (kmalloc.c:45-70) is a pure bump allocator: next_heap_addr only ever increases. kfree unmaps pages,
+  but the virtual address is gone forever — nothing ever recycles it. Every command spawns processes and does large
+  kmallocs (ELF buffers etc.), so each command permanently consumes heap VA even though the memory is freed correctly.
+  ~12 ls runs ≈ 4MB means each command burns ~340KB of address space. That's your dwindling budget, and crossing 4MB
+  detonates bug #1.
+
+  Bonus bugs I hit while reading (not today's crash, but real)
+
+  - kfree of a large (>2048B) allocation frees one page only — it has no record of how many pages the allocation had
+  (kmalloc.c:299-301), so multi-page allocations leak physical frames. Related TODO at kmalloc.c:191. Also,
+  slab->object_size read from a large-allocation page is garbage — the "cache miss" detection works by luck.
+  - page_fault_handler.c:21-26: the pf_errors enum uses 1 >> n instead of 1 << n, so PF_ERR_WRITE, PF_ERR_USER, etc.
+  are all 0 — every regs->error & PF_ERR_WRITE check is dead code. PF_ERR_PRESENT works only because 1 >> 0 == 1.
+
+  Fix directions — worth deciding deliberately
+
+  For the crash, the two standard designs are:
+
+  - A. Sync-on-fault (Linux-style): in pf_handle, if addr >= KERNEL_BASE, copy the missing PDE from the kernel PD into
+  the current PD and return. No wasted memory, but it relies on the fault handler running — if the unmapped thing were
+  ever a kernel stack, you'd double-fault instead.
+  - B. Preallocate all kernel-space page tables at boot: create all 256 PTs for the kernel's 1GB half once, so kernel
+  PDEs never change after boot and every clone is complete forever. Costs 1MB of frames, kills the entire bug class
+  deterministically (including the same latent bug for the process-kernel-stack region at 0xF1..., which your ebp shows
+  is in play).
+
+  I'd lean B for robustness and simplicity, with the VA-reuse problem in kmalloc as a separate follow-up (that one
+  needs a real design: a free list of VA ranges, and large-allocation size tracking so kfree works).
+
+  Before I write anything — which approach would you take, and do you see a reason the 1MB prealloc cost matters on
+  your target? Also, since this touches your allocator design: how were you planning for kfree to learn a large
+  allocation's page count? Worth having your own answer to that before I propose one.
+
+✻ Cogitated for 2m 45s
+                                                                                                      ● high · /effort
+───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+❯ k

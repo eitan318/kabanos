@@ -77,6 +77,13 @@ static void kmain_init_memory(KernelBootInfo *boot_info) {
   kernel_vmspace_create(g_kernel_vmspace, total_range);
   vmspace_switch(g_kernel_vmspace);
 
+  // Every kernel PDE must exist before the first process PD is cloned, so
+  // clones can never fall out of sync with the kernel's page directory.
+  // Must run after the switch above: creating a page table zeroes it
+  // through the physical-memory mapping, and the bootstrap page tables
+  // (active until the switch) only cover the kernel image.
+  hal_vm_prealloc_kernel_tables(g_kernel_vmspace->arch);
+
   kmalloc_init();
 }
 
