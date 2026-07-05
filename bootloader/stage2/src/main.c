@@ -1,6 +1,7 @@
 /**
  * @file main.c
- * @brief Stage2 entry: loads boot.cfg, kernel and modules, builds Multiboot2 info and jumps to the kernel.
+ * @brief Stage2 entry: loads boot.cfg, kernel and modules, builds Multiboot2
+ * info and jumps to the kernel.
  */
 #include "bcd.h"
 #include "boot/bootparams.h"
@@ -192,7 +193,7 @@ void __attribute__((cdecl)) start(uint32_t boot_drive) {
     halt();
   }
 
-  vbe_init();
+  // vbe_init();
 
   debugf("Kernel loaded successfully, jumping...\n");
 

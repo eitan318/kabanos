@@ -7,6 +7,7 @@
 #include "klib/stddef.h"
 #include "klib/stdint.h"
 #include "mm/memdefs.h"
+#include <stdint.h>
 
 // Multiboot header constants
 typedef enum {
@@ -37,12 +38,12 @@ struct {
   uint32_t magic;
   uint32_t flags;
   uint32_t checksum;
-} __attribute__((section(".multiboot.data"), aligned(4)))
-multiboot_header = {MULTIBOOT_MAGIC, FLAGS, CHECKSUM};
+} __attribute__((section(".multiboot.data"), aligned(4))) multiboot_header = {
+    MULTIBOOT_MAGIC, FLAGS, CHECKSUM};
 
 // Bootstrap stack in .bootstrap_stack section (nobits/bss)
-__attribute__((section(".bootstrap_stack"), aligned(16)))
-uint8_t stack_bottom[BOOT_STACK_SIZE];
+__attribute__((section(".bootstrap_stack"),
+               aligned(16))) uint8_t stack_bottom[BOOT_STACK_SIZE];
 
 // Preallocated pages for paging in .bss section
 __attribute__((section(".bss"),
@@ -55,16 +56,14 @@ uintptr_t stack_top = (uintptr_t)stack_bottom + BOOT_STACK_SIZE;
 __attribute__((section(".multiboot.text"))) void bringup(uint32_t magic,
                                                          uint32_t mb_info) {
 
-  __asm__ volatile("mov %0, %%esp"
-                   :
-                   : "r"(stack_bottom + BOOT_STACK_SIZE)
-                   : "memory");
-
   // Zero bss
   extern uint8_t _bss_start[], _bss_end[];
-  volatile uint8_t *p = _bss_start;
-  while (p < _bss_end)
-    *p++ = 0;
+  volatile uint8_t *bss_ptr_phys =
+      (uint8_t *)((uintptr_t)_bss_start - KERNEL_BASE);
+  volatile uint8_t *bss_end_phys =
+      (uint8_t *)((uintptr_t)_bss_end - KERNEL_BASE);
+  while (bss_ptr_phys < bss_end_phys)
+    *bss_ptr_phys++ = 0;
 
   uintptr_t *boot_pt_phys = (uintptr_t *)((uintptr_t)boot_pt - KERNEL_BASE);
   uintptr_t *boot_pd_phys = (uintptr_t *)((uintptr_t)boot_pd - KERNEL_BASE);
@@ -103,7 +102,13 @@ __attribute__((section(".multiboot.text"))) void bringup(uint32_t magic,
                    :
                    : "memory");
 
-  __asm__ volatile("jmp higher_half\n");
+  // Paging is on: switch off the identity-mapped physical stack onto the
+  // virtual one in a single block so no stack access can slip in between.
+  __asm__ volatile("mov %0, %%esp\n"
+                   "jmp higher_half\n"
+                   :
+                   : "r"(stack_bottom + BOOT_STACK_SIZE)
+                   : "memory");
 }
 
 void higher_half(void) {
